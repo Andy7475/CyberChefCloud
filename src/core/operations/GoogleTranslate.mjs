@@ -6,6 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
+import { GCP_AUTH_ARGS, applyGCPAuth } from "../lib/GoogleCloud.mjs";
 
 /**
  * Google Translate operation
@@ -41,22 +42,7 @@ class GoogleTranslate extends Operation {
                 "type": "string",
                 "value": "es"
             },
-            {
-                "name": "Auth Type",
-                "type": "option",
-                "value": ["API Key", "OAuth Token"]
-            },
-            {
-                "name": "GCP Auth String",
-                "type": "toggleString",
-                "value": "",
-                "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"]
-            },
-            {
-                "name": "Quota Project (ADC only)",
-                "type": "string",
-                "value": ""
-            }
+            ...GCP_AUTH_ARGS
         ];
     }
 
@@ -67,23 +53,14 @@ class GoogleTranslate extends Operation {
      */
     async run(input, args) {
         const [sourceLanguage, targetLanguage, authType, authStringObj, quotaProject] = args;
-        const authString = typeof authStringObj === "string" ? authStringObj : (authStringObj.string || "");
 
         if (input.length === 0) return "";
-        if (!authString) throw new OperationError("Error: Please provide a valid GCP Auth String (API Key or OAuth Token).");
 
         let url = "https://translation.googleapis.com/language/translate/v2";
-        const headers = new Headers();
+        let headers = new Headers();
         headers.set("Content-Type", "application/json; charset=utf-8");
 
-        if (authType === "API Key") {
-            url += `?key=${encodeURIComponent(authString)}`;
-        } else if (authType === "OAuth Token") {
-            headers.set("Authorization", `Bearer ${authString}`);
-            if (quotaProject) {
-                headers.set("x-goog-user-project", quotaProject);
-            }
-        }
+        ({ url, headers } = applyGCPAuth(url, headers, authType, authStringObj, quotaProject));
 
         const body = JSON.stringify({
             q: input,
