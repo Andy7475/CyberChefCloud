@@ -59,7 +59,7 @@ class GoogleTranslate extends Operation {
      * @param {Object[]} args
      * @returns {string}
      */
-    run(input, args) {
+    async run(input, args) {
         const [sourceLanguage, targetLanguage, authType, authString] = args;
 
         if (input.length === 0) return "";
@@ -90,29 +90,31 @@ class GoogleTranslate extends Operation {
             cache: "no-cache",
         };
 
-        return fetch(url, config)
-            .then(r => {
-                if (!r.ok) {
-                    return r.json().then(err => {
-                        let msg = err?.error?.message || r.statusText;
-                        throw new OperationError(`Google Translation API Error (${r.status}): ${msg}`);
-                    }).catch(() => {
-                        throw new OperationError(`Google Translation API Error: ${r.status} ${r.statusText}`);
-                    });
-                }
-                return r.json();
-            })
-            .then(data => {
-                if (data && data.data && data.data.translations && data.data.translations.length > 0) {
-                    return data.data.translations[0].translatedText;
-                }
-                throw new OperationError("Error: Unexpected response format from Google Translation API.");
-            })
-            .catch(e => {
-                if (e instanceof OperationError) throw e;
-                throw new OperationError(e.toString() +
-                    "\n\nThis error could be caused by a network issue or invalid authentication.");
-            });
+        try {
+            const response = await fetch(url, config);
+            let responseData;
+
+            try {
+                responseData = await response.json();
+            } catch (err) {
+                throw new OperationError("Error: Failed to parse response from Google Translation API.");
+            }
+
+            if (!response.ok) {
+                const msg = responseData?.error?.message || response.statusText;
+                throw new OperationError(`Google Translation API Error (${response.status}): ${msg}`);
+            }
+
+            if (responseData && responseData.data && responseData.data.translations && responseData.data.translations.length > 0) {
+                return responseData.data.translations[0].translatedText;
+            }
+
+            throw new OperationError("Error: Unexpected response format from Google Translation API.");
+        } catch (e) {
+            if (e.name === "OperationError") throw e;
+            throw new OperationError(e.message || e.toString() +
+                "\n\nThis error could be caused by a network issue or invalid authentication.");
+        }
     }
 
 }

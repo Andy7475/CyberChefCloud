@@ -4,7 +4,7 @@
  * @license Apache-2.0
  */
 
-import OperationConfig from "./config/OperationConfig.json" assert {type: "json"};
+import OperationConfig from "./config/OperationConfig.json" with {type: "json"};
 import OperationError from "./errors/OperationError.mjs";
 import Operation from "./Operation.mjs";
 import DishError from "./errors/DishError.mjs";
@@ -17,7 +17,7 @@ let modules = null;
 /**
  * The Recipe controls a list of Operations and the Dish they operate on.
  */
-class Recipe  {
+class Recipe {
 
     /**
      * Recipe constructor
@@ -176,7 +176,7 @@ class Recipe  {
      * @returns {number}
      *     - The final progress through the recipe
      */
-    async execute(dish, startFrom=0, forkState={}) {
+    async execute(dish, startFrom = 0, forkState = {}) {
         let op, input, output,
             numJumps = 0,
             numRegisters = forkState.numRegisters || 0;
@@ -204,19 +204,19 @@ class Recipe  {
                 log.debug(`Executing operation '${op.name}'`);
 
                 if (isWorkerEnvironment()) {
-                    self.sendStatusMessage(`Baking... (${i+1}/${this.opList.length})`);
+                    self.sendStatusMessage(`Baking... (${i + 1}/${this.opList.length})`);
                     self.sendProgressMessage(i + 1, this.opList.length);
                 }
 
                 if (op.flowControl) {
                     // Package up the current state
                     let state = {
-                        "progress":     i,
-                        "dish":         dish,
-                        "opList":       this.opList,
-                        "numJumps":     numJumps,
+                        "progress": i,
+                        "dish": dish,
+                        "opList": this.opList,
+                        "numJumps": numJumps,
                         "numRegisters": numRegisters,
-                        "forkOffset":   forkState.forkOffset || 0
+                        "forkOffset": forkState.forkOffset || 0
                     };
 
                     state = await op.run(state);
@@ -339,7 +339,7 @@ class Recipe  {
      */
     lastOpPresented(progress) {
         if (progress < 1) return false;
-        return this.opList[progress-1].presentType !== this.opList[progress-1].outputType;
+        return this.opList[progress - 1].presentType !== this.opList[progress - 1].outputType;
     }
 
 }
