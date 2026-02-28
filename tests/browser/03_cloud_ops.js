@@ -28,7 +28,8 @@ module.exports = {
             "en",
             "es",
             "API Key",
-            { option: "UTF8", string: "" }
+            { option: "UTF8", string: "" },
+            ""
         ]);
 
         browser.waitForElementNotVisible("#snackbar-container", 6000);
@@ -38,6 +39,37 @@ module.exports = {
             return window.app.manager.output.outputEditorView.state.doc.toString();
         }, [], function ({ value }) {
             browser.assert.ok(value.includes("Please provide a valid GCP Auth String"));
+        });
+    },
+
+    "Google Translate: Successful OAuth Token Translation": function (browser) {
+        let testToken = process.env.CYBERCHEF_GCP_TEST_TOKEN;
+
+        if (!testToken || testToken === "YOUR_OAUTH_TOKEN_HERE") {
+            try {
+                testToken = require('child_process').execSync('gcloud auth print-access-token', { stdio: 'pipe', encoding: 'utf-8' }).trim();
+            } catch (e) {
+                console.log("No valid CYBERCHEF_GCP_TEST_TOKEN found and gcloud failed. Skipping live API test.");
+                return;
+            }
+        }
+
+        browserUtils.loadRecipe(browser, "Google Translate", "Hello", [
+            "en",
+            "es",
+            "OAuth Token",
+            { option: "UTF8", string: testToken },
+            "cyberchefcloud"
+        ]);
+
+        browser.waitForElementNotVisible("#snackbar-container", 6000);
+        browserUtils.bake(browser);
+        browser.pause(2000);
+        browser.saveScreenshot("tests/browser/output/success_oauth_debug.png");
+        browser.execute(function () {
+            return window.app.manager.output.outputEditorView.state.doc.toString();
+        }, [], function ({ value }) {
+            browser.assert.equal(value, "Hola");
         });
     },
 
@@ -53,13 +85,14 @@ module.exports = {
             "en",
             "es",
             "API Key",
-            { option: "UTF8", string: testKey }
+            { option: "UTF8", string: testKey },
+            ""
         ]);
 
         browser.waitForElementNotVisible("#snackbar-container", 6000);
         browserUtils.bake(browser);
         browser.pause(2000);
-        browser.saveScreenshot("tests/browser/output/success_debug.png");
+        browser.saveScreenshot("tests/browser/output/success_apikey_debug.png");
         browser.execute(function () {
             return window.app.manager.output.outputEditorView.state.doc.toString();
         }, [], function ({ value }) {

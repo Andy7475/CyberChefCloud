@@ -51,6 +51,11 @@ class GoogleTranslate extends Operation {
                 "type": "toggleString",
                 "value": "",
                 "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"]
+            },
+            {
+                "name": "Quota Project (ADC only)",
+                "type": "string",
+                "value": ""
             }
         ];
     }
@@ -61,7 +66,7 @@ class GoogleTranslate extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [sourceLanguage, targetLanguage, authType, authStringObj] = args;
+        const [sourceLanguage, targetLanguage, authType, authStringObj, quotaProject] = args;
         const authString = typeof authStringObj === "string" ? authStringObj : (authStringObj.string || "");
 
         if (input.length === 0) return "";
@@ -75,6 +80,9 @@ class GoogleTranslate extends Operation {
             url += `?key=${encodeURIComponent(authString)}`;
         } else if (authType === "OAuth Token") {
             headers.set("Authorization", `Bearer ${authString}`);
+            if (quotaProject) {
+                headers.set("x-goog-user-project", quotaProject);
+            }
         }
 
         const body = JSON.stringify({
