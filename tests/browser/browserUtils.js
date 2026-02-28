@@ -28,7 +28,7 @@ function clear(browser) {
  * @param {boolean} [type=true] - Whether to type the characters in by using sendKeys,
  *      or to set the value of the editor directly (useful for special characters)
  */
-function setInput(browser, input, type=true) {
+function setInput(browser, input, type = true) {
     clear(browser);
     if (type) {
         browser
@@ -105,8 +105,8 @@ function setEOLSeq(browser, io, eol) {
  * @param {Browser} browser - Nightwatch client
  */
 function copy(browser) {
-    browser.perform(function() {
-        const actions = this.actions({async: true});
+    browser.perform(function () {
+        const actions = this.actions({ async: true });
 
         // Ctrl + Ins used as this works on Windows, Linux and Mac
         return actions
@@ -126,8 +126,8 @@ function copy(browser) {
 function paste(browser, el) {
     browser
         .click(el)
-        .perform(function() {
-            const actions = this.actions({async: true});
+        .perform(function () {
+            const actions = this.actions({ async: true });
 
             // Shift + Ins used as this works on Windows, Linux and Mac
             return actions
@@ -150,7 +150,7 @@ function paste(browser, el) {
 function loadRecipe(browser, opName, input, args) {
     let recipeConfig;
 
-    if (typeof(opName) === "string") {
+    if (typeof (opName) === "string") {
         recipeConfig = JSON.stringify([{
             "op": opName,
             "args": args
@@ -165,7 +165,7 @@ function loadRecipe(browser, opName, input, args) {
             })
         );
     } else {
-        throw new Error("Invalid operation type. Must be string or array of strings. Received: " + typeof(opName));
+        throw new Error("Invalid operation type. Must be string or array of strings. Received: " + typeof (opName));
     }
 
     setInput(browser, input, false);
@@ -182,19 +182,20 @@ function loadRecipe(browser, opName, input, args) {
  * @param {boolean} [waitNotNull=false] - Wait for the output to not be empty before testing the value
  * @param {number} [waitWindow=1000] - The number of milliseconds to wait for the output to be correct
  */
-function expectOutput(browser, expected, waitNotNull=false, waitWindow=1000) {
+function expectOutput(browser, expected, waitNotNull = false, waitWindow = 1000) {
     if (waitNotNull && expected !== "") {
-        browser.waitUntil(async function() {
-            const output = await this.execute(function() {
+        browser.waitUntil(async function () {
+            const result = await this.execute(function () {
                 return window.app.manager.output.outputEditorView.state.doc.toString();
             });
-            return output.length;
+            const output = result && result.value !== undefined ? result.value : result;
+            return typeof output === "string" && output.length > 0;
         }, waitWindow);
     }
 
     browser.execute(expected => {
         return window.app.manager.output.outputEditorView.state.doc.toString();
-    }, [expected], function({value}) {
+    }, [expected], function ({ value }) {
         if (expected instanceof RegExp) {
             browser.expect(value).match(expected);
         } else {
@@ -212,7 +213,7 @@ function expectOutput(browser, expected, waitNotNull=false, waitWindow=1000) {
 function expectInput(browser, expected) {
     browser.execute(expected => {
         return window.app.manager.input.inputEditorView.state.doc.toString();
-    }, [expected], function({value}) {
+    }, [expected], function ({ value }) {
         if (expected instanceof RegExp) {
             browser.expect(value).match(expected);
         } else {

@@ -48,8 +48,9 @@ class GoogleTranslate extends Operation {
             },
             {
                 "name": "GCP Auth String",
-                "type": "string",
-                "value": ""
+                "type": "toggleString",
+                "value": "",
+                "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"]
             }
         ];
     }
@@ -60,7 +61,8 @@ class GoogleTranslate extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [sourceLanguage, targetLanguage, authType, authString] = args;
+        const [sourceLanguage, targetLanguage, authType, authStringObj] = args;
+        const authString = typeof authStringObj === "string" ? authStringObj : (authStringObj.string || "");
 
         if (input.length === 0) return "";
         if (!authString) throw new OperationError("Error: Please provide a valid GCP Auth String (API Key or OAuth Token).");

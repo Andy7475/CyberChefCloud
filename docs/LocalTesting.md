@@ -53,3 +53,35 @@ To ensure the CyberChef engine builds cleanly and passes its internal checks wit
 ```bash
 npm run test
 ```
+
+## End-to-End Browser Testing (Nightwatch)
+
+CyberChef is equipped with Nightwatch for end-to-end testing of features running in a real Chromium browser. This is extremely useful for Cloud Operations that cannot be easily tested within the headless NodeJS environment.
+
+### Setting up API Keys
+
+To prevent live API keys from being leaked in CI/CD, the Cloud API browser tests rely on local environment variables:
+1. Copy the `.env.template` file to `.env`:
+   ```bash
+   cp .env.template .env
+   ```
+2. Open `.env` and replace `YOUR_API_KEY_HERE` with your actual Google Cloud API key for the `CYBERCHEF_GCP_TEST_KEY` variable. Ensure the API Key restrictions at console.cloud.google.com are set up to accept requests from `http://localhost:8080/*`.
+
+### Running Nightwatch Tests
+
+Once the `.env` file is prepared, you can trigger the entire browser suite:
+```bash
+npm run test:browser
+```
+
+Or just the Cloud Operations specifically:
+```bash
+npx nightwatch tests/browser/03_cloud_ops.js
+```
+*Note: Make sure your local CyberChef dev server (`npm run start`) is currently running on `localhost:8080`, as Nightwatch tests require a live application target!*
+
+#### Troubleshooting (WSL/Linux Environments)
+If your `nightwatch` tests immediately crash with ChromeDriver status `127` or `1`, your system may be missing Chromium's required graphical libraries. You can view exactly what is missing in `tests/browser/output/*_chromedriver.log`. You will typically need to install these packages on Ubuntu/Debian:
+```bash
+sudo apt update && sudo apt install -y libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libpangocairo-1.0-0 libasound2
+```
