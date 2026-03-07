@@ -24,9 +24,9 @@ async function listGCSBucket(bucket, prefix) {
     if (paramStr) url += `?${paramStr}`;
 
     const headers = new Headers();
-    const authed = applyGCPAuth(url, headers);
+    ({ url } = applyGCPAuth(url, headers));
 
-    const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
+    const response = await fetch(url, { method: "GET", headers, mode: "cors", cache: "no-cache" });
     let data;
     try {
         data = await response.json();
@@ -43,7 +43,7 @@ async function listGCSBucket(bucket, prefix) {
         .filter(item => !item.name.endsWith("/")) // exclude folder placeholder objects
         .map(item => ({
             name: item.name,
-            gs_uri: `gs://${bucket}/${item.name}`,
+            gsUri: `gs://${bucket}/${item.name}`,
             size: item.size,
             contentType: item.contentType
         }));
@@ -100,7 +100,7 @@ class GCloudListBucket extends Operation {
         if (!input || !input.trim()) throw new OperationError("Please provide a GCS bucket name.");
 
         // Normalise: strip gs:// if present, strip trailing slash
-        let bucket = input.trim().replace(/^gs:\/\//, "").split("/")[0];
+        const bucket = input.trim().replace(/^gs:\/\//, "").split("/")[0];
 
         try {
             const items = await listGCSBucket(bucket, prefix);
@@ -110,13 +110,19 @@ class GCloudListBucket extends Operation {
             }
 
             switch (outputFormat) {
+                case "GCS URIs (gs://...)":
+                    return items.map(i => `gs://${bucket}/${i.name}`).join("\n");
                 case "Filenames only":
                     return items.map(i => i.name.split("/").pop()).join("\n");
                 case "JSON":
-                    return JSON.stringify(items, null, 2);
-                case "GCS URIs (one per line)":
-                default:
-                    return items.map(i => i.gs_uri).join("\n");
+                    return JSON.stringify(items.map(i => ({
+                        name: i.name,
+                        size: i.size,
+                        updated: i.updated,
+                        gsUri: `gs://${bucket}/${i.name}`
+                    })), null, 2);
+                default: // "GCS URIs (one per line)"
+                    return items.map(i => i.gsUri).join("\n");
             }
         } catch (e) {
             if (e.name === "OperationError") throw e;

@@ -19,7 +19,7 @@ async function readGCSFile(gcsUri) {
     if (!match) throw new OperationError(`GCloud Read File: Invalid GCS URI: ${gcsUri}`);
     const [, bucket, object] = match;
     const encodedObject = encodeURIComponent(object).replace(/%2F/g, "%2F");
-    let url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodedObject}?alt=media`;
+    const url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodedObject}?alt=media`;
 
     const headers = new Headers();
     const authed = applyGCPAuth(url, headers);
@@ -27,7 +27,12 @@ async function readGCSFile(gcsUri) {
     const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
     if (!response.ok) {
         let msg = response.statusText;
-        try { const d = await response.json(); msg = d?.error?.message || msg; } catch (e) { /* ignore */ }
+        try {
+            const d = await response.json();
+            msg = d?.error?.message || msg;
+        } catch (e) {
+            /* ignore */
+        }
         throw new OperationError(`GCloud Read File: GCS API Error (${response.status}): ${msg}`);
     }
     return await response.arrayBuffer();

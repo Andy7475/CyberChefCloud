@@ -7,9 +7,9 @@
  */
 
 /** @function
- * Clears the recipe and input
+ * Clears the recipe and inpu
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  */
 function clear(browser) {
     browser
@@ -23,7 +23,7 @@ function clear(browser) {
 /** @function
  * Sets the input to the desired string
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string} input - The text to populate the input with
  * @param {boolean} [type=true] - Whether to type the characters in by using sendKeys,
  *      or to set the value of the editor directly (useful for special characters)
@@ -47,7 +47,7 @@ function setInput(browser, input, type = true) {
 /** @function
  * Triggers a bake
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  */
 function bake(browser) {
     browser
@@ -62,11 +62,11 @@ function bake(browser) {
 }
 
 /** @function
- * Sets the character encoding in the input or output
+ * Sets the character encoding in the input or outpu
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string} io - Either "input" or "output"
- * @param {string} enc - The encoding to be set
+ * @param {string} enc - The encoding to be se
  */
 function setChrEnc(browser, io, enc) {
     io = `#${io}-text`;
@@ -81,11 +81,11 @@ function setChrEnc(browser, io, enc) {
 }
 
 /** @function
- * Sets the end of line sequence in the input or output
+ * Sets the end of line sequence in the input or outpu
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string} io - Either "input" or "output"
- * @param {string} eol - The sequence to set
+ * @param {string} eol - The sequence to se
  */
 function setEOLSeq(browser, io, eol) {
     io = `#${io}-text`;
@@ -102,7 +102,7 @@ function setEOLSeq(browser, io, eol) {
 /** @function
  * Copies whatever is currently selected
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  */
 function copy(browser) {
     browser.perform(function () {
@@ -118,9 +118,9 @@ function copy(browser) {
 }
 
 /** @function
- * Pastes into the target element
+ * Pastes into the target elemen
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string} el - Target element selector
  */
 function paste(browser, el) {
@@ -140,11 +140,11 @@ function paste(browser, el) {
 }
 
 /** @function
- * Loads a recipe and input
+ * Loads a recipe and inpu
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string|Array<string>} opName - name of operation to be loaded, array for multiple ops
- * @param {string} input - input text for test
+ * @param {string} input - input text for tes
  * @param {Array<string>|Array<Array<string>>} args - arguments, nested if multiple ops
  */
 function loadRecipe(browser, opName, input, args) {
@@ -177,10 +177,10 @@ function loadRecipe(browser, opName, input, args) {
 /** @function
  * Tests whether the output matches a given value
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string|RegExp} expected - The expected output value
  * @param {boolean} [waitNotNull=false] - Wait for the output to not be empty before testing the value
- * @param {number} [waitWindow=1000] - The number of milliseconds to wait for the output to be correct
+ * @param {number} [waitWindow=1000] - The number of milliseconds to wait for the output to be correc
  */
 function expectOutput(browser, expected, waitNotNull = false, waitWindow = 1000) {
     if (waitNotNull && expected !== "") {
@@ -207,7 +207,7 @@ function expectOutput(browser, expected, waitNotNull = false, waitWindow = 1000)
 /** @function
  * Tests whether the input matches a given value
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string|RegExp} expected - The expected input value
  */
 function expectInput(browser, expected) {
@@ -223,9 +223,9 @@ function expectInput(browser, expected) {
 }
 
 /** @function
- * Uploads a file using the #open-file input
+ * Uploads a file using the #open-file inpu
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string} filename - A path to a file in the samples directory
  */
 function uploadFile(browser, filename) {
@@ -247,9 +247,9 @@ function uploadFile(browser, filename) {
 }
 
 /** @function
- * Uploads a folder using the #open-folder input
+ * Uploads a folder using the #open-folder inpu
  *
- * @param {Browser} browser - Nightwatch client
+ * @param {Browser} browser - Nightwatch clien
  * @param {string} foldername - A path to a folder in the samples directory
  */
 function uploadFolder(browser, foldername) {
@@ -273,7 +273,7 @@ function uploadFolder(browser, foldername) {
 
 /** @function
  * Helper function to retrieve a Google Cloud Personal Access Token (PAT) for testing purposes.
- * First checks for CYBERCHEF_GCP_TEST_TOKEN environment variable. If not found or empty, 
+ * First checks for CYBERCHEF_GCP_TEST_TOKEN environment variable. If not found or empty,
  * attempts to dynamically generate one using `gcloud auth print-access-token`.
  *
  * @returns {string|null} The token string, or null if generation fails.

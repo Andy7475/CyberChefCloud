@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { set_gcp_credentials, get_gcp_credentials } from "../lib/GoogleCloud.mjs";
+import { setGcpCredentials, getGcpCredentials } from "../lib/GoogleCloud.mjs";
 import { isWorkerEnvironment } from "../Utils.mjs";
 
 /**
@@ -87,23 +87,23 @@ class AuthenticateGoogleCloud extends Operation {
 
         // If not using the Web App PKCE Flow, just cache the PAT/API Key and return.
         if (authType !== "OAuth 2.0 (Web Application: PKCE)") {
-            set_gcp_credentials({
+            setGcpCredentials({
                 authType: authType,
                 authString: credString,
                 quotaProject: quotaProject
             });
             log(`Successfully configured ${authType}.`);
-            return logs ? (logs + "\n" + input) : input;
+            return outputLogs && logs ? (input + "\n" + logs) : input;
         }
 
         // --- OAuth 2.0 Web Application (PKCE) Flow ---
 
         // 1. Check if we already have a valid token for this Client ID in the session
-        const existingCreds = get_gcp_credentials();
+        const existingCreds = getGcpCredentials();
         if (existingCreds && existingCreds.authType === "OAuth 2.0 (Web Application: PKCE)" && existingCreds.clientId === credString) {
             if (existingCreds.expiresAt > Date.now()) {
                 log("Reusing valid existing OAuth session token.");
-                return logs ? (logs + "\n" + input) : input;
+                return outputLogs && logs ? (input + "\n" + logs) : input;
             }
             log("Existing OAuth token expired. A new authorization is required.");
         }
@@ -148,18 +148,18 @@ class AuthenticateGoogleCloud extends Operation {
         });
 
         log("Authorization successful!");
-        log(`Access token retrieved. Expires in ${tokenData.expires_in} seconds.`);
+        log(`Access token retrieved. Expires in ${tokenData.expiresIn} seconds.`);
 
         // 3. Cache the credentials for downstream operations
-        set_gcp_credentials({
+        setGcpCredentials({
             authType: "OAuth 2.0 (Web Application: PKCE)",
             authString: tokenData.token,
             quotaProject: quotaProject,
             clientId: credString,
-            expiresAt: Date.now() + (tokenData.expires_in * 1000)
+            expiresAt: Date.now() + (tokenData.expiresIn * 1000)
         });
 
-        return logs ? (logs + "\n" + input) : input;
+        return outputLogs && logs ? (input + "\n" + logs) : input;
     }
 
 }

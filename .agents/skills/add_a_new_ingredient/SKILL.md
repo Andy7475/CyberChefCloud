@@ -40,8 +40,9 @@ To ensure CyberChef remains an effective pipelining/orchestration tool (e.g., pa
    - *Write to GCS*: Used when mutating media or producing large output files.
    
 2. **Output Directory (String)**: `gs://my-bucket/outputs/`
-   - **If populated**: Write the output file into this exact directory while preserving the original filename. Because CyberChef supports dynamic Registers, advanced users can input `$R0` here to dynamically route files based on a prior `Register` operation!
-   - **If blank (Default Behaviour)**: Write the output file to the *exact same directory* as the input file, but you **MUST** suffix the filename (before the extension) with a concise, hardcoded operation string (e.g., `_ccc_ocr`, `_ccc_redact`, `_ccc_speech`).
+   - **If blank (Default Behaviour)**: Write the output file to the *exact same directory* as the input file, but you **MUST** suffix the filename (before the extension) with a concise, hardcoded operation string (e.g., `_ccc_ocr`, `_ccc_redact`, `_ccc_stt`).
+
+**Note:** You **MUST** use the `generateGCSDestinationUri(inputUri, destDir, suffix, extensionOverride)` utility function exported from `src/core/lib/GoogleCloud.mjs` to systematically parse the URIs and generate the correct final destination according to these rules.
    
 ## 5. Returning GCS URIs to Output
 

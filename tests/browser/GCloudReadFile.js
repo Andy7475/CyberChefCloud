@@ -1,13 +1,13 @@
 /**
  * End-to-end tests for the GCloud Read File Operation via Nightwatch.
- * 
+ *
  * @author CyberChefCloud
  * @copyright Crown Copyright 2026
  * @license Apache-2.0
  */
 
 const browserUtils = require("./browserUtils.js");
-require('dotenv').config();
+require("dotenv").config();
 
 module.exports = {
 
@@ -20,7 +20,7 @@ module.exports = {
             .click("#auto-bake-label");
     },
 
-    "GCloud Read File: Successfully reads a public testing file": function (browser) {
+    "GCloud Read File: Retrieve simple text object": function (browser) {
         const testToken = browserUtils.getTestPAT();
         if (!testToken) {
             console.log("Skipping live API test: No PAT available.");

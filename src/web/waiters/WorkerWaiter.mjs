@@ -255,7 +255,9 @@ class WorkerWaiter {
             case "gcpAuthRequest":
                 log.debug("Initializing Google Identity Services for PKCE Auth...");
                 try {
+                    // eslint-disable-next-line no-undef
                     const client = google.accounts.oauth2.initTokenClient({
+                        // eslint-disable-next-line camelcase
                         client_id: r.data.clientId,
                         scope: "https://www.googleapis.com/auth/cloud-platform",
                         callback: (response) => {
@@ -271,7 +273,7 @@ class WorkerWaiter {
                                     action: "gcpAuthResponse",
                                     data: {
                                         token: response.access_token,
-                                        expires_in: response.expires_in
+                                        expiresIn: response.expires_in
                                     }
                                 });
                             }

@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri } from "../lib/GoogleCloud.mjs";
 
 /**
  * Writes text content to a GCS object.
@@ -18,7 +18,7 @@ import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
  */
 async function writeGCSFile(bucket, objectPath, content) {
     const encodedObject = encodeURIComponent(objectPath).replace(/%2F/g, "%2F");
-    let url = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodedObject}`;
+    const url = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodedObject}`;
 
     const headers = new Headers();
     headers.set("Content-Type", "text/plain; charset=utf-8");
@@ -33,7 +33,12 @@ async function writeGCSFile(bucket, objectPath, content) {
     });
     if (!response.ok) {
         let msg = response.statusText;
-        try { const d = await response.json(); msg = d?.error?.message || msg; } catch (e) { /* ignore */ }
+        try {
+            const d = await response.json();
+            msg = d?.error?.message || msg;
+        } catch (e) {
+            /* ignore */
+        }
         throw new OperationError(`GCloud Write File: GCS API Error (${response.status}): ${msg}`);
     }
     return `gs://${bucket}/${objectPath}`;
@@ -64,7 +69,9 @@ async function pollLongRunningOperation(operationName, pollUrl, maxMs = 30 * 60 
         const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
 
         let data;
-        try { data = await response.json(); } catch (e) {
+        try {
+            data = await response.json();
+        } catch (e) {
             throw new OperationError("GCloud: Failed to parse long-running operation response.");
         }
         if (!response.ok) {
@@ -110,7 +117,9 @@ class GCloudSpeechToText extends Operation {
             "ideal for batch processing with Fork — each fork branch writes its transcript and returns a URI, ",
             "which can be saved and used as input to a later recipe.",
             "<br><br>",
-            "Output path convention: <code>output/audio/{filename}/speech-to-text/text.txt</code>",
+            "<b>Output Directory:</b> If left blank, the transcript is written to the same directory as the input file ",
+            "but with a <code>_ccc_stt.txt</code> suffix to prevent overwriting. If you provide a <code>gs://</code> URI ",
+            "directory, it will write the file there preserving the original filename.",
         ].join("\n");
         this.infoURL = "https://cloud.google.com/speech-to-text/docs/reference/rest";
         this.inputType = "string";
@@ -138,9 +147,9 @@ class GCloudSpeechToText extends Operation {
                 "value": ["Return to CyberChef", "Write to GCS"]
             },
             {
-                "name": "Output GCS Bucket",
+                "name": "Output Directory (Optional)",
                 "type": "string",
-                "value": "cyber-chef-cloud-examples"
+                "value": ""
             },
             {
                 "name": "Max Poll Minutes",
@@ -157,7 +166,7 @@ class GCloudSpeechToText extends Operation {
      */
     async run(input, args) {
         const [
-            inputMode, languageCode, model, outputDest, outputBucket, maxPollMinutes
+            inputMode, languageCode, model, outputDest, outputDirectory, maxPollMinutes
         ] = args;
 
         const uri = input.trim();
@@ -177,14 +186,12 @@ class GCloudSpeechToText extends Operation {
         }
 
         if (outputDest === "Write to GCS") {
-            // Derive source filename from GCS URI (or use a default for raw audio)
-            const sourceFilename = inputMode === "GCS URI (gs://...)"
-                ? uri.split("/").pop()
-                : "raw_audio";
+            // Generate full destination GCS URI using the core utility
+            const virtualInputUri = inputMode === "GCS URI (gs://...)" ? uri : "gs://raw-audio-bucket/raw_audio.raw";
+            const dest = generateGCSDestinationUri(virtualInputUri, outputDirectory, "_ccc_stt", ".txt");
 
-            const objectPath = `output/audio/${sourceFilename}/speech-to-text/text.txt`;
-            const destUri = await writeGCSFile(outputBucket, objectPath, transcript);
-            return destUri;
+            await writeGCSFile(dest.bucket, dest.objectPath, transcript);
+            return dest.gcsUri;
         }
 
         return transcript;
@@ -200,7 +207,7 @@ class GCloudSpeechToText extends Operation {
      * @returns {Promise<string>}
      */
     async _transcribeGcsUri(gcsUri, languageCode, model, maxMs) {
-        let url = "https://speech.googleapis.com/v1/speech:longrunningrecognize";
+        const url = "https://speech.googleapis.com/v1/speech:longrunningrecognize";
         const headers = new Headers();
         headers.set("Content-Type", "application/json; charset=utf-8");
         const authed = applyGCPAuth(url, headers);
@@ -223,7 +230,9 @@ class GCloudSpeechToText extends Operation {
         });
 
         let responseData;
-        try { responseData = await response.json(); } catch (e) {
+        try {
+            responseData = await response.json();
+        } catch (e) {
             throw new OperationError("GCloud Speech to Text: Failed to parse API response.");
         }
         if (!response.ok) {
@@ -260,7 +269,7 @@ class GCloudSpeechToText extends Operation {
      * @returns {Promise<string>}
      */
     async _transcribeRawAudio(base64Audio, languageCode, model) {
-        let url = "https://speech.googleapis.com/v1/speech:recognize";
+        const url = "https://speech.googleapis.com/v1/speech:recognize";
         const headers = new Headers();
         headers.set("Content-Type", "application/json; charset=utf-8");
         const authed = applyGCPAuth(url, headers);
@@ -283,7 +292,9 @@ class GCloudSpeechToText extends Operation {
         });
 
         let responseData;
-        try { responseData = await response.json(); } catch (e) {
+        try {
+            responseData = await response.json();
+        } catch (e) {
             throw new OperationError("GCloud Speech to Text: Failed to parse API response.");
         }
         if (!response.ok) {
