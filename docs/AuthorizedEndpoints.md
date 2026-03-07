@@ -1,0 +1,14 @@
+# Authorized Google Cloud Endpoints
+
+This file lists the exact API endpoints and domains authorized by the Content Security Policy (CSP) in `src/web/html/index.html`. 
+
+When a new Google Cloud ingredient is added that connects to a new API service, its endpoint **MUST** be added to the `connect-src` directive of the CSP, and recorded here.
+
+## Core Authentication & GCS
+- `https://storage.googleapis.com` (Google Cloud Storage)
+- `https://accounts.google.com` (OAuth & Identity Services)
+- `https://oauth2.googleapis.com` (OAuth Tokens)
+
+## Specific Services
+- `https://speech.googleapis.com` (Speech-to-Text)
+- `https://translation.googleapis.com` (Translate)
