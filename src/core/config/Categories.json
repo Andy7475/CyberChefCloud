@@ -538,7 +538,9 @@
             "Hex Density chart",
             "Scatter chart",
             "Series chart",
-            "Heatmap chart"
+            "Heatmap chart",
+            "GCloud Vision Draw Bounding Boxes",
+            "GCloud Vision OCR"
         ]
     },
     {
@@ -548,6 +550,10 @@
             "GCloud List Bucket",
             "GCloud Read File",
             "GCloud Speech to Text",
+            "GCloud Vision Analyze",
+            "GCloud Vision Draw Bounding Boxes",
+            "GCloud Vision Label Image",
+            "GCloud Vision OCR",
             "Google Translate"
         ]
     },
