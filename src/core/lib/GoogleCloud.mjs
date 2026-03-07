@@ -13,7 +13,7 @@ globalThis.__gcpAuthStore = globalThis.__gcpAuthStore || null;
 
 /**
  * Retrieves the currently active GCP credentials.
- * @returns {Object|null} { authType, authString, quotaProject }
+ * @returns {Object|null} { authType, authString, quotaProject, defaultRegion }
  */
 export function getGcpCredentials() {
     if (globalThis.__gcpAuthStore) {
@@ -24,7 +24,7 @@ export function getGcpCredentials() {
 
 /**
  * Sets the active GCP credentials for the web worker session.
- * @param {Object} credObj { authType, authString, quotaProject }
+ * @param {Object} credObj { authType, authString, quotaProject, defaultRegion }
  */
 export function setGcpCredentials(credObj) {
     globalThis.__gcpAuthStore = credObj;

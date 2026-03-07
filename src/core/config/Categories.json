@@ -554,7 +554,8 @@
             "GCloud Vision Draw Bounding Boxes",
             "GCloud Vision Label Image",
             "GCloud Vision OCR",
-            "Google Translate"
+            "Google Translate",
+            "Prompt LLM"
         ]
     },
     {

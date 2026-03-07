@@ -175,6 +175,21 @@ function loadRecipe(browser, opName, input, args) {
 }
 
 /** @function
+ * Loads a recipe from a full config array and input
+ *
+ * @param {Browser} browser - Nightwatch client
+ * @param {Array<Object>} config - array of op config objects
+ * @param {string} input - input text for test
+ */
+function loadRecipeConfig(browser, config, input) {
+    const recipeConfig = JSON.stringify(config);
+    setInput(browser, input, false);
+    browser
+        .urlHash("recipe=" + recipeConfig)
+        .waitForElementPresent("#rec-list li.operation");
+}
+
+/** @function
  * Tests whether the output matches a given value
  *
  * @param {Browser} browser - Nightwatch clien
@@ -300,6 +315,7 @@ module.exports = {
     copy: copy,
     paste: paste,
     loadRecipe: loadRecipe,
+    loadRecipeConfig: loadRecipeConfig,
     expectOutput: expectOutput,
     expectInput: expectInput,
     uploadFile: uploadFile,

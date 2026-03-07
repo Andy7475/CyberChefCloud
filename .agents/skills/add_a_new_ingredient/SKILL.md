@@ -52,3 +52,13 @@ When "Write to GCS" is executed successfully, the ingredient **must** return the
 Input: `gs://source-bucket/images/scanned_doc.pdf`
 Blank Output Directory → Writes to: `gs://source-bucket/images/scanned_doc_ccc_ocr.pdf`
 CyberChef Output Box displays: `gs://source-bucket/images/scanned_doc_ccc_ocr.pdf`
+
+## 6. Error Handling & Verbose Output
+
+When developing cloud operations, catch API errors and throw standard `OperationError`s containing as much **verbose information as possible**. This includes:
+- HTTP Status Code
+- HTTP Status Text
+- The raw or parsed error text from the API response body
+- The specific endpoint URL that failed (if applicable and safe to log)
+
+CyberChef ingredients must bubble up these verbose errors so that users can effectively diagnose IAM permissions, missing APIs, or incorrect inputs directly in the UI output pane. Do not swallow errors or throw generic messages. Use mechanisms like `await response.text()` before attempting to parse JSON securely.

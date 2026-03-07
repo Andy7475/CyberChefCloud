@@ -5,6 +5,9 @@ description: How to test a new CyberChef ingredient (operation)
 
 When developing new ingredients for CyberChef Cloud—especially those interacting with Complex UIs or external Cloud APIs—automated verification using Nightwatch.js is critical.
 
+> [!IMPORTANT]
+> **Functional Testing Priority**: Before writing extensive automated Nightwatch.js test suites for a new ingredient, work with the user to test the ingredient functionally together in the browser. Only proceed to develop the automated test suite once the user has confirmed the ingredient is working as expected.
+
 ## 1. Headless Browser Environments
 Agents typically operate in headless environments (like Docker or WSL) that lack graphical display servers.
 - Always configure Webdrivers (like ChromeDriver) explicitly to run without a GUI.

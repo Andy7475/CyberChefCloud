@@ -57,6 +57,11 @@ class AuthenticateGoogleCloud extends Operation {
                 "value": ""
             },
             {
+                "name": "Default Region",
+                "type": "string",
+                "value": "us-central1"
+            },
+            {
                 "name": "Output Logs",
                 "type": "boolean",
                 "value": true
@@ -70,7 +75,7 @@ class AuthenticateGoogleCloud extends Operation {
      * @returns {ArrayBuffer}
      */
     async run(input, args) {
-        const [authType, credObj, quotaProject, outputLogs] = args;
+        const [authType, credObj, quotaProject, defaultRegion, outputLogs] = args;
         const credString = typeof credObj === "string" ? credObj : (credObj.string || "");
 
         if (!credString) {
@@ -92,7 +97,8 @@ class AuthenticateGoogleCloud extends Operation {
             setGcpCredentials({
                 authType: authType,
                 authString: credString,
-                quotaProject: quotaProject
+                quotaProject: quotaProject,
+                defaultRegion: defaultRegion
             });
             log(`Successfully configured ${authType}.`);
             if (outputLogs) this._authLogs = logs;
@@ -159,6 +165,7 @@ class AuthenticateGoogleCloud extends Operation {
             authType: "OAuth 2.0 (Web Application: PKCE)",
             authString: tokenData.token,
             quotaProject: quotaProject,
+            defaultRegion: defaultRegion,
             clientId: credString,
             expiresAt: Date.now() + (tokenData.expiresIn * 1000)
         });
