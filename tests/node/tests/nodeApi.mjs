@@ -16,7 +16,7 @@ import chef from "../../../src/node/index.mjs";
 import { OperationError, ExcludedOperationError } from "../../../src/core/errors/index.mjs";
 import NodeDish from "../../../src/node/NodeDish.mjs";
 
-import { toBase32, magic} from "../../../src/node/index.mjs";
+import { toBase32, magic } from "../../../src/node/index.mjs";
 import TestRegister from "../../lib/TestRegister.mjs";
 
 TestRegister.addApiTests([
@@ -101,7 +101,7 @@ TestRegister.addApiTests([
         const result = chef.fromBase32(chef.toBase32("something"));
         assert.equal(String(result), "something");
         // This kind of coercion uses toValue
-        assert.equal(""+result, "NaN");
+        assert.equal("" + result, "NaN");
     }),
 
     it("should coerce to a number as you expect", () => {
@@ -136,7 +136,7 @@ TestRegister.addApiTests([
 
     it("chef.help: returns multiple results", () => {
         const result = chef.help("base 64");
-        assert.strictEqual(result.length, 13);
+        assert.strictEqual(result.length, 14);
     }),
 
     it("chef.help: looks in description for matches too", () => {
@@ -200,7 +200,7 @@ TestRegister.addApiTests([
     }),
 
     it("chef.bake: Should complain if an invalid operation is inputted", () => {
-        assert.throws(() => chef.bake("https://google.com/search?q=help", () => {}), {
+        assert.throws(() => chef.bake("https://google.com/search?q=help", () => { }), {
             name: "TypeError",
             message: "Inputted function not a Chef operation."
         });
@@ -211,12 +211,12 @@ TestRegister.addApiTests([
         assert.strictEqual(result.toString(), "Protocol:\thttps:\nHostname:\tgoogle.com\nPath name:\t/search\nArguments:\n\tq = that's a complicated question\n");
     }),
 
-    it("chef.bake: forgiving with operation names", () =>{
+    it("chef.bake: forgiving with operation names", () => {
         const result = chef.bake("https://google.com/search?q=that's a complicated question", ["urlencode", "url decode", "parseURI"]);
         assert.strictEqual(result.toString(), "Protocol:\thttps:\nHostname:\tgoogle.com\nPath name:\t/search\nArguments:\n\tq = that's a complicated question\n");
     }),
 
-    it("chef.bake: forgiving with operation names", () =>{
+    it("chef.bake: forgiving with operation names", () => {
         const result = chef.bake("hello", ["to base 64"]);
         assert.strictEqual(result.toString(), "aGVsbG8=");
     }),
@@ -233,7 +233,7 @@ TestRegister.addApiTests([
     }),
 
     it("should complain if an invalid operation is inputted as part of array", () => {
-        assert.throws(() => chef.bake("something", [() => {}]), {
+        assert.throws(() => chef.bake("something", [() => { }]), {
             name: "TypeError",
             message: "Inputted function not a Chef operation."
         });
@@ -266,7 +266,7 @@ TestRegister.addApiTests([
 
     it("chef.bake: should error if op in JSON is not chef op", () => {
         assert.throws(() => chef.bake("some input", {
-            op: () => {},
+            op: () => { },
             args: ["Colon"],
         }), {
             name: "TypeError",
@@ -318,18 +318,24 @@ TestRegister.addApiTests([
     }),
 
     it("chef.bake: should take compact JSON format from Chef Website as recipe", () => {
-        const result = chef.bake("some input", [{"op": "To Morse Code", "args": ["Dash/Dot", "Backslash", "Comma"]}, {"op": "Hex to PEM", "args": ["SOMETHING"]}, {"op": "To Snake case", "args": [false]}]);
+        const result = chef.bake("some input", [{ "op": "To Morse Code", "args": ["Dash/Dot", "Backslash", "Comma"] }, { "op": "Hex to PEM", "args": ["SOMETHING"] }, { "op": "To Snake case", "args": [false] }]);
         assert.strictEqual(result.toString(), "begin_something_anananaaaaak_da_aaak_da_aaaaananaaaaaaan_da_aaaaaaanan_da_aaak_end_something");
     }),
 
     it("chef.bake: should accept Clean JSON format from Chef website as recipe", () => {
         const result = chef.bake("some input", [
-            { "op": "To Morse Code",
-                "args": ["Dash/Dot", "Backslash", "Comma"] },
-            { "op": "Hex to PEM",
-                "args": ["SOMETHING"] },
-            { "op": "To Snake case",
-                "args": [false] }
+            {
+                "op": "To Morse Code",
+                "args": ["Dash/Dot", "Backslash", "Comma"]
+            },
+            {
+                "op": "Hex to PEM",
+                "args": ["SOMETHING"]
+            },
+            {
+                "op": "To Snake case",
+                "args": [false]
+            }
         ]);
         assert.strictEqual(result.toString(), "begin_something_anananaaaaak_da_aaak_da_aaaaananaaaaaaan_da_aaaaaaanan_da_aaak_end_something");
     }),
@@ -337,34 +343,44 @@ TestRegister.addApiTests([
     it("chef.bake: should accept Clean JSON format from Chef website - args optional", () => {
         const result = chef.bake("some input", [
             { "op": "To Morse Code" },
-            { "op": "Hex to PEM",
-                "args": ["SOMETHING"] },
-            { "op": "To Snake case",
-                "args": [false] }
+            {
+                "op": "Hex to PEM",
+                "args": ["SOMETHING"]
+            },
+            {
+                "op": "To Snake case",
+                "args": [false]
+            }
         ]);
         assert.strictEqual(result.toString(), "begin_something_aaaaaaaaaaaaaa_end_something");
     }),
 
     it("chef.bake: should accept operation names from Chef Website which contain forward slash", () => {
         const result = chef.bake("I'll have the test salmon", [
-            { "op": "Find / Replace",
-                "args": [{ "option": "Regex", "string": "test" }, "good", true, false, true, false]}
+            {
+                "op": "Find / Replace",
+                "args": [{ "option": "Regex", "string": "test" }, "good", true, false, true, false]
+            }
         ]);
         assert.strictEqual(result.toString(), "I'll have the good salmon");
     }),
 
     it("chef.bake: should accept operation names from Chef Website which contain a hyphen", () => {
         const result = chef.bake("I'll have the test salmon", [
-            { "op": "Adler-32 Checksum",
-                "args": [] }
+            {
+                "op": "Adler-32 Checksum",
+                "args": []
+            }
         ]);
         assert.strictEqual(result.toString(), "6e4208f8");
     }),
 
     it("chef.bake: should accept operation names from Chef Website which contain a period", () => {
         const result = chef.bake("30 13 02 01 05 16 0e 41 6e 79 62 6f 64 79 20 74 68 65 72 65 3f", [
-            { "op": "Parse ASN.1 hex string",
-                "args": [0, 32] }
+            {
+                "op": "Parse ASN.1 hex string",
+                "args": [0, 32]
+            }
         ]);
         assert.strictEqual(result.toString(), `SEQUENCE
   INTEGER 05

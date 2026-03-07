@@ -544,6 +544,10 @@
     {
         "name": "Cloud",
         "ops": [
+            "Authenticate Google Cloud",
+            "GCloud List Bucket",
+            "GCloud Read File",
+            "GCloud Speech to Text",
             "Google Translate"
         ]
     },

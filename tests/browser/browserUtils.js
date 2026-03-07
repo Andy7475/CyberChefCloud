@@ -271,6 +271,26 @@ function uploadFolder(browser, foldername) {
 }
 
 
+/** @function
+ * Helper function to retrieve a Google Cloud Personal Access Token (PAT) for testing purposes.
+ * First checks for CYBERCHEF_GCP_TEST_TOKEN environment variable. If not found or empty, 
+ * attempts to dynamically generate one using `gcloud auth print-access-token`.
+ *
+ * @returns {string|null} The token string, or null if generation fails.
+ */
+function getTestPAT() {
+    let testToken = process.env.CYBERCHEF_GCP_TEST_TOKEN;
+    if (!testToken || testToken === "YOUR_OAUTH_TOKEN_HERE") {
+        try {
+            testToken = require("child_process").execSync("gcloud auth print-access-token", { stdio: "pipe", encoding: "utf-8" }).trim();
+        } catch (e) {
+            console.log("No valid token found and gcloud failed to generate one.");
+            return null;
+        }
+    }
+    return testToken;
+}
+
 module.exports = {
     clear: clear,
     setInput: setInput,
@@ -283,5 +303,6 @@ module.exports = {
     expectOutput: expectOutput,
     expectInput: expectInput,
     uploadFile: uploadFile,
-    uploadFolder: uploadFolder
+    uploadFolder: uploadFolder,
+    getTestPAT: getTestPAT
 };
