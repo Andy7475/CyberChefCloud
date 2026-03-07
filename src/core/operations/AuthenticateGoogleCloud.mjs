@@ -35,8 +35,9 @@ class AuthenticateGoogleCloud extends Operation {
             "</ul>"
         ].join("\n");
         this.infoURL = "https://cloud.google.com/docs/authentication";
-        this.inputType = "string";
-        this.outputType = "string";
+        this.inputType = "ArrayBuffer";
+        this.outputType = "ArrayBuffer";
+        this.presentType = "html";
         this.manualBake = true; // AutoBake must be disabled to prevent spamming the OAuth API
         this.args = [
             {
@@ -64,9 +65,9 @@ class AuthenticateGoogleCloud extends Operation {
     }
 
     /**
-     * @param {string} input
+     * @param {ArrayBuffer} input
      * @param {Object[]} args
-     * @returns {string}
+     * @returns {ArrayBuffer}
      */
     async run(input, args) {
         const [authType, credObj, quotaProject, outputLogs] = args;
@@ -78,10 +79,11 @@ class AuthenticateGoogleCloud extends Operation {
 
         let logs = "";
         const log = (msg) => {
-            if (outputLogs) logs += msg + "\n";
+            logs += msg + "\n";
             // Also send to the UI status bar if in worker
             if (isWorkerEnvironment()) self.sendStatusMessage(msg);
         };
+        this._authLogs = ""; // reset
 
         log("Starting Google Cloud Authentication...");
 
@@ -93,7 +95,8 @@ class AuthenticateGoogleCloud extends Operation {
                 quotaProject: quotaProject
             });
             log(`Successfully configured ${authType}.`);
-            return outputLogs && logs ? (input + "\n" + logs) : input;
+            if (outputLogs) this._authLogs = logs;
+            return input;
         }
 
         // --- OAuth 2.0 Web Application (PKCE) Flow ---
@@ -103,7 +106,8 @@ class AuthenticateGoogleCloud extends Operation {
         if (existingCreds && existingCreds.authType === "OAuth 2.0 (Web Application: PKCE)" && existingCreds.clientId === credString) {
             if (existingCreds.expiresAt > Date.now()) {
                 log("Reusing valid existing OAuth session token.");
-                return outputLogs && logs ? (input + "\n" + logs) : input;
+                if (outputLogs) this._authLogs = logs;
+                return input;
             }
             log("Existing OAuth token expired. A new authorization is required.");
         }
@@ -159,7 +163,30 @@ class AuthenticateGoogleCloud extends Operation {
             expiresAt: Date.now() + (tokenData.expiresIn * 1000)
         });
 
-        return outputLogs && logs ? (input + "\n" + logs) : input;
+        if (outputLogs) this._authLogs = logs;
+        return input;
+    }
+
+    /**
+     * Presents the auth status log and passes the raw data through for the next operation.
+     * @param {ArrayBuffer} data
+     * @returns {string}
+     */
+    present(data) {
+        const logText = this._authLogs || "";
+        let dataDisplay = "";
+        if (data && data.byteLength > 0) {
+            try {
+                const text = new TextDecoder("utf-8", { fatal: true }).decode(data);
+                dataDisplay = `<pre style="margin-top:8px;border-top:1px solid #555;padding-top:8px">${text.replace(/</g, "&lt;")}</pre>`;
+            } catch (e) {
+                dataDisplay = `<p><em>(Binary data — ${data.byteLength} bytes passed through to next operation)</em></p>`;
+            }
+        }
+        if (logText) {
+            return `<pre>${logText.replace(/</g, "&lt;")}</pre>${dataDisplay}`;
+        }
+        return dataDisplay;
     }
 
 }
