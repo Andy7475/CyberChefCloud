@@ -41,8 +41,13 @@ To ensure CyberChef remains an effective pipelining/orchestration tool (e.g., pa
    
 2. **Output Directory (String)**: `gs://my-bucket/outputs/`
    - **If populated**: Write the output file into this exact directory while preserving the original filename. Because CyberChef supports dynamic Registers, advanced users can input `$R0` here to dynamically route files based on a prior `Register` operation!
-   - **If blank (Default Behaviour)**: Write the output file to the *exact same directory* as the input file, but you **MUST** prepend the filename with a concise, hardcoded operation prefix (e.g., `ccc_ocr_`, `ccc_redact_`, `ccc_speech_`).
+   - **If blank (Default Behaviour)**: Write the output file to the *exact same directory* as the input file, but you **MUST** suffix the filename (before the extension) with a concise, hardcoded operation string (e.g., `_ccc_ocr`, `_ccc_redact`, `_ccc_speech`).
+   
+## 5. Returning GCS URIs to Output
 
-**Example of Default Prefix Behaviour:**
+When "Write to GCS" is executed successfully, the ingredient **must** return the full destination GCS URIs (`gs://...`) back to the CyberChef browser output. This gives the user a handy list of the newly generated files, ready to be piped directly into the next ingredient in their workflow.
+
+**Example of Default Suffix Behaviour:**
 Input: `gs://source-bucket/images/scanned_doc.pdf`
-Blank Output Directory → Outputs to: `gs://source-bucket/images/ccc_ocr_scanned_doc.pdf`
+Blank Output Directory → Writes to: `gs://source-bucket/images/scanned_doc_ccc_ocr.pdf`
+CyberChef Output Box displays: `gs://source-bucket/images/scanned_doc_ccc_ocr.pdf`
