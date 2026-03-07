@@ -27,3 +27,22 @@ If your new ingredient communicates with a Google Cloud API endpoint that hasn't
 2. Locate the `<meta http-equiv="Content-Security-Policy">` tag.
 3. Append your new endpoint to the `connect-src` directive.
 4. Add the endpoint to the `docs/AuthorizedEndpoints.md` file to keep the documentation current.
+
+## 4. Input & Output Strategies (Google Cloud Storage)
+
+When a Google Cloud ingredient interacts with large media or datasets that cannot fit in browser memory, it must accept Google Cloud Storage (GCS) URIs as input and write back to GCS as output.
+
+To ensure CyberChef remains an effective pipelining/orchestration tool (e.g., passing thousands of files through a `Fork` operation), all GCS-writing ingredients must adhere to the **Hybrid Target Directory Pattern**:
+
+### Required Arguments:
+1. **Output Mode (Dropdown)**: `["Return to CyberChef", "Write to GCS"]`
+   - *Return to CyberChef*: Used only when returning raw JSON or parsed text (e.g., "Cat, Dog") directly to the browser output pane.
+   - *Write to GCS*: Used when mutating media or producing large output files.
+   
+2. **Output Directory (String)**: `gs://my-bucket/outputs/`
+   - **If populated**: Write the output file into this exact directory while preserving the original filename. Because CyberChef supports dynamic Registers, advanced users can input `$R0` here to dynamically route files based on a prior `Register` operation!
+   - **If blank (Default Behaviour)**: Write the output file to the *exact same directory* as the input file, but you **MUST** prepend the filename with a concise, hardcoded operation prefix (e.g., `ccc_ocr_`, `ccc_redact_`, `ccc_speech_`).
+
+**Example of Default Prefix Behaviour:**
+Input: `gs://source-bucket/images/scanned_doc.pdf`
+Blank Output Directory → Outputs to: `gs://source-bucket/images/ccc_ocr_scanned_doc.pdf`
