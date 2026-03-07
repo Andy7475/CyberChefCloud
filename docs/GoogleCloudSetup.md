@@ -38,7 +38,7 @@ You must enable the APIs for any operation you intend to use.
 4. Name it something like "CyberChef PKCE Client".
 5. Under **Authorized JavaScript origins**, click **ADD URI**.
    - For local testing, add: `http://localhost:8080`
-   - For production, add your deployed CyberChef URL (e.g., `https://gchq.github.io`).
+   - For production, add your deployed CyberChef URL (e.g., `https://yourdomain.github.io`).
 6. Click **Create**.
 7. A box will appear with your **Client ID**. Copy this string. *(Note: You do not need the Client Secret).*
 

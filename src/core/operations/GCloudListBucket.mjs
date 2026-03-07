@@ -6,7 +6,48 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { listGCSBucket } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+
+/**
+ * Lists objects in a GCS bucket under a given prefix.
+ *
+ * @param {string} bucket - The GCS bucket name (without gs://).
+ * @param {string} prefix - The folder prefix to filter by (e.g. "audio/").
+ * @returns {Promise<Array>} Array of GCS object metadata { name, gs_uri, size, contentType }.
+ */
+async function listGCSBucket(bucket, prefix) {
+    let url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o`;
+    const params = new URLSearchParams();
+    if (prefix) params.set("prefix", prefix);
+    params.set("fields", "items(name,size,contentType)");
+    const paramStr = params.toString();
+    if (paramStr) url += `?${paramStr}`;
+
+    const headers = new Headers();
+    const authed = applyGCPAuth(url, headers);
+
+    const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
+    let data;
+    try {
+        data = await response.json();
+    } catch (e) {
+        throw new OperationError("GCloud List Bucket: Failed to parse GCS API response.");
+    }
+    if (!response.ok) {
+        const msg = data?.error?.message || response.statusText;
+        throw new OperationError(`GCloud List Bucket: GCS API Error (${response.status}): ${msg}`);
+    }
+
+    const items = data.items || [];
+    return items
+        .filter(item => !item.name.endsWith("/")) // exclude folder placeholder objects
+        .map(item => ({
+            name: item.name,
+            gs_uri: `gs://${bucket}/${item.name}`,
+            size: item.size,
+            contentType: item.contentType
+        }));
+}
 
 /**
  * GCloud List Bucket operation
