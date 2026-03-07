@@ -173,11 +173,6 @@ class GCloudVisionOCR extends Operation {
                 "name": "Output Directory (Optional)",
                 "type": "string",
                 "value": ""
-            },
-            {
-                "name": "Quota Project (Optional)",
-                "type": "string",
-                "value": ""
             }
         ];
     }
