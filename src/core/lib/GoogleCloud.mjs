@@ -48,9 +48,19 @@ export function applyGCPAuth(url, headers) {
     if (creds.authType === "API Key") {
         url += `${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(creds.authString)}`;
     } else if (creds.authType === "OAuth 2.0 (Web Application: PKCE)" || creds.authType === "Personal Access Token (PAT)") {
-        headers.set("Authorization", `Bearer ${creds.authString}`);
-        if (creds.quotaProject) {
-            headers.set("x-goog-user-project", creds.quotaProject);
+        const isMapsApi = url.includes("maps.googleapis.com") || url.includes("places.googleapis.com");
+
+        // If it's a Maps API and we have a fallback API key, use it INSTEAD of OAuth
+        if (isMapsApi && creds.apiKey) {
+            url += `${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(creds.apiKey)}`;
+        } else {
+            // Otherwise, apply standard OAuth Bearer auth
+            headers.set("Authorization", `Bearer ${creds.authString}`);
+
+            // Google Maps and Places APIs do not support the x-goog-user-project CORS header
+            if (creds.quotaProject && !isMapsApi) {
+                headers.set("x-goog-user-project", creds.quotaProject);
+            }
         }
     }
 

@@ -25,14 +25,19 @@ class AuthenticateGoogleCloud extends Operation {
         this.description = [
             "Authenticates with Google Cloud Platform.",
             "<br><br>",
-            "This operation should be placed at the top of your recipe. It securely manages credentials for downstream Google Cloud operations (e.g. List Bucket, Read File, Speech-to-Text).",
+            "This operation should be placed at the top of your recipe. It securely manages credentials for downstream Google Cloud operations.",
             "<br><br>",
             "You can authenticate using:",
             "<ul>",
-            "<li><b>OAuth 2.0 (Web Application: PKCE)</b>: The recommended, secure method. Provide your Web Application Client ID. CyberChef will popup a secure Google login window. The token is stored per-session and cleared when you close the tab.</li>",
+            "<li><b>OAuth 2.0 (Web Application: PKCE)</b>: The recommended, secure method for primary Cloud APIs (Storage, Vertex, Speech, etc). Provide your Web Application Client ID. The token is stored per-session and cleared when you close the tab.</li>",
             "<li><b>Personal Access Token (PAT)</b>: Provide a short-lived bearer token (e.g. from <code>gcloud auth print-access-token</code>).</li>",
-            "<li><b>API Key</b>: Provide a Google Cloud API key. (Less secure, ensure it is restricted).</li>",
-            "</ul>"
+            "<li><b>API Key</b>: Provide a Google Cloud API key. Highly recommended as a fallback alongside OAuth.</li>",
+            "</ul>",
+            "<br>",
+            "<b>Dual Authentication (Recommended):</b><br>",
+            "Some Google APIs (e.g. Storage, Natural Language) require OAuth, while others (e.g. Geocoding, Places) <i>only</i> accept API Keys. ",
+            "To support workflows that mix both types, select <b>OAuth</b> or <b>PAT</b> as your primary <code>Auth Type</code>, and provide your API Key in the optional field below. ",
+            "CyberChef will automatically attach the correct credential based on the destination endpoint."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/docs/authentication";
         this.inputType = "ArrayBuffer";
@@ -62,6 +67,12 @@ class AuthenticateGoogleCloud extends Operation {
                 "value": "us-central1"
             },
             {
+                "name": "API Key (For strict API Key endpoints)",
+                "type": "toggleString",
+                "value": "",
+                "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"]
+            },
+            {
                 "name": "Output Logs",
                 "type": "boolean",
                 "value": true
@@ -75,8 +86,9 @@ class AuthenticateGoogleCloud extends Operation {
      * @returns {ArrayBuffer}
      */
     async run(input, args) {
-        const [authType, credObj, quotaProject, defaultRegion, outputLogs] = args;
+        const [authType, credObj, quotaProject, defaultRegion, mapsKeyObj, outputLogs] = args;
         const credString = typeof credObj === "string" ? credObj : (credObj.string || "");
+        const mapsKeyString = typeof mapsKeyObj === "string" ? mapsKeyObj : (mapsKeyObj.string || "");
 
         if (!credString) {
             throw new OperationError("Please provide Google Cloud credentials (Client ID, PAT, or API Key).");
@@ -97,10 +109,12 @@ class AuthenticateGoogleCloud extends Operation {
             setGcpCredentials({
                 authType: authType,
                 authString: credString,
+                apiKey: mapsKeyString, // Capture optional Maps key
                 quotaProject: quotaProject,
                 defaultRegion: defaultRegion
             });
             log(`Successfully configured ${authType}.`);
+            if (mapsKeyString) log(`Stored fallback API Key for endpoints that reject OAuth.`);
             if (outputLogs) this._authLogs = logs;
             return input;
         }
@@ -164,12 +178,14 @@ class AuthenticateGoogleCloud extends Operation {
         setGcpCredentials({
             authType: "OAuth 2.0 (Web Application: PKCE)",
             authString: tokenData.token,
+            apiKey: mapsKeyString, // Capture optional Maps key
             quotaProject: quotaProject,
             defaultRegion: defaultRegion,
             clientId: credString,
             expiresAt: Date.now() + (tokenData.expiresIn * 1000)
         });
 
+        if (mapsKeyString) log(`Stored fallback API Key for endpoints that reject OAuth.`);
         if (outputLogs) this._authLogs = logs;
         return input;
     }

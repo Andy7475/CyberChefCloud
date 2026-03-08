@@ -555,6 +555,12 @@
             "GCloud Vision Label Image",
             "GCloud Vision OCR",
             "GCloud Natural Language",
+            "GCloud Geocode",
+            "GCloud Places Autocomplete",
+            "GCloud Places Search",
+            "GCloud Place Details",
+            "GCloud Show on Map",
+            "GCloud Knowledge Graph",
             "Google Translate",
             "Prompt LLM"
         ]
