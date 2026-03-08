@@ -6,33 +6,8 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, generateGCSDestinationUri } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, writeGCSText } from "../lib/GoogleCloud.mjs";
 
-/**
- * Writes text content to a GCS object.
- * @param {string} bucket
- * @param {string} objectPath
- * @param {string} content
- * @returns {Promise<string>}
- */
-async function writeGCSText(bucket, objectPath, content) {
-    const encodedObject = encodeURIComponent(objectPath).replace(/%2F/g, "%2F");
-    const url = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodedObject}`;
-    const headers = new Headers();
-    headers.set("Content-Type", "text/plain; charset=utf-8");
-    const authed = applyGCPAuth(url, headers);
-    const response = await fetch(authed.url, {
-        method: "POST", headers: authed.headers, body: content, mode: "cors", cache: "no-cache"
-    });
-    if (!response.ok) {
-        let msg = response.statusText;
-        try {
-            const d = await response.json(); msg = d?.error?.message || msg;
-        } catch (e) { /* ignore */ }
-        throw new OperationError(`GCloud Vision OCR: GCS write error (${response.status}): ${msg}`);
-    }
-    return `gs://${bucket}/${objectPath}`;
-}
 
 /**
  * Converts ArrayBuffer to base64.

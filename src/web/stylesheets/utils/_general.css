@@ -90,3 +90,19 @@ body {
 .hl3 { background-color: var(--hl3); } /* Half-Life 3 confirmed :O */
 .hl4 { background-color: var(--hl4); }
 .hl5 { background-color: var(--hl5); }
+
+/* Google Cloud Natural Language entity-type highlights */
+.nl-entity { border-radius: 3px; padding: 0 2px; }
+.nl-entity-PERSON        { background-color: #ffb3ba; }
+.nl-entity-LOCATION      { background-color: #ffdfba; }
+.nl-entity-ORGANIZATION  { background-color: #ffffba; }
+.nl-entity-EVENT         { background-color: #baffc9; }
+.nl-entity-WORK_OF_ART   { background-color: #bae1ff; }
+.nl-entity-CONSUMER_GOOD { background-color: #d4baff; }
+.nl-entity-PHONE_NUMBER  { background-color: #ffd6ec; }
+.nl-entity-ADDRESS       { background-color: #c9f0d4; }
+.nl-entity-DATE          { background-color: #fff4ba; }
+.nl-entity-NUMBER        { background-color: #d6ecff; }
+.nl-entity-PRICE         { background-color: #f0d6ff; }
+.nl-entity-OTHER         { background-color: #e2e2e2; }
+.nl-entity-UNKNOWN       { background-color: #e2e2e2; }

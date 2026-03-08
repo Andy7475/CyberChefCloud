@@ -13,4 +13,5 @@ When a new Google Cloud ingredient is added that connects to a new API service, 
 - `https://speech.googleapis.com` (Speech-to-Text)
 - `https://translation.googleapis.com` (Translate)
 - `https://vision.googleapis.com` (Cloud Vision API)
+- `https://language.googleapis.com` (Cloud Natural Language API)
 - `https://*.aiplatform.googleapis.com` (Vertex AI API, Gemini LLMs)
