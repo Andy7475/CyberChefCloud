@@ -6,7 +6,8 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, writeGCSBytes } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, getGcpCredentials, writeGCSBytes } from "../lib/GoogleCloud.mjs";
+
 
 /**
  * Common MIME types grouped for the dropdown, ordered by likelihood of use.
@@ -14,43 +15,43 @@ import { applyGCPAuth, writeGCSBytes } from "../lib/GoogleCloud.mjs";
  */
 const MIME_TYPES = [
     // Text
-    "text/plain",
-    "text/plain; charset=utf-8",
-    "text/html; charset=utf-8",
-    "text/csv",
-    "text/xml",
-    "text/markdown",
+    { name: "text/plain", value: "text/plain" },
+    { name: "text/plain; charset=utf-8", value: "text/plain; charset=utf-8" },
+    { name: "text/html; charset=utf-8", value: "text/html; charset=utf-8" },
+    { name: "text/csv", value: "text/csv" },
+    { name: "text/xml", value: "text/xml" },
+    { name: "text/markdown", value: "text/markdown" },
     // Structured data
-    "application/json",
-    "application/xml",
-    "application/yaml",
-    "application/pdf",
+    { name: "application/json", value: "application/json" },
+    { name: "application/xml", value: "application/xml" },
+    { name: "application/yaml", value: "application/yaml" },
+    { name: "application/pdf", value: "application/pdf" },
     // Images
-    "image/png",
-    "image/jpeg",
-    "image/gif",
-    "image/webp",
-    "image/svg+xml",
-    "image/tiff",
-    "image/bmp",
+    { name: "image/png", value: "image/png" },
+    { name: "image/jpeg", value: "image/jpeg" },
+    { name: "image/gif", value: "image/gif" },
+    { name: "image/webp", value: "image/webp" },
+    { name: "image/svg+xml", value: "image/svg+xml" },
+    { name: "image/tiff", value: "image/tiff" },
+    { name: "image/bmp", value: "image/bmp" },
     // Audio
-    "audio/mpeg",
-    "audio/wav",
-    "audio/ogg",
-    "audio/flac",
-    "audio/mp4",
-    "audio/webm",
+    { name: "audio/mpeg", value: "audio/mpeg" },
+    { name: "audio/wav", value: "audio/wav" },
+    { name: "audio/ogg", value: "audio/ogg" },
+    { name: "audio/flac", value: "audio/flac" },
+    { name: "audio/mp4", value: "audio/mp4" },
+    { name: "audio/webm", value: "audio/webm" },
     // Video
-    "video/mp4",
-    "video/webm",
-    "video/ogg",
-    "video/avi",
+    { name: "video/mp4", value: "video/mp4" },
+    { name: "video/webm", value: "video/webm" },
+    { name: "video/ogg", value: "video/ogg" },
+    { name: "video/avi", value: "video/avi" },
     // Archives
-    "application/zip",
-    "application/gzip",
-    "application/x-tar",
+    { name: "application/zip", value: "application/zip" },
+    { name: "application/gzip", value: "application/gzip" },
+    { name: "application/x-tar", value: "application/x-tar" },
     // Binary fallback
-    "application/octet-stream",
+    { name: "application/octet-stream", value: "application/octet-stream" },
 ];
 
 /**
@@ -130,6 +131,14 @@ class GCloudWriteFile extends Operation {
         }
 
         const contentType = (mimeType && mimeType.trim()) ? mimeType.trim() : "application/octet-stream";
+
+        const creds = getGcpCredentials();
+        if (creds && creds.authType === "API Key") {
+            throw new OperationError(
+                "GCloud Write File: Writing to Google Cloud Storage requires OAuth 2.0 or Personal Access Token (PAT) authentication. " +
+                "API Keys do not have permissions to upload objects. Please update your Authenticate Google Cloud settings."
+            );
+        }
 
         try {
             const writtenUri = await writeGCSBytes(bucket, objectPath, input, contentType);
