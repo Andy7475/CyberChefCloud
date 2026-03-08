@@ -549,6 +549,7 @@
             "Authenticate Google Cloud",
             "GCloud List Bucket",
             "GCloud Read File",
+            "GCloud Write File",
             "GCloud Speech to Text",
             "GCloud Vision Analyze",
             "GCloud Vision Draw Bounding Boxes",
