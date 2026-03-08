@@ -106,8 +106,12 @@ class GCloudShowOnMap extends Operation {
         const [mapProvider, zoomLevel] = args;
         if (mapProvider === "Google Maps") {
             const creds = getGcpCredentials();
-            if (creds && creds.authType === "API Key" && creds.authString) {
-                apiKey = creds.authString;
+            if (creds) {
+                if (creds.authType === "API Key" && creds.authString) {
+                    apiKey = creds.authString;
+                } else if (creds.apiKey) {
+                    apiKey = creds.apiKey;
+                }
             }
         }
 
