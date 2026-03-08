@@ -159,3 +159,38 @@ export async function writeGCSText(bucket, objectPath, content, contentType = "t
     }
     return `gs://${bucket}/${objectPath}`;
 }
+
+/**
+ * Writes binary content (an ArrayBuffer) to a GCS object via the GCS JSON upload API.
+ * Use this for non-text payloads such as images, audio, video, or other binary files.
+ * Authentication is applied automatically via `applyGCPAuth`.
+ *
+ * @param {string} bucket - The GCS bucket name.
+ * @param {string} objectPath - The full object path within the bucket.
+ * @param {ArrayBuffer} buffer - The binary content to upload.
+ * @param {string} [contentType="application/octet-stream"] - MIME content type.
+ * @returns {Promise<string>} The `gs://` URI of the written object.
+ */
+export async function writeGCSBytes(bucket, objectPath, buffer, contentType = "application/octet-stream") {
+    const encodedObject = encodeURIComponent(objectPath).replace(/%2F/g, "%2F");
+    const url = `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodedObject}`;
+    const headers = new Headers();
+    headers.set("Content-Type", contentType);
+    const authed = applyGCPAuth(url, headers);
+    const response = await fetch(authed.url, {
+        method: "POST",
+        headers: authed.headers,
+        body: buffer,
+        mode: "cors",
+        cache: "no-cache"
+    });
+    if (!response.ok) {
+        let msg = response.statusText;
+        try {
+            const d = await response.json();
+            msg = d?.error?.message || msg;
+        } catch (e) { /* ignore */ }
+        throw new OperationError(`GCS write error (${response.status}): ${msg}`);
+    }
+    return `gs://${bucket}/${objectPath}`;
+}
