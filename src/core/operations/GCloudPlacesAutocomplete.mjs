@@ -119,9 +119,9 @@ class GCloudPlacesAutocomplete extends Operation {
                 "hint": "e.g. 'US', 'GB'"
             },
             {
-                "name": "Max Candidates Per Line",
+                "name": "Results (up to 5)",
                 "type": "number",
-                "value": 1
+                "value": 5
             }
         ];
     }
@@ -133,7 +133,7 @@ class GCloudPlacesAutocomplete extends Operation {
      */
     async run(input, args) {
         const [outputFormat, countryRestriction, maxCandidatesRaw] = args;
-        const maxCandidates = Math.max(1, Math.min(5, parseInt(maxCandidatesRaw, 10) || 1));
+        const maxCandidates = Math.min(5, parseInt(maxCandidatesRaw, 10) || 1);
 
         if (!input || input.trim() === "") return "";
 
@@ -172,10 +172,12 @@ class GCloudPlacesAutocomplete extends Operation {
                         const detailsUrl = `https://places.googleapis.com/v1/places/${p.placeId}`;
                         const hdrs = new Headers();
                         hdrs.set("X-Goog-FieldMask", "id,location,displayName,formattedAddress");
-                        const authed = applyGCPAuth(detailsUrl, hdrs);
                         const numTokens = generateUUID(); // consume a new session token for the details fetch
 
-                        const detailRes = await fetch(authed.url + "?sessionToken=" + numTokens, {
+                        const authed = applyGCPAuth(detailsUrl, hdrs);
+                        const finalUrl = authed.url + (authed.url.includes("?") ? "&" : "?") + "sessionToken=" + encodeURIComponent(numTokens);
+
+                        const detailRes = await fetch(finalUrl, {
                             method: "GET",
                             headers: authed.headers,
                             mode: "cors"

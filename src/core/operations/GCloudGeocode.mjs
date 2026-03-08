@@ -77,8 +77,12 @@ class GCloudGeocode extends Operation {
             "Converts addresses (like '1600 Amphitheatre Parkway, Mountain View, CA') into geographic coordinates ",
             "(latitude and longitude) using the <b>Google Maps Geocoding API</b>.",
             "<br><br>",
-            "<b>Input:</b> One address (or <code>lat, long</code>) per line.",
-            "<br><br>",
+            "<b>Input:</b>",
+            "<ul>",
+            "<li>For <i>Geocode</i>: One address per line.</li>",
+            "<li>For <i>Reverse Geocode</i>: <code>lat, long</code> per line OR a JSON array of objects with <code>lat</code> and <code>lng</code> properties (matches the <code>Lat/Long + Label JSON</code> output of other operations).</li>",
+            "</ul>",
+            "<br>",
             "<b>Output Modes:</b>",
             "<ul>",
             "<li><code>Lat/Long + Label JSON</code> — Outputs a JSON array of objects compatible with <code>GCloud Show on Map</code>.</li>",
@@ -129,7 +133,26 @@ class GCloudGeocode extends Operation {
 
         if (!input || input.trim() === "") return "";
 
-        const lines = input.split("\n").map(a => a.trim()).filter(a => a.length > 0);
+        let lines = [];
+        if (isReverse) {
+            // Attempt to parse as JSON array of location objects (like Lat/Long + Label JSON)
+            try {
+                let cleanedInput = input.trim().replace(/\]\s*,?\s*\[/g, ",");
+                const parsed = JSON.parse(cleanedInput);
+                const arr = Array.isArray(parsed) ? parsed : [parsed];
+                lines = arr.filter(loc => typeof loc.lat === "number" && typeof loc.lng === "number")
+                    .map(loc => `${loc.lat},${loc.lng}`);
+            } catch (e) {
+                // Fallback to splitting by line for plain lat,lng strings
+                lines = input.split("\n").map(a => a.trim()).filter(a => a.length > 0);
+            }
+            if (lines.length === 0) {
+                // If JSON parsing yielded no items, fallback to string split just in case
+                lines = input.split("\n").map(a => a.trim()).filter(a => a.length > 0);
+            }
+        } else {
+            lines = input.split("\n").map(a => a.trim()).filter(a => a.length > 0);
+        }
         const results = [];
         const jsonOutput = []; // For Lat/Long + Label JSON
 
@@ -154,7 +177,10 @@ class GCloudGeocode extends Operation {
 
                 if (outputFormat === "Text Summary") {
                     if (isReverse) {
-                        results.push(`${lat}, ${lng} → ${formatted}`);
+                        results.push(`${lat}, ${lng} →`);
+                        for (let i = 0; i < data.results.length; i++) {
+                            results.push(`  ${i + 1}. ${data.results[i].formatted_address}`);
+                        }
                     } else {
                         results.push(`${line} → ${lat}, ${lng}  (${formatted})`);
                     }

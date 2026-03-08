@@ -8,6 +8,7 @@ import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import Utils from "../Utils.mjs";
 import { getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { placesSearchText } from "./GCloudPlacesSearch.mjs";
 
 const PUBLIC_KG_SEARCH_URL = "https://kgsearch.googleapis.com/v1/entities:search";
 
@@ -208,6 +209,63 @@ class GCloudKnowledgeGraph extends Operation {
                                 lng: r.geo.longitude,
                                 label: r.name || query
                             });
+                        } else if (r && r.name && r["@type"]) {
+                            const typeArray = Array.isArray(r["@type"]) ? r["@type"] : [r["@type"]];
+                            if (typeArray.includes("Place")) {
+                                try {
+                                    // 1. Check if the KG explicitly provides a googlePlaceID in its identifiers
+                                    let explicitPlaceId = null;
+                                    if (r.identifier && Array.isArray(r.identifier)) {
+                                        const placeIdObj = r.identifier.find(id => id.propertyID === "googlePlaceID");
+                                        if (placeIdObj && placeIdObj.value) explicitPlaceId = placeIdObj.value;
+                                    }
+
+                                    if (explicitPlaceId) {
+                                        // Fetch exact coordinates via Place Details endpoint (v1)
+                                        const detailsUrl = `https://places.googleapis.com/v1/places/${explicitPlaceId}`;
+                                        const hdrs = new Headers();
+                                        hdrs.set("X-Goog-FieldMask", "id,location,displayName,formattedAddress");
+
+                                        const authed = applyGCPAuth(detailsUrl, hdrs);
+
+                                        const detailRes = await fetch(authed.url, {
+                                            method: "GET",
+                                            headers: authed.headers,
+                                            mode: "cors"
+                                        });
+
+                                        if (detailRes.ok) {
+                                            const p = await detailRes.json();
+                                            if (p.location) {
+                                                jsonOutput.push({
+                                                    lat: p.location.latitude,
+                                                    lng: p.location.longitude,
+                                                    label: p.formattedAddress || p.displayName?.text || r.name,
+                                                    placeId: explicitPlaceId
+                                                });
+                                                continue; // Move on to next KG entity
+                                            }
+                                        }
+                                    }
+
+                                    // 2. Fallback to Places API Search Text using the place name
+                                    const placeData = await placesSearchText(r.name, "places.id,places.displayName,places.formattedAddress,places.location", 1, "");
+                                    if (placeData && placeData.places && placeData.places.length > 0) {
+                                        const p = placeData.places[0];
+                                        if (p.location) {
+                                            jsonOutput.push({
+                                                lat: p.location.latitude,
+                                                lng: p.location.longitude,
+                                                label: p.formattedAddress || p.displayName?.text || r.name,
+                                                placeId: p.id
+                                            });
+                                        }
+                                    }
+                                } catch (e) {
+                                    // Silently ignore Place Search errors (e.g. if Maps API is not enabled)
+                                    // We are best-effort retrieving coordinates for Knowledge Graph
+                                }
+                            }
                         }
                     }
                 }

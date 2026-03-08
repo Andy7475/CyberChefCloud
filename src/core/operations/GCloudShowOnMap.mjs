@@ -65,17 +65,37 @@ class GCloudShowOnMap extends Operation {
      * @returns {string}
      */
     run(input, args) {
-        if (!input || input.trim() === "") return "[]";
+        if (!input || input.trim() === "") return "<i>No valid coordinates to display on map.</i>";
 
-        let jsonInput;
+        let jsonInput = [];
+        // Attempt to clean up concatenated JSON arrays (e.g. `[{"lat":...}],[{"lat":...}]` or `[{"lat":...}]\n[{"lat":...}]`)
+        // which can happen when merging multiple JSON results in CyberChef
+        let cleanedInput = input.trim();
+        cleanedInput = cleanedInput.replace(/\]\s*,?\s*\[/g, ",");
+
         try {
-            jsonInput = JSON.parse(input);
+            const parsed = JSON.parse(cleanedInput);
+            if (Array.isArray(parsed)) {
+                jsonInput = parsed;
+            } else {
+                jsonInput = [parsed];
+            }
         } catch (e) {
-            throw new OperationError(`Input must be valid JSON array of locations. Error parsing input: ${e.message}`);
-        }
-
-        if (!Array.isArray(jsonInput)) {
-            throw new OperationError("Input JSON must be an array of location objects.");
+            try {
+                // Also support NDJSON fallback just in case
+                const lines = cleanedInput.split(/\r?\n/).filter(l => l.trim().length > 0);
+                if (lines.length > 0) {
+                    jsonInput = lines.map(line => {
+                        let cl = line.trim();
+                        if (cl.startsWith("[") && cl.endsWith("]")) cl = cl.slice(1, -1);
+                        return JSON.parse(cl);
+                    });
+                } else {
+                    throw new Error("Empty input");
+                }
+            } catch (e2) {
+                throw new OperationError(`Input must be a valid JSON array of locations. Error parsing input: ${e.message}`);
+            }
         }
 
         // Validate structure slightly to drop bad items early.

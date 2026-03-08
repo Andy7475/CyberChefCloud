@@ -20,7 +20,7 @@ const PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
  * @param {string} locationBias - Optional "lat,lng,radius_m" string.
  * @returns {Promise<Object>} The parsed API response body.
  */
-async function placesSearchText(textQuery, fields, maxResultCount, locationBias) {
+export async function placesSearchText(textQuery, fields, maxResultCount, locationBias) {
     const url = PLACES_SEARCH_URL;
     const headers = new Headers();
     headers.set("Content-Type", "application/json; charset=utf-8");
@@ -145,7 +145,7 @@ class GCloudPlacesSearch extends Operation {
         const jsonOutput = []; // For Lat/Long + Label JSON
 
         // Always request these fields to support all output types
-        let fieldMask = "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount";
+        let fieldMask = "places.id,places.displayName,places.formattedAddress,places.location";
 
         for (const query of queries) {
             const data = await placesSearchText(query, fieldMask, maxResults, locationBias);
@@ -162,8 +162,7 @@ class GCloudPlacesSearch extends Operation {
                     for (const p of data.places) {
                         const name = p.displayName?.text || "(Unknown name)";
                         const address = p.formattedAddress || "";
-                        const rating = p.rating ? ` (${p.rating}★ from ${p.userRatingCount} reviews)` : "";
-                        results.push(`  - ${name}${rating}`);
+                        results.push(`  - ${name}`);
                         if (address) results.push(`    Address: ${address}`);
                         if (p.location) results.push(`    Location: ${p.location.latitude}, ${p.location.longitude}`);
                         results.push(`    Place ID: ${p.id}\n`);

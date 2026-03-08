@@ -71,7 +71,7 @@ class GCloudPlaceDetails extends Operation {
         this.description = [
             "Gets detailed information about a place given its Place ID using the <b>Google Places API (New)</b>.",
             "<br><br>",
-            "<b>Input:</b> One Place ID per line.",
+            "<b>Input:</b> One Place ID per line, OR a JSON array of objects with a <code>placeId</code> property (matches the <code>Lat/Long + Label JSON</code> output of other operations).",
             "<br><br>",
             "<b>Output Modes:</b>",
             "<ul>",
@@ -117,7 +117,19 @@ class GCloudPlaceDetails extends Operation {
 
         if (!input || input.trim() === "") return "";
 
-        const placeIds = input.split("\n").map(q => q.trim()).filter(q => q.length > 0);
+        let placeIds = [];
+        try {
+            let cleanedInput = input.trim().replace(/\]\s*,?\s*\[/g, ",");
+            const parsed = JSON.parse(cleanedInput);
+            const arr = Array.isArray(parsed) ? parsed : [parsed];
+            placeIds = arr.filter(loc => typeof loc.placeId === "string")
+                .map(loc => loc.placeId);
+        } catch (e) {
+            placeIds = input.split("\n").map(q => q.trim()).filter(q => q.length > 0);
+        }
+        if (placeIds.length === 0) {
+            placeIds = input.split("\n").map(q => q.trim()).filter(q => q.length > 0);
+        }
         const results = [];
         const jsonOutput = []; // For Lat/Long + Label JSON
 
