@@ -306,6 +306,20 @@ function getTestPAT() {
     return testToken;
 }
 
+/** @function
+ * Helper function to retrieve a Google Cloud API Key for testing purposes.
+ * Checks for CYBERCHEF_GCP_TEST_API_KEY environment variable.
+ *
+ * @returns {string|null} The API Key string, or null if not found.
+ */
+function getTestAPIKey() {
+    let testKey = process.env.CYBERCHEF_GCP_TEST_API_KEY;
+    if (!testKey || testKey === "YOUR_API_KEY_HERE") {
+        return null;
+    }
+    return testKey;
+}
+
 module.exports = {
     clear: clear,
     setInput: setInput,
@@ -320,5 +334,6 @@ module.exports = {
     expectInput: expectInput,
     uploadFile: uploadFile,
     uploadFolder: uploadFolder,
-    getTestPAT: getTestPAT
+    getTestPAT: getTestPAT,
+    getTestAPIKey: getTestAPIKey
 };

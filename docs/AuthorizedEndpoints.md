@@ -14,4 +14,7 @@ When a new Google Cloud ingredient is added that connects to a new API service, 
 - `https://translation.googleapis.com` (Translate)
 - `https://vision.googleapis.com` (Cloud Vision API)
 - `https://language.googleapis.com` (Cloud Natural Language API)
+- `https://maps.googleapis.com` (Google Maps API + Geocoding API)
+- `https://places.googleapis.com` (Google Places API New)
+- `https://kgsearch.googleapis.com` (Knowledge Graph Search API)
 - `https://*.aiplatform.googleapis.com` (Vertex AI API, Gemini LLMs)
