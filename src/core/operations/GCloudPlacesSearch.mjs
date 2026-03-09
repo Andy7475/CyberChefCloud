@@ -6,7 +6,6 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import Utils from "../Utils.mjs";
 import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
 
 const PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
@@ -145,7 +144,7 @@ class GCloudPlacesSearch extends Operation {
         const jsonOutput = []; // For Lat/Long + Label JSON
 
         // Always request these fields to support all output types
-        let fieldMask = "places.id,places.displayName,places.formattedAddress,places.location";
+        const fieldMask = "places.id,places.formattedAddress,places.location,places.displayName";
 
         for (const query of queries) {
             const data = await placesSearchText(query, fieldMask, maxResults, locationBias);

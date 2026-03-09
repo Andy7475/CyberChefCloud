@@ -9,7 +9,7 @@ import OperationConfig from "../../core/config/OperationConfig.json" with {type:
  * @license Apache-2.0
  */
 
-const baseUrl = "https://gchq.github.io/CyberChef/";
+const baseUrl = "https://Andy7475.github.io/CyberChefCloud/";
 
 const smStream = new sm.SitemapStream({});
 

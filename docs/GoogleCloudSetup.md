@@ -80,7 +80,7 @@ If you have the Google Cloud SDK (`gcloud`) installed locally and you are author
     - Click on the newly created API Key to edit its settings.
     - Under **Application restrictions**, select **Websites**.
     - Under **Website restrictions**, click **ADD**.
-    - Enter the URLs where your CyberChef instance is hosted (e.g., `https://gchq.github.io/CyberChef/*` or `http://localhost:8080/*` for local testing).
+    - Enter the URLs where your CyberChef instance is hosted (e.g., `https://Andy7475.github.io/CyberChefCloud/*` or `http://localhost:8080/*` for local testing).
     - Under **API restrictions**, select **Restrict key** and check the relevant API (e.g., **Cloud Translation API**).
     - Click **SAVE**.
 

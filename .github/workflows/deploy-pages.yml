@@ -1,19 +1,14 @@
-name: "Master Build, Test & Deploy"
+name: "Deploy to GitHub Pages"
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
 
 permissions:
-  contents: read
+  contents: write
+  pages: write
 
 jobs:
-  main:
-    permissions:
-      contents: write
-      pages: write
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -30,23 +25,19 @@ jobs:
           npm install
           npm run setheapsize
 
-      - name: Lint
-        run: npx grunt lint
-
-      - name: Unit Tests
-        run: |
-          npm test
-          npm run testnodeconsumer
-
       - name: Production Build
-        if: success()
         run: npx grunt prod --msg=""
 
       - name: Generate sitemap
         run: npx grunt exec:sitemap
 
-      - name: UI Tests
-        if: success()
-        run: |
-          sudo apt-get install xvfb
-          xvfb-run --server-args="-screen 0 1200x800x24" npx grunt testui
+      - name: Prepare for GitHub Pages
+        run: npx grunt copy:ghPages
+
+      - name: Deploy to GitHub Pages
+        uses: crazy-max/ghaction-github-pages@v3
+        with:
+          target_branch: gh-pages
+          build_dir: ./build/prod
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

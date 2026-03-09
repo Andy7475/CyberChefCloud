@@ -1,9 +1,9 @@
 {
   "name": "cyberchef",
   "version": "10.22.1",
-  "description": "The Cyber Swiss Army Knife for encryption, encoding, compression and data analysis.",
-  "author": "n1474335 <n1474335@gmail.com>",
-  "homepage": "https://gchq.github.io/CyberChef",
+  "description": "The Cyber Swiss Army Knife for encryption, encoding, compression and data analysis. Now connected to Cloud",
+  "author": "Andy",
+  "homepage": "https://Andy7475.github.io/CyberChefCloud/",
   "copyright": "Crown copyright 2016",
   "license": "Apache-2.0",
   "keywords": [
@@ -25,14 +25,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/gchq/CyberChef/"
+    "url": "https://github.com/Andy7475/CyberChefCloud/"
   },
   "main": "src/node/wrapper.js",
   "exports": {
     "import": "./src/node/index.mjs",
     "require": "./src/node/wrapper.js"
   },
-  "bugs": "https://github.com/gchq/CyberChef/issues",
+  "bugs": "https://github.com/Andy7475/CyberChefCloud/issues",
   "browserslist": [
     "Chrome >= 50",
     "Firefox >= 38",

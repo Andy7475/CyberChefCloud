@@ -6,7 +6,6 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import Utils from "../Utils.mjs";
 import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
 
 const PLACES_DETAILS_URL = "https://places.googleapis.com/v1/places/";
@@ -119,7 +118,8 @@ class GCloudPlaceDetails extends Operation {
 
         let placeIds = [];
         try {
-            let cleanedInput = input.trim().replace(/\]\s*,?\s*\[/g, ",");
+            // Handle the incoming Knowledge Graph result array
+            const cleanedInput = input.replace(/^\[\s*|\s*\]$/g, "");
             const parsed = JSON.parse(cleanedInput);
             const arr = Array.isArray(parsed) ? parsed : [parsed];
             placeIds = arr.filter(loc => typeof loc.placeId === "string")
