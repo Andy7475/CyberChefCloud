@@ -313,7 +313,7 @@ function getTestPAT() {
  * @returns {string|null} The API Key string, or null if not found.
  */
 function getTestAPIKey() {
-    let testKey = process.env.CYBERCHEF_GCP_TEST_API_KEY;
+    const testKey = process.env.CYBERCHEF_GCP_TEST_API_KEY;
     if (!testKey || testKey === "YOUR_API_KEY_HERE") {
         return null;
     }

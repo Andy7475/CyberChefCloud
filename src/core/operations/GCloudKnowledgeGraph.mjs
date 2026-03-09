@@ -6,8 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import Utils from "../Utils.mjs";
-import { getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { getGcpCredentials, applyGCPAuth } from "../lib/GoogleCloud.mjs";
 import { placesSearchText } from "./GCloudPlacesSearch.mjs";
 
 const PUBLIC_KG_SEARCH_URL = "https://kgsearch.googleapis.com/v1/entities:search";

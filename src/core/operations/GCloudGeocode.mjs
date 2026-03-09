@@ -6,8 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import Utils from "../Utils.mjs";
-import { applyGCPAuth, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
 
 const GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 
@@ -137,7 +136,7 @@ class GCloudGeocode extends Operation {
         if (isReverse) {
             // Attempt to parse as JSON array of location objects (like Lat/Long + Label JSON)
             try {
-                let cleanedInput = input.trim().replace(/\]\s*,?\s*\[/g, ",");
+                const cleanedInput = input.trim().replace(/\]\s*,?\s*\[/g, ",");
                 const parsed = JSON.parse(cleanedInput);
                 const arr = Array.isArray(parsed) ? parsed : [parsed];
                 lines = arr.filter(loc => typeof loc.lat === "number" && typeof loc.lng === "number")

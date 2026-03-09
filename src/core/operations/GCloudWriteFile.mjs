@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, getGcpCredentials, writeGCSBytes } from "../lib/GoogleCloud.mjs";
+import { getGcpCredentials, writeGCSBytes } from "../lib/GoogleCloud.mjs";
 
 
 /**

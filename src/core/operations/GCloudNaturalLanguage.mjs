@@ -40,8 +40,8 @@ async function callNLApi(endpoint, document, encodingType = "UTF8") {
     const authed = applyGCPAuth(url, headers);
 
     // For annotateText we need to enable all features explicitly
-    const body = endpoint === "annotateText"
-        ? JSON.stringify({
+    const body = endpoint === "annotateText" ?
+        JSON.stringify({
             document,
             encodingType,
             features: {
@@ -51,8 +51,8 @@ async function callNLApi(endpoint, document, encodingType = "UTF8") {
                 classifyText: true,
                 moderateText: true,
             }
-        })
-        : JSON.stringify({ document, encodingType });
+        }) :
+        JSON.stringify({ document, encodingType });
 
     const response = await fetch(authed.url, {
         method: "POST",
@@ -422,22 +422,22 @@ class GCloudNaturalLanguage extends Operation {
             return outputContent;
         }
 
-        outputContent = outputFormat === "Text Summary"
-            ? Utils.escapeHtml(buildTextSummary(analysisType, data))
-            : Utils.escapeHtml(JSON.stringify(data, null, 2));
+        outputContent = outputFormat === "Text Summary" ?
+            Utils.escapeHtml(buildTextSummary(analysisType, data)) :
+            Utils.escapeHtml(JSON.stringify(data, null, 2));
 
         // ── Write to GCS if requested ──────────────────────────────────────
         if (outputDest === "Write to GCS") {
             const virtualInputUri = effectiveGcsUri || "gs://upload/document.txt";
             const ext = outputFormat === "JSON" ? ".json" : ".txt";
-            const contentType = outputFormat === "JSON"
-                ? "application/json; charset=utf-8"
-                : "text/plain; charset=utf-8";
+            const contentType = outputFormat === "JSON" ?
+                "application/json; charset=utf-8" :
+                "text/plain; charset=utf-8";
             const dest = generateGCSDestinationUri(virtualInputUri, outputDirectory, "_ccc_nl", ext);
             // Write plain text (not HTML-escaped) to GCS
-            const plainContent = outputFormat === "Text Summary"
-                ? buildTextSummary(analysisType, data)
-                : JSON.stringify(data, null, 2);
+            const plainContent = outputFormat === "Text Summary" ?
+                buildTextSummary(analysisType, data) :
+                JSON.stringify(data, null, 2);
             await writeGCSText(dest.bucket, dest.objectPath, plainContent, contentType);
             return Utils.escapeHtml(dest.gcsUri);
         }

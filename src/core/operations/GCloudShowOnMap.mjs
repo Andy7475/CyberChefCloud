@@ -124,7 +124,10 @@ class GCloudShowOnMap extends Operation {
 
         // Auto-center on average
         let centerLat = 0, centerLng = 0;
-        validLocations.forEach(l => { centerLat += l.lat; centerLng += l.lng; });
+        validLocations.forEach(l => {
+            centerLat += l.lat;
+            centerLng += l.lng;
+        });
         centerLat /= validLocations.length;
         centerLng /= validLocations.length;
 

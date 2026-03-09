@@ -77,7 +77,7 @@ module.exports = {
         }
 
         // 1-pixel transparent PNG in raw binary form (approximate for test)
-        // Nightwatch `.loadRecipeConfig` will treat the string input as text. 
+        // Nightwatch `.loadRecipeConfig` will treat the string input as text.
         // We will fake an image byte array by providing its base64, then decoding it inline before the Prompt step.
         const base64Pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 
