@@ -93,7 +93,7 @@ class GCloudTextToSpeech extends Operation {
                 "value": ["Return to CyberChef", "Write to GCS (Longform)"]
             },
             {
-                "name": "Output Directory (Optional)",
+                "name": "Output Bucket (*.wav for longform)",
                 "type": "string",
                 "value": ""
             }
@@ -106,7 +106,7 @@ class GCloudTextToSpeech extends Operation {
      * @returns {ArrayBuffer|string}
      */
     async run(input, args) {
-        const [voiceId, outputDest, outputDirectory] = args;
+        const [voiceId, outputDest, outputBucket] = args;
 
         const text = input.trim();
         if (!text) {
@@ -114,8 +114,17 @@ class GCloudTextToSpeech extends Operation {
         }
 
         if (outputDest === "Write to GCS (Longform)") {
-            const dest = generateGCSDestinationUri("gs://placeholder/output.wav", outputDirectory, "_ccc_tts", ".wav");
+            const trimmedBucket = outputBucket.trim();
+            if (!trimmedBucket || !trimmedBucket.startsWith("gs://")) {
+                throw new OperationError("Please provide a valid Output Bucket GCS URI (e.g., gs://my-bucket/audio.wav) to save the Long Audio output.");
+            }
+
+            if (!trimmedBucket.endsWith("/") && !trimmedBucket.toLowerCase().endsWith(".wav")) {
+                throw new OperationError("Longform audio uses LINEAR16 encoding and must be saved as a .wav file. Please ensure your GCS URI ends with `.wav` or a trailing slash `/`.");
+            }
             
+            const targetUri = trimmedBucket.endsWith("/") ? `${trimmedBucket}output_ccc_tts.wav` : trimmedBucket;
+
             const creds = getGcpCredentials();
             if (!creds || !creds.quotaProject) {
                 throw new OperationError("Google Cloud credentials with an explicitly configured Project ID (quotaProject) are required for Long Audio Synthesis.");
@@ -124,13 +133,13 @@ class GCloudTextToSpeech extends Operation {
             const project = creds.quotaProject;
             const region = creds.defaultRegion || "global";
             
-            const url = `https://texttospeech.googleapis.com/v1/projects/${project}/locations/${region}/synthesizeLongAudio`;
+            const url = `https://texttospeech.googleapis.com/v1/projects/${project}/locations/${region}:synthesizeLongAudio`;
             
             const body = {
                 input: { text: text },
                 voice: { name: voiceId, languageCode: voiceId.split("-").slice(0, 2).join("-") },
                 audioConfig: { audioEncoding: "LINEAR16" },
-                outputGcsUri: dest.gcsUri
+                outputGcsUri: targetUri
             };
 
             let responseData;
@@ -148,7 +157,12 @@ class GCloudTextToSpeech extends Operation {
             const pollBaseUrl = "https://texttospeech.googleapis.com/v1/";
             await pollLongRunningOperation(operationName, pollBaseUrl);
 
-            return dest.gcsUri;
+            // Convert the GCS URI string to a byte array to satisfy the operation's strict outputType
+            const uriBytes = new Uint8Array(targetUri.length);
+            for (let i = 0; i < targetUri.length; i++) {
+                uriBytes[i] = targetUri.charCodeAt(i);
+            }
+            return Array.from(uriBytes);
 
         } else {
             // Standard Return to CyberChef
