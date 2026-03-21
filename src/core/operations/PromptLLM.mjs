@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
 import { toBase64 } from "../lib/Base64.mjs";
 
 /**
@@ -105,10 +105,6 @@ class PromptLLM extends Operation {
 
         const url = `https://${region}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(region)}/publishers/${encodeURIComponent(publisher)}/models/${encodeURIComponent(modelName)}:generateContent`;
 
-        const headers = new Headers();
-        headers.set("Content-Type", "application/json; charset=utf-8");
-        const authed = applyGCPAuth(url, headers);
-
         const requestBody = {
             contents: [],
             systemInstruction: undefined,
@@ -154,27 +150,15 @@ class PromptLLM extends Operation {
             });
         }
 
-        const response = await fetch(authed.url, {
-            method: "POST",
-            headers: authed.headers,
-            body: JSON.stringify(requestBody),
-            mode: "cors",
-            cache: "no-cache"
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            let errMsg = response.statusText;
-            try {
-                const parsed = JSON.parse(errText);
-                errMsg = parsed?.error?.message || errText;
-            } catch (e) {
-                errMsg = errText;
-            }
-            throw new OperationError(`Prompt LLM: API Error (${response.status}):\n${errMsg}\n\nEndpoint: ${authed.url}`);
+        let data;
+        try {
+            data = await gcpFetch(url, {
+                method: "POST",
+                body: requestBody
+            });
+        } catch (e) {
+            throw new OperationError(`Prompt LLM: API Error: ${e.message}\nEndpoint: ${url}`);
         }
-
-        const data = await response.json();
 
         // Parse the generated text from the response
         if (data.candidates && data.candidates.length > 0) {

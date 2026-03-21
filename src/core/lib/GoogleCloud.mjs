@@ -127,6 +127,69 @@ export function generateGCSDestinationUri(inputUri, destDir, suffix, extensionOv
 }
 
 /**
+ * A unified fetcher for Google Cloud APIs.
+ * Handles Auth, Query Params, JSON Body parsing, and consistent Error Handling.
+ * @param {string} urlStr - The base URL or full URL.
+ * @param {Object} options
+ * @param {string} [options.method="GET"] - HTTP method.
+ * @param {Object} [options.params] - Key-value pairs for URL query strings.
+ * @param {Object|string} [options.body] - The request payload (auto-stringified if Object).
+ * @param {Headers} [options.headers] - Custom headers.
+ * @returns {Promise<Object>} The parsed JSON response.
+ */
+export async function gcpFetch(urlStr, { method = "GET", params = {}, body = null, headers = new Headers() } = {}) {
+    const url = new URL(urlStr);
+
+    // 1. Attach Query Parameters (e.g., for Maps/Geocoding)
+    Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== "") {
+            url.searchParams.append(key, val);
+        }
+    });
+
+    // 2. Set Default Content-Type for POST/PUT
+    if (body && !headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json; charset=utf-8");
+    }
+
+    // 3. Apply GCP Authentication (Injects API Key or Bearer Token)
+    const authed = applyGCPAuth(url.toString(), headers);
+
+    // 4. Execute Request
+    const config = {
+        method,
+        headers: authed.headers,
+        mode: "cors",
+        cache: "no-cache",
+        body: (body && typeof body === "object") ? JSON.stringify(body) : body
+    };
+
+    let response;
+    try {
+        response = await fetch(authed.url, config);
+    } catch (e) {
+        throw new OperationError(`Network Error: Could not connect to Google APIs. ${e.message}`);
+    }
+
+    // 5. Centralized Error Handling
+    const rawText = await response.text();
+    let data;
+    try {
+        data = JSON.parse(rawText);
+    } catch (e) {
+        data = { error: { message: rawText } };
+    }
+
+    if (!response.ok || (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS")) {
+        // Maps API uses data.status; Vertex/Translate use response.ok + data.error.message
+        const msg = data.error?.message || data.error_message || data.status || response.statusText;
+        throw new OperationError(`GCP API Error (${response.status}): ${msg}`);
+    }
+
+    return data;
+}
+
+/**
  * Writes text (or JSON) content to a GCS object via the GCS JSON upload API.
  * Authentication is applied automatically via `applyGCPAuth`.
  *

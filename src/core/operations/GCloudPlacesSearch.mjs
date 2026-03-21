@@ -5,8 +5,7 @@
  */
 
 import Operation from "../Operation.mjs";
-import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { gcpFetch } from "../lib/GoogleCloud.mjs";
 
 const PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
 
@@ -20,12 +19,8 @@ const PLACES_SEARCH_URL = "https://places.googleapis.com/v1/places:searchText";
  * @returns {Promise<Object>} The parsed API response body.
  */
 export async function placesSearchText(textQuery, fields, maxResultCount, locationBias) {
-    const url = PLACES_SEARCH_URL;
     const headers = new Headers();
-    headers.set("Content-Type", "application/json; charset=utf-8");
     headers.set("X-Goog-FieldMask", fields);
-
-    const authed = applyGCPAuth(url, headers);
 
     const bodyObj = {
         textQuery: textQuery,
@@ -50,32 +45,11 @@ export async function placesSearchText(textQuery, fields, maxResultCount, locati
         }
     }
 
-    const response = await fetch(authed.url, {
+    return await gcpFetch(PLACES_SEARCH_URL, {
         method: "POST",
-        headers: authed.headers,
-        body: JSON.stringify(bodyObj),
-        mode: "cors",
-        cache: "no-cache"
+        headers: headers,
+        body: bodyObj
     });
-
-    const rawText = await response.text();
-    let data;
-    try {
-        data = JSON.parse(rawText);
-    } catch (e) {
-        throw new OperationError(
-            `GCloud Places Search: Failed to parse API response (HTTP ${response.status}).\nRaw: ${rawText.substring(0, 500)}`
-        );
-    }
-
-    if (!response.ok) {
-        const msg = data?.error?.message || response.statusText;
-        throw new OperationError(
-            `GCloud Places Search: API error (${response.status} ${response.statusText}): ${msg}\nEndpoint: ${url}`
-        );
-    }
-
-    return data;
 }
 
 /**

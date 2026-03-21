@@ -5,8 +5,7 @@
  */
 
 import Operation from "../Operation.mjs";
-import OperationError from "../errors/OperationError.mjs";
-import { getGcpCredentials, applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { getGcpCredentials, gcpFetch } from "../lib/GoogleCloud.mjs";
 import { placesSearchText } from "./GCloudPlacesSearch.mjs";
 
 const PUBLIC_KG_SEARCH_URL = "https://kgsearch.googleapis.com/v1/entities:search";
@@ -22,42 +21,19 @@ const PUBLIC_KG_SEARCH_URL = "https://kgsearch.googleapis.com/v1/entities:search
  * @returns {Promise<Object>} The parsed API response body.
  */
 async function kgSearch(queryOrId, isLookup, limit, language, apiKey) {
-    const url = new URL(PUBLIC_KG_SEARCH_URL);
-
+    const params = {};
     if (isLookup) {
-        url.searchParams.append("ids", queryOrId);
+        params.ids = queryOrId;
     } else {
-        url.searchParams.append("query", queryOrId);
+        params.query = queryOrId;
     }
+    if (limit > 0) params.limit = limit.toString();
+    if (language) params.languages = language;
+    if (apiKey) params.key = apiKey;
 
-    if (limit > 0) url.searchParams.append("limit", limit.toString());
-    if (language) url.searchParams.append("languages", language);
-    if (apiKey) url.searchParams.append("key", apiKey);
-
-    const response = await fetch(url.toString(), {
-        method: "GET",
-        mode: "cors",
-        cache: "no-cache"
+    return await gcpFetch(PUBLIC_KG_SEARCH_URL, {
+        params: params
     });
-
-    const rawText = await response.text();
-    let data;
-    try {
-        data = JSON.parse(rawText);
-    } catch (e) {
-        throw new OperationError(
-            `GCloud Knowledge Graph: Failed to parse API response (HTTP ${response.status}).\nRaw: ${rawText.substring(0, 500)}`
-        );
-    }
-
-    if (!response.ok) {
-        const msg = data?.error?.message || response.statusText;
-        throw new OperationError(
-            `GCloud Knowledge Graph: API error (${response.status} ${response.statusText}): ${msg}\nEndpoint: ${url.toString().replace(/key=[^&]+/, "key=REDACTED")}`
-        );
-    }
-
-    return data;
 }
 
 /**
@@ -225,16 +201,8 @@ class GCloudKnowledgeGraph extends Operation {
                                         const hdrs = new Headers();
                                         hdrs.set("X-Goog-FieldMask", "id,location,displayName,formattedAddress");
 
-                                        const authed = applyGCPAuth(detailsUrl, hdrs);
-
-                                        const detailRes = await fetch(authed.url, {
-                                            method: "GET",
-                                            headers: authed.headers,
-                                            mode: "cors"
-                                        });
-
-                                        if (detailRes.ok) {
-                                            const p = await detailRes.json();
+                                        try {
+                                            const p = await gcpFetch(detailsUrl, { headers: hdrs });
                                             if (p.location) {
                                                 jsonOutput.push({
                                                     lat: p.location.latitude,
@@ -244,6 +212,8 @@ class GCloudKnowledgeGraph extends Operation {
                                                 });
                                                 continue; // Move on to next KG entity
                                             }
+                                        } catch (e) {
+                                            // Silently ignore Place Details errors
                                         }
                                     }
 

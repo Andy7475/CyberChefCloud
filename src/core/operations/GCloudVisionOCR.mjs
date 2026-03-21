@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, generateGCSDestinationUri, writeGCSText } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, writeGCSText, gcpFetch } from "../lib/GoogleCloud.mjs";
 
 
 /**
@@ -32,10 +32,6 @@ function arrayBufferToBase64(buffer) {
  */
 async function callVisionAnnotate(imageBase64, features, languageHints) {
     const url = "https://vision.googleapis.com/v1/images:annotate";
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json; charset=utf-8");
-    const authed = applyGCPAuth(url, headers);
-
     const request = {
         image: { content: imageBase64 },
         features,
@@ -44,20 +40,11 @@ async function callVisionAnnotate(imageBase64, features, languageHints) {
         request.imageContext = { languageHints };
     }
 
-    const body = JSON.stringify({ requests: [request] });
-    const response = await fetch(authed.url, {
-        method: "POST", headers: authed.headers, body, mode: "cors", cache: "no-cache"
+    const data = await gcpFetch(url, {
+        method: "POST",
+        body: { requests: [request] }
     });
-    let data;
-    try {
-        data = await response.json();
-    } catch (e) {
-        throw new OperationError("GCloud Vision OCR: Failed to parse API response.");
-    }
-    if (!response.ok) {
-        const msg = data?.error?.message || response.statusText;
-        throw new OperationError(`GCloud Vision OCR: API error (${response.status}): ${msg}`);
-    }
+
     if (data?.responses?.[0]?.error) {
         const err = data.responses[0].error;
         throw new OperationError(`GCloud Vision OCR API: ${err.message} (code ${err.code})`);

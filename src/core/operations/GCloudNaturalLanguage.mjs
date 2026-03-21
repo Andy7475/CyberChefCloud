@@ -7,7 +7,7 @@
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import Utils from "../Utils.mjs";
-import { applyGCPAuth, generateGCSDestinationUri, writeGCSText } from "../lib/GoogleCloud.mjs";
+import { gcpFetch, generateGCSDestinationUri, writeGCSText } from "../lib/GoogleCloud.mjs";
 
 /**
  * Endpoint map: Analysis Type label → NL API v1 path suffix.
@@ -35,13 +35,10 @@ const NL_API_BASE = "https://language.googleapis.com/v1/documents:";
  */
 async function callNLApi(endpoint, document, encodingType = "UTF8") {
     const url = `${NL_API_BASE}${endpoint}`;
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json; charset=utf-8");
-    const authed = applyGCPAuth(url, headers);
 
     // For annotateText we need to enable all features explicitly
     const body = endpoint === "annotateText" ?
-        JSON.stringify({
+        {
             document,
             encodingType,
             features: {
@@ -51,36 +48,13 @@ async function callNLApi(endpoint, document, encodingType = "UTF8") {
                 classifyText: true,
                 moderateText: true,
             }
-        }) :
-        JSON.stringify({ document, encodingType });
+        } :
+        { document, encodingType };
 
-    const response = await fetch(authed.url, {
+    return await gcpFetch(url, {
         method: "POST",
-        headers: authed.headers,
-        body,
-        mode: "cors",
-        cache: "no-cache"
+        body: body
     });
-
-    const rawText = await response.text();
-    let data;
-    try {
-        data = JSON.parse(rawText);
-    } catch (e) {
-        throw new OperationError(
-            `GCloud Natural Language: Failed to parse API response (HTTP ${response.status}).\nRaw: ${rawText.substring(0, 500)}`
-        );
-    }
-
-    if (!response.ok) {
-        const msg = data?.error?.message || response.statusText;
-        const details = data?.error?.details ? `\nDetails: ${JSON.stringify(data.error.details, null, 2)}` : "";
-        throw new OperationError(
-            `GCloud Natural Language: API error (${response.status} ${response.statusText}): ${msg}${details}\nEndpoint: ${url}`
-        );
-    }
-
-    return data;
 }
 
 /**

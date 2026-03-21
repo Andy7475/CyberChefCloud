@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, generateGCSDestinationUri } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, gcpFetch } from "../lib/GoogleCloud.mjs";
 
 /**
  * Writes text content to a GCS object.
@@ -64,19 +64,11 @@ async function pollLongRunningOperation(operationName, pollUrl, maxMs = 30 * 60 
             throw new OperationError(`GCloud: Operation timed out after ${Math.round(elapsed / 60000)} minutes. Operation ID: ${operationName}`);
         }
 
-        const headers = new Headers();
-        const authed = applyGCPAuth(url, headers);
-        const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
-
         let data;
         try {
-            data = await response.json();
+            data = await gcpFetch(url);
         } catch (e) {
-            throw new OperationError("GCloud: Failed to parse long-running operation response.");
-        }
-        if (!response.ok) {
-            const msg = data?.error?.message || response.statusText;
-            throw new OperationError(`GCloud: Operation polling error (${response.status}): ${msg}`);
+            throw new OperationError(`GCloud: Operation polling error: ${e.message}`);
         }
 
         if (data.done) return data;
@@ -208,36 +200,20 @@ class GCloudSpeechToText extends Operation {
      */
     async _transcribeGcsUri(gcsUri, languageCode, model, maxMs) {
         const url = "https://speech.googleapis.com/v1/speech:longrunningrecognize";
-        const headers = new Headers();
-        headers.set("Content-Type", "application/json; charset=utf-8");
-        const authed = applyGCPAuth(url, headers);
-
-        const body = JSON.stringify({
+        const body = {
             config: {
                 languageCode,
                 model,
                 enableAutomaticPunctuation: true,
             },
             audio: { uri: gcsUri }
-        });
-
-        const response = await fetch(authed.url, {
-            method: "POST",
-            headers: authed.headers,
-            body,
-            mode: "cors",
-            cache: "no-cache"
-        });
+        };
 
         let responseData;
         try {
-            responseData = await response.json();
+            responseData = await gcpFetch(url, { method: "POST", body });
         } catch (e) {
-            throw new OperationError("GCloud Speech to Text: Failed to parse API response.");
-        }
-        if (!response.ok) {
-            const msg = responseData?.error?.message || response.statusText;
-            throw new OperationError(`GCloud Speech to Text: API Error (${response.status}): ${msg}`);
+            throw new OperationError(`GCloud Speech to Text: API Error: ${e.message}`);
         }
 
         const operationName = responseData.name;
@@ -270,36 +246,20 @@ class GCloudSpeechToText extends Operation {
      */
     async _transcribeRawAudio(base64Audio, languageCode, model) {
         const url = "https://speech.googleapis.com/v1/speech:recognize";
-        const headers = new Headers();
-        headers.set("Content-Type", "application/json; charset=utf-8");
-        const authed = applyGCPAuth(url, headers);
-
-        const body = JSON.stringify({
+        const body = {
             config: {
                 languageCode,
                 model,
                 enableAutomaticPunctuation: true,
             },
             audio: { content: base64Audio }
-        });
-
-        const response = await fetch(authed.url, {
-            method: "POST",
-            headers: authed.headers,
-            body,
-            mode: "cors",
-            cache: "no-cache"
-        });
+        };
 
         let responseData;
         try {
-            responseData = await response.json();
+            responseData = await gcpFetch(url, { method: "POST", body });
         } catch (e) {
-            throw new OperationError("GCloud Speech to Text: Failed to parse API response.");
-        }
-        if (!response.ok) {
-            const msg = responseData?.error?.message || response.statusText;
-            throw new OperationError(`GCloud Speech to Text: API Error (${response.status}): ${msg}`);
+            throw new OperationError(`GCloud Speech to Text: API Error: ${e.message}`);
         }
 
         return this._extractTranscript({ response: responseData });

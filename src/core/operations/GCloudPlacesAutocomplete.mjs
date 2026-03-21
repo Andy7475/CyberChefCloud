@@ -5,8 +5,7 @@
  */
 
 import Operation from "../Operation.mjs";
-import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { gcpFetch } from "../lib/GoogleCloud.mjs";
 
 const PLACES_AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete";
 
@@ -31,46 +30,14 @@ function generateUUID() {
  * @returns {Promise<Object>} The parsed API response body.
  */
 async function placesAutocomplete(input, sessionToken, countryCode) {
-    const url = PLACES_AUTOCOMPLETE_URL;
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json; charset=utf-8");
-    const authed = applyGCPAuth(url, headers);
-
-    const bodyObj = {
-        input: input,
-        sessionToken: sessionToken
-    };
-
+    const bodyObj = { input, sessionToken };
     if (countryCode) {
         bodyObj.includedRegionCodes = [countryCode];
     }
-
-    const response = await fetch(authed.url, {
+    return await gcpFetch(PLACES_AUTOCOMPLETE_URL, {
         method: "POST",
-        headers: authed.headers,
-        body: JSON.stringify(bodyObj),
-        mode: "cors",
-        cache: "no-cache"
+        body: bodyObj
     });
-
-    const rawText = await response.text();
-    let data;
-    try {
-        data = JSON.parse(rawText);
-    } catch (e) {
-        throw new OperationError(
-            `GCloud Places Autocomplete: Failed to parse API response (HTTP ${response.status}).\nRaw: ${rawText.substring(0, 500)}`
-        );
-    }
-
-    if (!response.ok) {
-        const msg = data?.error?.message || response.statusText;
-        throw new OperationError(
-            `GCloud Places Autocomplete: API error (${response.status} ${response.statusText}): ${msg}\nEndpoint: ${url}`
-        );
-    }
-
-    return data;
 }
 
 /**
@@ -173,17 +140,11 @@ class GCloudPlacesAutocomplete extends Operation {
                         hdrs.set("X-Goog-FieldMask", "id,location,displayName,formattedAddress");
                         const numTokens = generateUUID(); // consume a new session token for the details fetch
 
-                        const authed = applyGCPAuth(detailsUrl, hdrs);
-                        const finalUrl = authed.url + (authed.url.includes("?") ? "&" : "?") + "sessionToken=" + encodeURIComponent(numTokens);
-
-                        const detailRes = await fetch(finalUrl, {
-                            method: "GET",
-                            headers: authed.headers,
-                            mode: "cors"
-                        });
-
-                        if (detailRes.ok) {
-                            const dData = await detailRes.json();
+                        try {
+                            const dData = await gcpFetch(detailsUrl, {
+                                params: { sessionToken: numTokens },
+                                headers: hdrs
+                            });
                             if (dData.location) {
                                 jsonOutput.push({
                                     lat: dData.location.latitude,
@@ -192,6 +153,8 @@ class GCloudPlacesAutocomplete extends Operation {
                                     placeId: dData.id
                                 });
                             }
+                        } catch (e) {
+                            // ignore errors for individual place lookups
                         }
                     }
                 }

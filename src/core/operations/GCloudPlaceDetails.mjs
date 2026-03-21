@@ -5,8 +5,7 @@
  */
 
 import Operation from "../Operation.mjs";
-import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { gcpFetch } from "../lib/GoogleCloud.mjs";
 
 const PLACES_DETAILS_URL = "https://places.googleapis.com/v1/places/";
 
@@ -19,39 +18,13 @@ const PLACES_DETAILS_URL = "https://places.googleapis.com/v1/places/";
  * @returns {Promise<Object>} The parsed API response body.
  */
 async function placeDetails(placeId, fields, language) {
-    const url = new URL(`${PLACES_DETAILS_URL}${encodeURIComponent(placeId)}`);
-    if (language) url.searchParams.append("languageCode", language);
-
     const headers = new Headers();
     headers.set("X-Goog-FieldMask", fields);
 
-    const authed = applyGCPAuth(url.toString(), headers);
-
-    const response = await fetch(authed.url, {
-        method: "GET",
-        headers: authed.headers,
-        mode: "cors",
-        cache: "no-cache"
+    return await gcpFetch(`${PLACES_DETAILS_URL}${encodeURIComponent(placeId)}`, {
+        params: language ? { languageCode: language } : {},
+        headers: headers
     });
-
-    const rawText = await response.text();
-    let data;
-    try {
-        data = JSON.parse(rawText);
-    } catch (e) {
-        throw new OperationError(
-            `GCloud Place Details: Failed to parse API response (HTTP ${response.status}).\nRaw: ${rawText.substring(0, 500)}`
-        );
-    }
-
-    if (!response.ok) {
-        const msg = data?.error?.message || response.statusText;
-        throw new OperationError(
-            `GCloud Place Details: API error (${response.status} ${response.statusText}): ${msg}\nEndpoint: ${url}`
-        );
-    }
-
-    return data;
 }
 
 /**

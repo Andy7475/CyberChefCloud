@@ -5,8 +5,7 @@
  */
 
 import Operation from "../Operation.mjs";
-import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { gcpFetch } from "../lib/GoogleCloud.mjs";
 
 const GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 
@@ -20,43 +19,13 @@ const GEOCODING_API_URL = "https://maps.googleapis.com/maps/api/geocode/json";
  * @returns {Promise<Object>} The parsed API response body.
  */
 async function geocodeAddress(query, language, region, isReverse) {
-    const url = new URL(GEOCODING_API_URL);
-    if (isReverse) {
-        url.searchParams.append("latlng", query);
-    } else {
-        url.searchParams.append("address", query);
-    }
-    if (language) url.searchParams.append("language", language);
-    if (region) url.searchParams.append("region", region);
-
-    const headers = new Headers();
-    const authed = applyGCPAuth(url.toString(), headers);
-
-    const response = await fetch(authed.url, {
-        method: "GET",
-        headers: authed.headers,
-        mode: "cors",
-        cache: "no-cache"
+    return await gcpFetch(GEOCODING_API_URL, {
+        params: {
+            [isReverse ? "latlng" : "address"]: query,
+            language: language,
+            region: region
+        }
     });
-
-    const rawText = await response.text();
-    let data;
-    try {
-        data = JSON.parse(rawText);
-    } catch (e) {
-        throw new OperationError(
-            `GCloud Geocode: Failed to parse API response (HTTP ${response.status}).\nRaw: ${rawText.substring(0, 500)}`
-        );
-    }
-
-    if (!response.ok || (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS")) {
-        const msg = data.error_message || data.status || response.statusText;
-        throw new OperationError(
-            `GCloud Geocode: API error (${response.status} ${response.statusText}): ${msg}\nEndpoint: ${url}`
-        );
-    }
-
-    return data;
 }
 
 /**

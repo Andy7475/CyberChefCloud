@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { gcpFetch } from "../lib/GoogleCloud.mjs";
 
 /**
  * Google Translate operation
@@ -55,41 +55,20 @@ class GoogleTranslate extends Operation {
 
         if (input.length === 0) return "";
 
-        let url = "https://translation.googleapis.com/language/translate/v2";
-        let headers = new Headers();
-        headers.set("Content-Type", "application/json; charset=utf-8");
+        const url = "https://translation.googleapis.com/language/translate/v2";
 
-        ({ url, headers } = applyGCPAuth(url, headers));
-
-        const body = JSON.stringify({
+        const body = {
             q: input,
             source: sourceLanguage,
             target: targetLanguage,
             format: "text"
-        });
-
-        const config = {
-            method: "POST",
-            headers: headers,
-            body: body,
-            mode: "cors",
-            cache: "no-cache",
         };
 
         try {
-            const response = await fetch(url, config);
-            let responseData;
-
-            try {
-                responseData = await response.json();
-            } catch (err) {
-                throw new OperationError("Error: Failed to parse response from Google Translation API.");
-            }
-
-            if (!response.ok) {
-                const msg = responseData?.error?.message || response.statusText;
-                throw new OperationError(`Google Translation API Error (${response.status}): ${msg}`);
-            }
+            const responseData = await gcpFetch(url, {
+                method: "POST",
+                body: body
+            });
 
             if (responseData && responseData.data && responseData.data.translations && responseData.data.translations.length > 0) {
                 return responseData.data.translations[0].translatedText;

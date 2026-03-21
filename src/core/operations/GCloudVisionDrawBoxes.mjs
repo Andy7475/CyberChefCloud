@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, generateGCSDestinationUri } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, gcpFetch } from "../lib/GoogleCloud.mjs";
 
 /**
  * Fetches an image from a GCS URI and returns its raw bytes as an ArrayBuffer.
@@ -75,34 +75,16 @@ async function writeGCSImage(bucket, objectPath, imageBuffer, contentType) {
  */
 async function callVisionAnnotate(imageBase64, features) {
     const url = "https://vision.googleapis.com/v1/images:annotate";
-    const headers = new Headers();
-    headers.set("Content-Type", "application/json; charset=utf-8");
-    const authed = applyGCPAuth(url, headers);
-
-    const body = JSON.stringify({
-        requests: [{
-            image: { content: imageBase64 },
-            features
-        }]
-    });
-
-    const response = await fetch(authed.url, {
+    const data = await gcpFetch(url, {
         method: "POST",
-        headers: authed.headers,
-        body,
-        mode: "cors",
-        cache: "no-cache"
+        body: {
+            requests: [{
+                image: { content: imageBase64 },
+                features
+            }]
+        }
     });
-    let data;
-    try {
-        data = await response.json();
-    } catch (e) {
-        throw new OperationError("GCloud Vision: Failed to parse API response.");
-    }
-    if (!response.ok) {
-        const msg = data?.error?.message || response.statusText;
-        throw new OperationError(`GCloud Vision: API error (${response.status}): ${msg}`);
-    }
+
     if (data?.responses?.[0]?.error) {
         const err = data.responses[0].error;
         throw new OperationError(`GCloud Vision API: ${err.message} (code ${err.code})`);
