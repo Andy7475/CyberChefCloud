@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { gcpFetch, applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { gcpFetch, applyGCPAuth, generateGCSDestinationUri, writeGCSText } from "../lib/GoogleCloud.mjs";
 import { toBase64 } from "../lib/Base64.mjs";
 
 /**
@@ -92,6 +92,11 @@ class GCloudVideoIntelligence extends Operation {
                 "value": true
             },
             {
+                "name": "Output GCS Directory (gs://.../)",
+                "type": "string",
+                "value": ""
+            },
+            {
                 "name": "Max Poll Minutes",
                 "type": "number",
                 "value": 30
@@ -107,7 +112,7 @@ class GCloudVideoIntelligence extends Operation {
     async run(input, args) {
         const [
             personDetection, explicitDetection, labelDetection, shotDetection,
-            includeMedia, maxPollMinutes
+            includeMedia, outputGcsDir, maxPollMinutes
         ] = args;
 
         if (!input.byteLength) throw new OperationError("No input data provided.");
@@ -177,13 +182,37 @@ class GCloudVideoIntelligence extends Operation {
         }
 
         // Return a structured JSON containing the results, plus the media
-        return {
+        const outputJson = {
             media: finalMediaBase64,
             mimeType: "video/mp4", // Default fallback, browsers usually detect accurately
             isGcsUri: isGcsUri,
             originalUri: gcsUri,
             annotations: completed.response?.annotationResults?.[0] || {}
         };
+
+        let shouldWriteGcs = false;
+        let destBucket, destPath;
+
+        if (isGcsUri) {
+            shouldWriteGcs = true;
+            const dest = generateGCSDestinationUri(gcsUri, outputGcsDir, "_ccc_video_intel", ".json");
+            destBucket = dest.bucket;
+            destPath = dest.objectPath;
+        } else if (outputGcsDir && outputGcsDir.trim().length > 0) {
+            shouldWriteGcs = true;
+            const destMatch = outputGcsDir.trim().match(/^gs:\/\/([^/]+)\/?(.*)$/);
+            if (!destMatch) throw new OperationError(`Invalid output directory GCS URI: ${outputGcsDir}`);
+            destBucket = destMatch[1];
+            let prefix = destMatch[2];
+            if (prefix && !prefix.endsWith("/")) prefix += "/";
+            destPath = `${prefix}video_annotations_${Date.now()}.json`;
+        }
+
+        if (shouldWriteGcs) {
+            await writeGCSText(destBucket, destPath, JSON.stringify(outputJson), "application/json");
+        }
+
+        return outputJson;
     }
 
     /**
@@ -200,7 +229,7 @@ class GCloudVideoIntelligence extends Operation {
         const encodedObject = encodeURIComponent(objectPath).replace(/%2F/g, "%2F");
         const fetchUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodedObject}?alt=media`;
 
-        const auth = applyGCPAuth(fetchUrl);
+        const auth = applyGCPAuth(fetchUrl, new Headers());
         let resp;
         try {
             resp = await fetch(auth.url, { headers: auth.headers });

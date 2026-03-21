@@ -73,9 +73,31 @@ class PlayMediaWithAnnotations extends Operation {
      * @returns {string} Markup to display a media player and annotations.
      */
     async present(data) {
-        if (!data || !data.media) return "No media data found in JSON to play.";
+        if (!data || (!data.media && !data.originalUri)) return "No media data or GCS URI found in JSON to play.";
 
-        const mediaUri = `data:${data.mimeType || "video/mp4"};base64,${data.media}`;
+        let mediaUri = "";
+        if (data.media) {
+            mediaUri = `data:${data.mimeType || "video/mp4"};base64,${data.media}`;
+        } else if (data.originalUri && data.originalUri.startsWith("gs://")) {
+            try {
+                const { applyGCPAuth } = await import("../lib/GoogleCloud.mjs");
+                const match = data.originalUri.match(/^gs:\/\/([^/]+)\/(.+)$/);
+                if (match) {
+                    const encodedObject = encodeURIComponent(match[2]).replace(/%2F/g, "%2F");
+                    const fetchUrl = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(match[1])}/o/${encodedObject}?alt=media`;
+                    const auth = applyGCPAuth(fetchUrl, new Headers());
+                    const resp = await fetch(auth.url, { headers: auth.headers });
+                    if (resp.ok) {
+                        const blob = await resp.blob();
+                        mediaUri = URL.createObjectURL(blob);
+                    } else {
+                        return `Failed to fetch GCS media on-the-fly: ${resp.status} ${resp.statusText}`;
+                    }
+                }
+            } catch (e) {
+                return "Failed to proxy stream from GCS: " + e.message;
+            }
+        }
 
         // Extract and flatten annotations
         const events = [];

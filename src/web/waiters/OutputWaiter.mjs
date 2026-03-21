@@ -890,7 +890,7 @@ class OutputWaiter {
     downloadLogsClick() {
         const activeTab = this.manager.tabs.getActiveTab("output");
         const outputs = [];
-        
+
         if (this.manager.tabs.getTabList("output").length > 1) {
             // Zip up all logs
             const tabList = this.manager.tabs.getTabList("output");
@@ -949,17 +949,29 @@ class OutputWaiter {
 
         let outputText = "";
         for (let i = 0; i < logArray.length; i++) {
-            let parsedOutput = logArray[i].output;
+            let outputVal = logArray[i].output;
             try {
-                parsedOutput = JSON.parse(logArray[i].output);
+                outputVal = JSON.parse(logArray[i].output);
             } catch (e) {}
-            
+
+            let finalArgs = logArray[i].args;
+            let finalOutput = outputVal;
+
+            // Backwards compatibility for the old wrapped {"args": {}, "output": ""} format
+            if (!finalArgs && outputVal && typeof outputVal === "object" && "args" in outputVal && "output" in outputVal) {
+                finalArgs = outputVal.args;
+                finalOutput = outputVal.output;
+                try {
+                    finalOutput = JSON.parse(finalOutput);
+                } catch (e) {}
+            }
+
             const eventObj = {
                 forkId: logArray[i].forkId,
                 ingredient: logArray[i].ingredient,
                 input: logArray[i].input,
-                args: parsedOutput.args || {},
-                output: parsedOutput.output || parsedOutput
+                args: finalArgs || {},
+                output: finalOutput
             };
             outputText += JSON.stringify(eventObj, null, 4) + "\n\n";
         }
@@ -976,7 +988,7 @@ class OutputWaiter {
 
     /**
      * Generate CSV from auditLog array
-     * @param {Object[]} logArray 
+     * @param {Object[]} logArray
      * @returns {string}
      */
     generateCSV(logArray) {
@@ -984,7 +996,7 @@ class OutputWaiter {
 
         const rows = new Map(); // forkId -> { Start: val, ops: Map<opName, String[]> }
         const allOpNamesSet = new Set();
-        
+
         for (const entry of logArray) {
             const fId = entry.forkId || 0;
             if (!rows.has(fId)) {
@@ -997,11 +1009,11 @@ class OutputWaiter {
             rowData.ops.get(entry.ingredient).push(entry.output);
             allOpNamesSet.add(entry.ingredient);
         }
-        
+
         const cols = ["Start", ...Array.from(allOpNamesSet)];
         const header = cols.map(c => `"${c.replace(/"/g, '""')}"`).join(",");
         let body = "";
-        
+
         for (const rowData of rows.values()) {
             const rowVals = [rowData.Start];
             for (let i = 1; i < cols.length; i++) {
@@ -1024,7 +1036,7 @@ class OutputWaiter {
             });
             body += safeRowVals.join(",") + "\n";
         }
-        
+
         return header + "\n" + body;
     }
 

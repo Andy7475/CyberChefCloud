@@ -240,14 +240,11 @@ class Recipe {
                                 }
                             }
                         }
-                        const logVal = {
-                            args: argsObj,
-                            output: stepOutputStr.substring(0, 32700)
-                        };
                         self.chef.auditLog.push({
                             ingredient: op.name,
-                            input: stepInputStr.substring(0, 32767),
-                            output: JSON.stringify(logVal).substring(0, 32767),
+                            input: stepInputStr.substring(0, 32767), // Input can still be safely truncated to avoid huge memory inflation
+                            args: argsObj,
+                            output: stepOutputStr, // No truncation so full JSON media is playable in new tab
                             forkId: forkState.forkId || 0
                         });
                     }
