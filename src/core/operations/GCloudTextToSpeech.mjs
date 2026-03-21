@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { gcpFetch, generateGCSDestinationUri, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
 
 /**
  * Polls a Google Cloud long-running operation until it completes.
@@ -122,19 +122,19 @@ class GCloudTextToSpeech extends Operation {
             if (!trimmedBucket.endsWith("/") && !trimmedBucket.toLowerCase().endsWith(".wav")) {
                 throw new OperationError("Longform audio uses LINEAR16 encoding and must be saved as a .wav file. Please ensure your GCS URI ends with `.wav` or a trailing slash `/`.");
             }
-            
+
             const targetUri = trimmedBucket.endsWith("/") ? `${trimmedBucket}output_ccc_tts.wav` : trimmedBucket;
 
             const creds = getGcpCredentials();
             if (!creds || !creds.quotaProject) {
                 throw new OperationError("Google Cloud credentials with an explicitly configured Project ID (quotaProject) are required for Long Audio Synthesis.");
             }
-            
+
             const project = creds.quotaProject;
             const region = creds.defaultRegion || "global";
-            
+
             const url = `https://texttospeech.googleapis.com/v1/projects/${project}/locations/${region}:synthesizeLongAudio`;
-            
+
             const body = {
                 input: { text: text },
                 voice: { name: voiceId, languageCode: voiceId.split("-").slice(0, 2).join("-") },
@@ -198,7 +198,7 @@ class GCloudTextToSpeech extends Operation {
             // prepend a dummy ID3 tag so CyberChef's strict signature checks recognize it as MP3.
             if ((bytes[0] !== 0x49 || bytes[1] !== 0x44 || bytes[2] !== 0x33) &&
                 (bytes[0] !== 0xFF || bytes[1] !== 0xFB)) {
-                
+
                 const id3Header = new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
                 const combined = new Uint8Array(id3Header.length + bytes.length);
                 combined.set(id3Header);
