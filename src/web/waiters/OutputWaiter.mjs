@@ -961,7 +961,7 @@ class OutputWaiter {
                 args: parsedOutput.args || {},
                 output: parsedOutput.output || parsedOutput
             };
-            outputText += JSON.stringify(eventObj) + "\n";
+            outputText += JSON.stringify(eventObj, null, 4) + "\n\n";
         }
 
         const newWindow = window.open("about:blank", "_blank");
