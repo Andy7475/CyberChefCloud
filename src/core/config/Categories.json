@@ -551,6 +551,7 @@
             "GCloud Read File",
             "GCloud Write File",
             "GCloud Speech to Text",
+            "GCloud Text to Speech",
             "GCloud Vision Analyze",
             "GCloud Vision Draw Bounding Boxes",
             "GCloud Vision Label Image",

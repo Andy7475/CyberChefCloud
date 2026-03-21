@@ -11,6 +11,7 @@ When a new Google Cloud ingredient is added that connects to a new API service, 
 
 ## Specific Services
 - `https://speech.googleapis.com` (Speech-to-Text)
+- `https://texttospeech.googleapis.com` (Text-to-Speech)
 - `https://translation.googleapis.com` (Translate)
 - `https://vision.googleapis.com` (Cloud Vision API)
 - `https://language.googleapis.com` (Cloud Natural Language API)
