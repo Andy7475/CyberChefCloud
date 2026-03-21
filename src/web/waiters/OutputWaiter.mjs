@@ -884,6 +884,151 @@ class OutputWaiter {
     }
 
     /**
+     * Handler for download logs click events.
+     * Generates and downloads the audit logs.
+     */
+    downloadLogsClick() {
+        const activeTab = this.manager.tabs.getActiveTab("output");
+        const outputs = [];
+        
+        if (this.manager.tabs.getTabList("output").length > 1) {
+            // Zip up all logs
+            const tabList = this.manager.tabs.getTabList("output");
+            for (let i = 0; i < tabList.length; i++) {
+                const num = tabList[i];
+                if (!this.outputs[num] || !this.outputs[num].auditLog) continue;
+                outputs.push({
+                    name: `audit_log_${num}.csv`,
+                    content: this.generateCSV(this.outputs[num].auditLog)
+                });
+            }
+            if (outputs.length === 0) {
+                this.app.alert("No audit logs available for any output. Has the recipe been baked?", 3000);
+                return;
+            }
+            // Zip Worker
+            if (!this.zipWorker) {
+                this.zipWorker = new ZipWorker();
+                this.zipWorker.addEventListener("message", this.handleZipWorkerMessage.bind(this));
+            }
+            this.zipWorker.postMessage({
+                action: "zipFiles",
+                data: {
+                    files: outputs,
+                    filename: "audit_logs.zip"
+                }
+            });
+        } else {
+            // Just one CSV
+            if (!this.outputs[activeTab] || !this.outputs[activeTab].auditLog) {
+                this.app.alert("No audit logs available. Has the recipe been baked?", 3000);
+                return;
+            }
+            const csv = this.generateCSV(this.outputs[activeTab].auditLog);
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+            FileSaver.saveAs(blob, "audit_log.csv");
+        }
+    }
+
+    /**
+     * Handler for open logs tab click events.
+     * Opens the audit logs for the current tab in a new browser tab as JSON strings.
+     */
+    openLogsTabClick() {
+        const activeTab = this.manager.tabs.getActiveTab("output");
+        if (!this.outputs[activeTab] || !this.outputs[activeTab].auditLog) {
+            this.app.alert("No audit logs available. Has the recipe been baked?", 3000);
+            return;
+        }
+
+        const logArray = this.outputs[activeTab].auditLog;
+        if (logArray.length === 0) {
+            this.app.alert("Audit logs are empty.", 3000);
+            return;
+        }
+
+        let outputText = "";
+        for (let i = 0; i < logArray.length; i++) {
+            let parsedOutput = logArray[i].output;
+            try {
+                parsedOutput = JSON.parse(logArray[i].output);
+            } catch (e) {}
+            
+            const eventObj = {
+                forkId: logArray[i].forkId,
+                ingredient: logArray[i].ingredient,
+                input: logArray[i].input,
+                args: parsedOutput.args || {},
+                output: parsedOutput.output || parsedOutput
+            };
+            outputText += JSON.stringify(eventObj) + "\n";
+        }
+
+        const newWindow = window.open("about:blank", "_blank");
+        if (newWindow) {
+            newWindow.document.write("<html><head><title>Audit Logs - CyberChef</title></head><body><pre id='logs'></pre></body></html>");
+            newWindow.document.getElementById("logs").textContent = outputText;
+            newWindow.document.close();
+        } else {
+            this.app.alert("Failed to open new tab. Please allow popups.", 3000);
+        }
+    }
+
+    /**
+     * Generate CSV from auditLog array
+     * @param {Object[]} logArray 
+     * @returns {string}
+     */
+    generateCSV(logArray) {
+        if (!logArray || logArray.length === 0) return "Start\n";
+
+        const rows = new Map(); // forkId -> { Start: val, ops: Map<opName, String[]> }
+        const allOpNamesSet = new Set();
+        
+        for (const entry of logArray) {
+            const fId = entry.forkId || 0;
+            if (!rows.has(fId)) {
+                rows.set(fId, { Start: entry.input, ops: new Map() });
+            }
+            const rowData = rows.get(fId);
+            if (!rowData.ops.has(entry.ingredient)) {
+                rowData.ops.set(entry.ingredient, []);
+            }
+            rowData.ops.get(entry.ingredient).push(entry.output);
+            allOpNamesSet.add(entry.ingredient);
+        }
+        
+        const cols = ["Start", ...Array.from(allOpNamesSet)];
+        const header = cols.map(c => `"${c.replace(/"/g, '""')}"`).join(",");
+        let body = "";
+        
+        for (const rowData of rows.values()) {
+            const rowVals = [rowData.Start];
+            for (let i = 1; i < cols.length; i++) {
+                const opName = cols[i];
+                const vals = rowData.ops.get(opName);
+                if (vals && vals.length > 0) {
+                    rowVals.push(vals.join("\n---\n"));
+                } else {
+                    rowVals.push("");
+                }
+            }
+            const safeRowVals = rowVals.map(v => {
+                let cellValue = (v || "").toString();
+                // Strip null bytes and truncate safely to 15,000 chars (so escaping quotes won't exceed 32,767)
+                cellValue = cellValue.replace(/\0/g, "");
+                if (cellValue.length > 15000) {
+                    cellValue = cellValue.substring(0, 15000) + "...[truncated]";
+                }
+                return `"${cellValue.replace(/"/g, '""')}"`;
+            });
+            body += safeRowVals.join(",") + "\n";
+        }
+        
+        return header + "\n" + body;
+    }
+
+    /**
      * Handler for file download events.
      */
     async downloadFile() {

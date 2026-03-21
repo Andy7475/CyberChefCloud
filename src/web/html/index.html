@@ -348,6 +348,18 @@
                                 data-help="The currently active Output can be saved to a file. You will be asked to specify a filename. CyberChef will attempt to guess the correct file extension based on the data. If a file type cannot be detected, the extension defaults to '.dat' but can be changed manually.">
                                 <i class="material-icons" aria-hidden="true">save</i>
                             </button>
+                            <button type="button" aria-label="download logs" class="btn btn-primary bmd-btn-icon"
+                                id="download-logs" data-toggle="tooltip" title="Download Audit Logs"
+                                data-help-title="Downloading Audit Logs"
+                                data-help="<p>Download a CSV file containing the input and output of every operation in the current recipe run.</p><p>If multiple input tabs are open, this will download a zip file containing a CSV file for each tab.</p>">
+                                <i class="material-icons">receipt</i>
+                            </button>
+                            <button type="button" aria-label="open logs in tab" class="btn btn-primary bmd-btn-icon"
+                                id="open-logs-tab" data-toggle="tooltip" title="Open Audit Logs in New Tab"
+                                data-help-title="Opening Audit Logs"
+                                data-help="Open the audit logs for the current tab as JSON text in a new browser tab.">
+                                <i class="material-icons">open_in_new</i>
+                            </button>
                             <button type="button" aria-label="copy content" class="btn btn-primary bmd-btn-icon"
                                 id="copy-output" data-toggle="tooltip" title="Copy raw output to the clipboard"
                                 data-help-title="Copying raw output to the clipboard"

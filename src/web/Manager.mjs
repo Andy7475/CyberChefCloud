@@ -198,6 +198,8 @@ class Manager {
 
         // Output
         document.getElementById("save-to-file").addEventListener("click", this.output.saveClick.bind(this.output));
+        document.getElementById("download-logs").addEventListener("click", this.output.downloadLogsClick.bind(this.output));
+        document.getElementById("open-logs-tab").addEventListener("click", this.output.openLogsTabClick.bind(this.output));
         document.getElementById("save-all-to-file").addEventListener("click", this.output.saveAllClick.bind(this.output));
         document.getElementById("copy-output").addEventListener("click", this.output.copyClick.bind(this.output));
         document.getElementById("switch").addEventListener("click", this.output.switchClick.bind(this.output));

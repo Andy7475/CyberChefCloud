@@ -224,8 +224,33 @@ class Recipe {
                     numJumps = state.numJumps;
                     numRegisters = state.numRegisters;
                 } else {
+                    const stepInputStr = await dish.get("string");
+
                     output = await op.run(input, op.ingValues);
                     dish.set(output, op.outputType);
+
+                    const stepOutputStr = await dish.get("string");
+
+                    if (self.chef && self.chef.auditLog) {
+                        const argsObj = {};
+                        if (op.args && op.ingValues) {
+                            for (let j = 0; j < op.args.length; j++) {
+                                if (op.args[j] && op.args[j].name) {
+                                    argsObj[op.args[j].name] = op.ingValues[j];
+                                }
+                            }
+                        }
+                        const logVal = {
+                            args: argsObj,
+                            output: stepOutputStr.substring(0, 32700)
+                        };
+                        self.chef.auditLog.push({
+                            ingredient: op.name,
+                            input: stepInputStr.substring(0, 32767),
+                            output: JSON.stringify(logVal).substring(0, 32767),
+                            forkId: forkState.forkId || 0
+                        });
+                    }
                 }
                 this.lastRunOp = op;
             } catch (err) {

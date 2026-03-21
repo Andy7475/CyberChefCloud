@@ -42,6 +42,10 @@ class Chef {
         const startTime = Date.now(),
             recipe      = new Recipe(recipeConfig),
             containsFc  = recipe.containsFlowControl();
+        
+        this.auditLog = [];
+        this.forkId = 0;
+
         let error = false,
             progress = 0;
 
@@ -77,7 +81,8 @@ class Chef {
             type: Dish.enumLookup(this.dish.type),
             progress: progress,
             duration: Date.now() - startTime,
-            error: error
+            error: error,
+            auditLog: this.auditLog
         };
     }
 

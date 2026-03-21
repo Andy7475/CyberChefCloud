@@ -307,6 +307,7 @@ class WorkerWaiter {
             progress = false;
         }
         this.manager.output.updateOutputProgress(progress, this.recipeConfig.length, inputNum);
+        if (data && data.auditLog) this.manager.output.outputs[inputNum].auditLog = data.auditLog;
         this.manager.output.updateOutputValue(data, inputNum, false);
 
         if (progress !== false) {

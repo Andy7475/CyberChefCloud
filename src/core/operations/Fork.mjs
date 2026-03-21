@@ -106,7 +106,10 @@ class Fork extends Operation {
             dish.set(inputs[i], inputType);
 
             try {
-                progress = await recipe.execute(dish, 0, state);
+                const branchState = Object.assign({}, state, {
+                    forkId: self.chef ? ++self.chef.forkId : 0
+                });
+                progress = await recipe.execute(dish, 0, branchState);
             } catch (err) {
                 if (!ignoreErrors) {
                     throw err;
