@@ -242,9 +242,9 @@ class Recipe {
                         }
                         self.chef.auditLog.push({
                             ingredient: op.name,
-                            input: stepInputStr.substring(0, 32767), // Input can still be safely truncated to avoid huge memory inflation
+                            input: stepInputStr.length > 5000000 ? stepInputStr.substring(0, 5000000) + "\n... [truncated for memory]" : stepInputStr,
                             args: argsObj,
-                            output: stepOutputStr, // No truncation so full JSON media is playable in new tab
+                            output: stepOutputStr.length > 5000000 ? stepOutputStr.substring(0, 5000000) + "\n... [truncated for memory]" : stepOutputStr,
                             forkId: forkState.forkId || 0
                         });
                     }
