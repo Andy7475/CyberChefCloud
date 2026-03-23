@@ -92,6 +92,11 @@ class GCloudVideoIntelligence extends Operation {
                 "value": false
             },
             {
+                "name": "Speech Language Code",
+                "type": "string",
+                "value": "en-US"
+            },
+            {
                 "name": "Text Detection",
                 "type": "boolean",
                 "value": false
@@ -121,7 +126,7 @@ class GCloudVideoIntelligence extends Operation {
      */
     async run(input, args) {
         const [
-            personDetection, explicitDetection, labelDetection, shotDetection, speechTranscription, textDetection,
+            personDetection, explicitDetection, labelDetection, shotDetection, speechTranscription, speechLanguageCode, textDetection,
             includeMedia, outputGcsDir, maxPollMinutes
         ] = args;
 
@@ -160,6 +165,16 @@ class GCloudVideoIntelligence extends Operation {
         const url = "https://videointelligence.googleapis.com/v1/videos:annotate";
         const body = { features };
 
+        // Attach videoContext if speech transcription is requested
+        if (speechTranscription) {
+            body.videoContext = {
+                speechTranscriptionConfig: {
+                    languageCode: speechLanguageCode || "en-US",
+                    enableAutomaticPunctuation: true
+                }
+            };
+        }
+
         if (isGcsUri) {
             body.inputUri = gcsUri;
         } else {
@@ -193,13 +208,31 @@ class GCloudVideoIntelligence extends Operation {
             }
         }
 
+        // Merge all annotationResults segments into one object.
+        // The API returns one entry per input segment; each annotation type is an array,
+        // so we concatenate arrays across segments. Scalar fields (e.g. `segment`) come
+        // from the first result element.
+        const allResults = completed.response?.annotationResults ?? [];
+        const mergedAnnotations = allResults.reduce((merged, result) => {
+            for (const [key, value] of Object.entries(result)) {
+                if (Array.isArray(value)) {
+                    // Concatenate annotation arrays (e.g. personDetectionAnnotations, speechTranscriptions)
+                    merged[key] = (merged[key] || []).concat(value);
+                } else if (!(key in merged)) {
+                    // Keep first occurrence of scalar fields (e.g. `segment`, `error`)
+                    merged[key] = value;
+                }
+            }
+            return merged;
+        }, {});
+
         // Return a structured JSON containing the results, plus the media
         const outputJson = {
             media: finalMediaBase64,
             mimeType: "video/mp4", // Default fallback, browsers usually detect accurately
             isGcsUri: isGcsUri,
             originalUri: gcsUri,
-            annotations: completed.response?.annotationResults?.[0] || {}
+            annotations: mergedAnnotations
         };
 
         let shouldWriteGcs = false;

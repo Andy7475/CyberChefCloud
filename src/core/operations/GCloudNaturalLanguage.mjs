@@ -273,7 +273,9 @@ class GCloudNaturalLanguage extends Operation {
         ].join("");
         this.infoURL = "https://cloud.google.com/natural-language/docs/reference/rest/v1/documents";
         this.inputType = "ArrayBuffer";
-        this.outputType = "html";
+        this.outputType = "string";
+        this.presentType = "html";
+        this.highlight = true;
         this.manualBake = true;
         this.args = [
             {
@@ -385,20 +387,21 @@ class GCloudNaturalLanguage extends Operation {
         if (outputFormat === "Highlight Entities") {
             if (!rawInputText) {
                 // GCS URI mode — we don't have the raw bytes, emit a text summary instead
-                outputContent = Utils.escapeHtml(
+                // Return a sentinel prefix so present() knows to treat it as pre-built HTML
+                outputContent = "\x00HTML\x00" + Utils.escapeHtml(
                     "[Highlight Entities requires Plain Text input mode — raw text must be available locally.]\n\n" +
                     buildTextSummary("Analyze Entities", data)
                 );
             } else {
-                outputContent = highlightEntities(rawInputText, data.entities || []);
+                // Return a sentinel prefix so present() knows this is already-built HTML
+                outputContent = "\x00HTML\x00" + highlightEntities(rawInputText, data.entities || []);
             }
-            // Highlight mode always returns to CyberChef
             return outputContent;
         }
 
         outputContent = outputFormat === "Text Summary" ?
-            Utils.escapeHtml(buildTextSummary(analysisType, data)) :
-            Utils.escapeHtml(JSON.stringify(data, null, 2));
+            buildTextSummary(analysisType, data) :
+            JSON.stringify(data, null, 2);
 
         // ── Write to GCS if requested ──────────────────────────────────────
         if (outputDest === "Write to GCS") {
@@ -408,15 +411,31 @@ class GCloudNaturalLanguage extends Operation {
                 "application/json; charset=utf-8" :
                 "text/plain; charset=utf-8";
             const dest = generateGCSDestinationUri(virtualInputUri, outputDirectory, "_ccc_nl", ext);
-            // Write plain text (not HTML-escaped) to GCS
-            const plainContent = outputFormat === "Text Summary" ?
-                buildTextSummary(analysisType, data) :
-                JSON.stringify(data, null, 2);
-            await writeGCSText(dest.bucket, dest.objectPath, plainContent, contentType);
-            return Utils.escapeHtml(dest.gcsUri);
+            await writeGCSText(dest.bucket, dest.objectPath, outputContent, contentType);
+            return dest.gcsUri;
         }
 
         return outputContent;
+    }
+
+
+    /**
+     * Presents the run() output as HTML for the CyberChef output pane.
+     * Raw text (JSON / Text Summary) is HTML-escaped here so that the audit
+     * log always receives clean plain text from run().
+     * Entity-highlight output is already HTML (prefixed with a sentinel).
+     *
+     * @param {string} data
+     * @param {Object[]} args
+     * @returns {string} HTML string
+     */
+    present(data, args) {
+        // Sentinel set by run() when the string already contains safe HTML
+        if (data.startsWith("\x00HTML\x00")) {
+            return data.slice(6);
+        }
+        // Plain text / JSON — HTML-escape for safe display
+        return `<pre>${Utils.escapeHtml(data)}</pre>`;
     }
 
 }
