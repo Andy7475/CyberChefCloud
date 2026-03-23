@@ -86,12 +86,12 @@ class GCloudVideoIntelligence extends Operation {
                 "type": "boolean",
                 "value": false
             },
-                        {
+            {
                 "name": "Speech Transcription",
                 "type": "boolean",
                 "value": false
             },
-                        {
+            {
                 "name": "Text Detection",
                 "type": "boolean",
                 "value": false
