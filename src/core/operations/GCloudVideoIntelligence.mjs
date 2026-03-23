@@ -86,6 +86,16 @@ class GCloudVideoIntelligence extends Operation {
                 "type": "boolean",
                 "value": false
             },
+                        {
+                "name": "Speech Transcription",
+                "type": "boolean",
+                "value": false
+            },
+                        {
+                "name": "Text Detection",
+                "type": "boolean",
+                "value": false
+            },
             {
                 "name": "Include Media in Output",
                 "type": "boolean",
@@ -111,7 +121,7 @@ class GCloudVideoIntelligence extends Operation {
      */
     async run(input, args) {
         const [
-            personDetection, explicitDetection, labelDetection, shotDetection,
+            personDetection, explicitDetection, labelDetection, shotDetection, speechTranscription, textDetection,
             includeMedia, outputGcsDir, maxPollMinutes
         ] = args;
 
@@ -140,6 +150,8 @@ class GCloudVideoIntelligence extends Operation {
         if (explicitDetection) features.push("EXPLICIT_CONTENT_DETECTION");
         if (labelDetection) features.push("LABEL_DETECTION");
         if (shotDetection) features.push("SHOT_CHANGE_DETECTION");
+        if (speechTranscription) features.push("SPEECH_TRANSCRIPTION");
+        if (textDetection) features.push("TEXT_DETECTION");
 
         if (features.length === 0) {
             throw new OperationError("Please select at least one detection feature.");
