@@ -92,6 +92,11 @@ class GCloudVideoIntelligence extends Operation {
                 "value": false
             },
             {
+                "name": "Speech Language Code",
+                "type": "string",
+                "value": "en-US"
+            },
+            {
                 "name": "Text Detection",
                 "type": "boolean",
                 "value": false
@@ -121,7 +126,7 @@ class GCloudVideoIntelligence extends Operation {
      */
     async run(input, args) {
         const [
-            personDetection, explicitDetection, labelDetection, shotDetection, speechTranscription, textDetection,
+            personDetection, explicitDetection, labelDetection, shotDetection, speechTranscription, speechLanguageCode, textDetection,
             includeMedia, outputGcsDir, maxPollMinutes
         ] = args;
 
@@ -159,6 +164,16 @@ class GCloudVideoIntelligence extends Operation {
 
         const url = "https://videointelligence.googleapis.com/v1/videos:annotate";
         const body = { features };
+
+        // Attach videoContext if speech transcription is requested
+        if (speechTranscription) {
+            body.videoContext = {
+                speechTranscriptionConfig: {
+                    languageCode: speechLanguageCode || "en-US",
+                    enableAutomaticPunctuation: true
+                }
+            };
+        }
 
         if (isGcsUri) {
             body.inputUri = gcsUri;
