@@ -566,7 +566,8 @@
             "GCloud Show on Map",
             "GCloud Knowledge Graph",
             "Google Translate",
-            "Prompt LLM"
+            "Prompt LLM",
+            "AI Agent"
         ]
     },
     {
