@@ -91,7 +91,7 @@ class PlayMedia extends Operation {
         const dataURI = `data:${types[0].mime};base64,${toBase64(data)}`;
         const element = matches[0];
 
-        let html = `<${element} src='${dataURI}' type='${types[0].mime}' controls>`;
+        let html = `<${element} src='${dataURI}' type='${types[0].mime}' controls style="width: 100%; max-height: 100%; object-fit: contain;">`;
         html += "<p>Unsupported media type.</p>";
         html += `</${element}>`;
         return html;

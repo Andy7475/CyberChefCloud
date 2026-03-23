@@ -513,6 +513,7 @@
         "ops": [
             "Render Image",
             "Play Media",
+            "Play Media with Annotations",
             "Generate Image",
             "Optical Character Recognition",
             "Remove EXIF",
@@ -553,6 +554,7 @@
             "GCloud Speech to Text",
             "GCloud Text to Speech",
             "GCloud Vision Analyze",
+            "GCloud Video Intelligence",
             "GCloud Vision Draw Bounding Boxes",
             "GCloud Vision Label Image",
             "GCloud Vision OCR",
