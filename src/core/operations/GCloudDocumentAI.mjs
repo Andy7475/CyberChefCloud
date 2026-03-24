@@ -225,9 +225,8 @@ class GCloudDocumentAI extends Operation {
                 fields.push({
                     name: name || null,
                     value: value || null,
-                    confidence: ff.fieldValue?.confidence != null
-                        ? parseFloat(ff.fieldValue.confidence.toFixed(3))
-                        : null,
+                    confidence: ff.fieldValue?.confidence != null ?
+                        parseFloat(ff.fieldValue.confidence.toFixed(3)) : null,
                     pageNumber: pageNum
                 });
             }
