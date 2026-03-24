@@ -258,6 +258,21 @@ class AIAgent extends Operation {
             resultStr = String(rawResult ?? "");
         }
 
+        // Push this tool call into the audit log so it appears alongside regular operation entries
+        if (isWorkerEnvironment() && self.chef && self.chef.auditLog) {
+            const truncatedResult = resultStr.length > 5000000 ?
+                resultStr.substring(0, 5000000) + "\n... [truncated for memory]" :
+                resultStr;
+            self.chef.auditLog.push({
+                ingredient: `AI Agent → ${opName}`,
+                input: currentText.length > 5000000 ? currentText.substring(0, 5000000) : currentText,
+                args: llmArgs || {},
+                output: truncatedResult,
+                forkId: 0,
+                agentTool: true
+            });
+        }
+
         return { result: resultStr, updatedText: resultStr };
     }
 
