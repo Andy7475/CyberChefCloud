@@ -553,6 +553,7 @@
             "GCloud Write File",
             "GCloud Speech to Text",
             "GCloud Text to Speech",
+            "GCloud Document AI",
             "GCloud Vision Analyze",
             "GCloud Video Intelligence",
             "GCloud Vision Draw Bounding Boxes",
