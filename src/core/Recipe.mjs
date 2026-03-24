@@ -229,7 +229,17 @@ class Recipe {
                     output = await op.run(input, op.ingValues);
                     dish.set(output, op.outputType);
 
-                    const stepOutputStr = await dish.get("string");
+                    // Convert raw output to string WITHOUT going through dish.get("string"),
+                    // because dish.get() modifies internal dish state. Calling dish.get("string")
+                    // on an HTML-type dish would strip the tags and corrupt it for recipe.present().
+                    let stepOutputStr;
+                    if (typeof output === "string") {
+                        stepOutputStr = output;
+                    } else if (output instanceof ArrayBuffer) {
+                        stepOutputStr = new TextDecoder("utf-8", { fatal: false }).decode(output);
+                    } else {
+                        stepOutputStr = String(output ?? "");
+                    }
 
                     if (self.chef && self.chef.auditLog) {
                         const argsObj = {};
