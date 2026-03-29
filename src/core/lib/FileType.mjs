@@ -6,8 +6,8 @@
  * @license Apache-2.0
  *
  */
-import {FILE_SIGNATURES} from "./FileSignatures.mjs";
-import {sendStatusMessage} from "../Utils.mjs";
+import { FILE_SIGNATURES } from "./FileSignatures.mjs";
+import { sendStatusMessage } from "../Utils.mjs";
 
 
 /**
@@ -20,7 +20,7 @@ import {sendStatusMessage} from "../Utils.mjs";
  * @param {number} [offset=0] Where in the buffer to start searching from
  * @returns {boolean}
  */
-function signatureMatches(sig, buf, offset=0) {
+function signatureMatches(sig, buf, offset = 0) {
     // Using a length check seems to be more performant than `sig instanceof Array`
     if (sig.length) {
         // sig is an Array - return true if any of them match
@@ -47,7 +47,7 @@ function signatureMatches(sig, buf, offset=0) {
  * @param {number} [offset=0] Where in the buffer to start searching from
  * @returns {boolean}
  */
-function bytesMatch(sig, buf, offset=0) {
+function bytesMatch(sig, buf, offset = 0) {
     for (const sigoffset in sig) {
         const pos = parseInt(sigoffset, 10) + offset;
         switch (typeof sig[sigoffset]) {
@@ -83,7 +83,7 @@ function bytesMatch(sig, buf, offset=0) {
  * @returns {string} type.mime - Mime type
  * @returns {string} [type.desc] - Description
  */
-export function detectFileType(buf, categories=Object.keys(FILE_SIGNATURES)) {
+export function detectFileType(buf, categories = Object.keys(FILE_SIGNATURES)) {
     if (buf instanceof ArrayBuffer) {
         buf = new Uint8Array(buf);
     }
@@ -128,7 +128,7 @@ export function detectFileType(buf, categories=Object.keys(FILE_SIGNATURES)) {
  * @returns {string} foundFiles.fileDetails.mime - Mime type
  * @returns {string} [foundFiles.fileDetails.desc] - Description
  */
-export function scanForFileTypes(buf, categories=Object.keys(FILE_SIGNATURES)) {
+export function scanForFileTypes(buf, categories = Object.keys(FILE_SIGNATURES)) {
     if (!(buf && buf.length > 1)) {
         return [];
     }
@@ -279,7 +279,7 @@ export function resolveMimeType(input, mimeTypeArg) {
         if (detected && detected.length > 0) {
             return detected[0].mime;
         }
-        return "application/octet-stream";
+        return "text/plain";
     }
     return mimeTypeArg;
 }

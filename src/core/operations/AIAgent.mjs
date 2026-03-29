@@ -36,6 +36,13 @@ class AIAgent extends Operation {
             "<b>Example:</b>",
             "<ul><li>Ask the agent to 'Extract the domain and resolve its IP address', and the agent will use CyberChef tools seamlessly.</li></ul>",
             "<br>",
+            "<b>Output Modes:</b>",
+            "<ul>",
+            "<li><b>Agent Answer:</b> The final text explanation or answer provided by the LLM itself.</li>",
+            "<li><b>Final Ingredient:</b> The exact raw bytes/text returned by the last tool the Agent used.</li>",
+            "<li><b>AI Agent Flow & Output:</b> A JSON payload containing the full trace of tool calls, the LLM answer, and the final ingredient result.</li>",
+            "</ul>",
+            "<br>",
             "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.publishers.models/generateContent";
@@ -53,12 +60,7 @@ class AIAgent extends Operation {
                 "type": "editableOption",
                 "value": [
                     { name: "gemini-2.5-flash", value: "gemini-2.5-flash" },
-                    { name: "gemini-2.5-pro", value: "gemini-2.5-pro" },
-                    { name: "gemini-2.5-flash-lite", value: "gemini-2.5-flash-lite" },
-                    { name: "gemini-2.0-flash", value: "gemini-2.0-flash" },
-                    { name: "gemini-2.0-flash-lite", value: "gemini-2.0-flash-lite" },
-                    { name: "gemini-1.5-flash", value: "gemini-1.5-flash" },
-                    { name: "gemini-1.5-pro", value: "gemini-1.5-pro" }
+                    { name: "gemini-2.5-pro", value: "gemini-2.5-pro" }
                 ]
             },
             {
@@ -74,6 +76,29 @@ class AIAgent extends Operation {
                     { name: "audio/mp3", value: "audio/mp3" },
                     { name: "video/mp4", value: "video/mp4" }
                 ]
+            },
+            {
+                "name": "Prefilled Tool Examples",
+                "type": "populateAppendOption",
+                "value": [
+                    {
+                        name: "User defined",
+                        value: "From Base64, To Base64, From Hex, To Hex, Extract email addresses"
+                    },
+                    {
+                        name: "Image Analysis",
+                        value: "GCloud Vision Analyze, Prompt LLM, Extract EXIF, Extract LSB, Extract RGBA, Extract ID3, Randomize Colour Palette, Split Colour Channels, View Bit Plane, GCloud Vision OCR, Detect File Type"
+                    },
+                    {
+                        name: "Video Analysis",
+                        value: "GCloud Video Intelligence, Google Translate, GCloud Natural Language, Prompt LLM, Regular expression"
+                    },
+                    {
+                        name: "Intelligence Analyst",
+                        value: "GCloud Video Intelligence, GCloud Vision Analyze, GCloud Vision OCR, GCloud Speech to Text, Google Translate, GCloud Natural Language, GCloud Knowledge Graph, GCloud Document AI, GCloud Geocode, GCloud Place Details, GCloud Places Search, Prompt LLM, Extract EXIF, Extract email addresses, Extract IP addresses, Extract MAC addresses, Extract domains, Extract URLs, Regular expression, Find / Replace, URL Encode, URL Decode, Detect File Type"
+                    }
+                ],
+                "target": 4
             },
             {
                 "name": "Tools (comma-separated operation names)",
@@ -98,7 +123,7 @@ class AIAgent extends Operation {
             {
                 "name": "Output Mode",
                 "type": "option",
-                "value": ["Pure Output", "AI Agent Flow & Output"]
+                "value": ["Agent Answer", "Final Ingredient", "AI Agent Flow & Output"]
             }
         ];
     }
@@ -137,8 +162,8 @@ class AIAgent extends Operation {
         if (op.flowControl) return null;
 
         const isBinary = op.inputType === "ArrayBuffer" ||
-                         op.inputType === "File" ||
-                         op.inputType.startsWith("List");
+            op.inputType === "File" ||
+            op.inputType.startsWith("List");
 
         const properties = {};
         const required = [];
@@ -230,8 +255,8 @@ class AIAgent extends Operation {
         });
 
         const isBinary = op.inputType === "ArrayBuffer" ||
-                         op.inputType === "File" ||
-                         op.inputType.startsWith("List");
+            op.inputType === "File" ||
+            op.inputType.startsWith("List");
 
         let rawResult;
         if (isBinary) {
@@ -285,7 +310,7 @@ class AIAgent extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [systemPrompt, modelName, mimeTypeArg, toolsArg, maxTokens, temperature, maxIterations, outputMode] = args;
+        const [systemPrompt, modelName, mimeTypeArg, , toolsArg, maxTokens, temperature, maxIterations, outputMode] = args;
         const mimeType = resolveMimeType(input, mimeTypeArg);
 
         // Dynamically import the operations index to avoid a circular dependency
@@ -309,6 +334,8 @@ class AIAgent extends Operation {
 
         // === Build tool schemas ===
         const toolNames = toolsArg.split(",").map(s => s.trim()).filter(Boolean);
+        // eslint-disable-next-line no-console
+        console.log("toolNames", toolNames);
         const functionDeclarations = [];
         const funcDeclByVertexName = {}; // vertex function name → { _ccName, _isBinary }
 
@@ -345,7 +372,7 @@ class AIAgent extends Operation {
         }
 
         if (functionDeclarations.length === 0) {
-            throw new OperationError("AI Agent: No valid tools could be built. Check that the operation names are spelled correctly (case-sensitive, spaces included).");
+            throw new OperationError(`AI Agent: No valid tools could be built from '${toolNames}'. Check that the operation names are spelled correctly (case-sensitive, spaces included).`);
         }
 
         // === Build system prompt with context injection ===
@@ -378,22 +405,27 @@ class AIAgent extends Operation {
         while (iterations < maxIterations) {
             iterations++;
 
+            const body = {
+                contents,
+                systemInstruction: {
+                    role: "system",
+                    parts: [{ text: `${contextNote}\n\n${systemPrompt}` }]
+                },
+                tools: [{ functionDeclarations }],
+                generationConfig: {
+                    maxOutputTokens: maxTokens,
+                    temperature
+                }
+            };
+
+            // eslint-disable-next-line no-console
+            console.info(`AI Agent iteration ${iterations} prompt:`, JSON.stringify(body, null, 2));
+
             let data;
             try {
                 data = await gcpFetch(url, {
                     method: "POST",
-                    body: {
-                        contents,
-                        systemInstruction: {
-                            role: "system",
-                            parts: [{ text: `${contextNote}\n\n${systemPrompt}` }]
-                        },
-                        tools: [{ functionDeclarations }],
-                        generationConfig: {
-                            maxOutputTokens: maxTokens,
-                            temperature
-                        }
-                    }
+                    body
                 });
             } catch (e) {
                 throw new OperationError(`AI Agent: Vertex AI API error on iteration ${iterations}: ${e.message}`);
@@ -428,9 +460,11 @@ class AIAgent extends Operation {
                         },
                         output: currentText
                     }, null, 2);
+                } else if (outputMode === "Agent Answer") {
+                    return llmAnswer;
                 }
 
-                // Pure Output — return exactly what the last tool produced
+                // Final Ingredient — return exactly what the last tool produced
                 return currentText;
             }
 
@@ -509,9 +543,11 @@ class AIAgent extends Operation {
                 },
                 output: currentText
             }, null, 2);
+        } else if (outputMode === "Agent Answer") {
+            return "Agent stopped due to hitting Max Iterations limit prior to answering. Check the CyberChef output audit logs for more details on tool usage up to this point.";
         }
 
-        // Pure Output — return the last tool result even if max iterations hit
+        // Final Ingredient — return the last tool result even if max iterations hit
         return currentText;
     }
 

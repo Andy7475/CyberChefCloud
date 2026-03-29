@@ -167,6 +167,7 @@ class HTMLIngredient {
                 </div>`;
                 break;
             case "populateOption":
+            case "populateAppendOption":
             case "populateMultiOption":
                 html += `<div class="form-group ing-medium" data-help-title="Population dropdowns" data-help="Selecting a value from this dropdown will populate some of the other ingredients for this operation with pre-canned values.">
                     <label for="${this.id}"
@@ -193,9 +194,13 @@ class HTMLIngredient {
                 html += `</select>
                 </div>`;
 
-                eventFn = this.type === "populateMultiOption" ?
-                    this.populateMultiOptionChange :
-                    this.populateOptionChange;
+                if (this.type === "populateMultiOption") {
+                    eventFn = this.populateMultiOptionChange;
+                } else if (this.type === "populateAppendOption") {
+                    eventFn = this.populateAppendOptionChange;
+                } else {
+                    eventFn = this.populateOptionChange;
+                }
                 this.manager.addDynamicListener("#" + this.id, "change", eventFn, this);
                 break;
             case "editableOption":
@@ -329,7 +334,11 @@ class HTMLIngredient {
         const op = el.parentNode.parentNode;
         const target = op.querySelectorAll(".arg")[this.target];
 
-        const popVal = el.childNodes[el.selectedIndex].getAttribute("populate-value");
+        if (el.selectedIndex === -1) return;
+        const optionEl = el.options ? el.options[el.selectedIndex] : el.childNodes[el.selectedIndex];
+        if (!optionEl) return;
+
+        const popVal = optionEl.getAttribute("populate-value");
         if (popVal !== "") target.value = popVal;
 
         const evt = new Event("change");
@@ -338,6 +347,41 @@ class HTMLIngredient {
         this.manager.recipe.ingChange();
     }
 
+
+    /**
+     * Handler for populate append option changes.
+     * Appends the specified value to the relevant argument's existing value (comma-separated).
+     *
+     * @param {event} e
+     */
+    populateAppendOptionChange(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const el = e.target;
+        const op = el.parentNode.parentNode;
+        const target = op.querySelectorAll(".arg")[this.target];
+
+        if (el.selectedIndex === -1) return;
+        const optionEl = el.options ? el.options[el.selectedIndex] : el.childNodes[el.selectedIndex];
+        if (!optionEl) return;
+
+        const popVal = optionEl.getAttribute("populate-value");
+        if (popVal !== "") {
+            const current = target.value;
+            const currentParts = current.split(",").map(s => s.trim()).filter(Boolean);
+            const newParts = popVal.split(",").map(s => s.trim()).filter(Boolean);
+
+            // Union the sets to avoid direct duplicates
+            const resultSet = new Set([...currentParts, ...newParts]);
+            target.value = Array.from(resultSet).join(", ");
+        }
+
+        const evt = new Event("change");
+        target.dispatchEvent(evt);
+
+        this.manager.recipe.ingChange();
+    }
 
     /**
      * Handler for populate multi option changes.
@@ -353,7 +397,12 @@ class HTMLIngredient {
         const op = el.parentNode.parentNode;
         const args = op.querySelectorAll(".arg");
         const targets = this.target.map(i => args[i]);
-        const vals = JSON.parse(el.childNodes[el.selectedIndex].getAttribute("populate-value"));
+
+        if (el.selectedIndex === -1) return;
+        const optionEl = el.options ? el.options[el.selectedIndex] : el.childNodes[el.selectedIndex];
+        if (!optionEl) return;
+
+        const vals = JSON.parse(optionEl.getAttribute("populate-value"));
         const evt = new Event("change");
 
         for (let i = 0; i < targets.length; i++) {

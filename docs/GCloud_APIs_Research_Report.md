@@ -90,7 +90,7 @@ Here are examples of how analysts could build recipes combining native CyberChef
 ### Workflow A: Media OSINT Exploitation
 1.  **Input:** A foreign-language propaganda video file.
 2.  **GCloud Speech-to-Text:** Extract the audio transcription.
-3.  **GCloud Translate:** Translate the transcription to English.
+3.  **Google Translate:** Translate the transcription to English.
 4.  **Extract Regular Expression:** Extract potential phone numbers or email addresses mentioned.
 5.  **GCloud Natural Language:** Extract Organizations and Locations mentioned in the translated text.
 

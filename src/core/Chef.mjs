@@ -42,7 +42,7 @@ class Chef {
         const startTime = Date.now(),
             recipe      = new Recipe(recipeConfig),
             containsFc  = recipe.containsFlowControl();
-        
+
         this.auditLog = [];
         this.forkId = 0;
 

@@ -51,13 +51,7 @@ class PromptLLM extends Operation {
                 "value": [
                     { name: "gemini-2.5-flash", value: "gemini-2.5-flash" },
                     { name: "gemini-2.5-pro", value: "gemini-2.5-pro" },
-                    { name: "gemini-2.5-flash-lite", value: "gemini-2.5-flash-lite" },
-                    { name: "gemini-2.0-flash", value: "gemini-2.0-flash" },
-                    { name: "gemini-2.0-flash-lite", value: "gemini-2.0-flash-lite" },
-                    { name: "gemini-1.5-flash", value: "gemini-1.5-flash" },
-                    { name: "gemini-1.5-pro", value: "gemini-1.5-pro" },
-                    { name: "gemini-1.5-pro-latest", value: "gemini-1.5-pro-latest" },
-                    { name: "gemini-pro-latest", value: "gemini-pro-latest" }
+                    { name: "gemini-2.5-flash-image", value: "gemini-2.5-flash-image" }
                 ]
             },
             {
