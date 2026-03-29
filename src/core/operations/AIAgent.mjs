@@ -9,9 +9,6 @@ import OperationError from "../errors/OperationError.mjs";
 import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
 import { resolveMimeType } from "../lib/FileType.mjs";
 import { isWorkerEnvironment } from "../Utils.mjs";
-// NOTE: operations/index.mjs is loaded lazily via dynamic import inside run()
-// to avoid a circular dependency (index.mjs imports AIAgent.mjs) and to prevent
-// heavyweight WASM operations (e.g. Jq) from initialising at Cloud module load time.
 
 /**
  * AI Agent operation
@@ -148,7 +145,6 @@ class AIAgent extends Operation {
             case "boolean":
                 return "BOOLEAN";
             default:
-                // byteArray, populateOption etc. can't be cleanly serialised - skip
                 return null;
         }
     }
@@ -177,7 +173,6 @@ class AIAgent extends Operation {
                 description: `${arg.name} (default: ${JSON.stringify(arg.value)})`
             };
 
-            // Add enum for option/editableOption types
             if ((arg.type === "option" || arg.type === "editableOption") && Array.isArray(arg.value)) {
                 const enumVals = arg.value.map(v => (typeof v === "object" ? v.value : v)).filter(v => typeof v === "string");
                 if (enumVals.length > 0) propDef.enum = enumVals;
@@ -198,7 +193,6 @@ class AIAgent extends Operation {
                 properties: Object.keys(properties).length > 0 ? properties : { _noop: { type: "STRING", description: "This operation has no configurable parameters. Pass an empty string." } },
                 required
             },
-            // Store metadata for the bridge
             _ccName: op.name,
             _isBinary: isBinary
         };
@@ -207,14 +201,13 @@ class AIAgent extends Operation {
     /**
      * Executes a CyberChef operation as a tool call from the LLM.
      * @param {string} opName - The CyberChef operation name
-     * @param {Object} llmArgs - Key-value arguments from the LLM (keyed by arg name)
-     * @param {ArrayBuffer} pipelineBuffer - The current binary pipeline data
+     * @param {Object} llmArgs - Key-value arguments from the LLM
+     * @param {ArrayBuffer} currentBuffer - The current binary pipeline data
      * @param {string} currentText - The current text pipeline data
      * @param {Object} operations - The dynamically-loaded operations index module
-     * @returns {Promise<{result: string, updatedText: string}>}
+     * @returns {Promise<{result: string, updatedText: string, updatedBuffer: ArrayBuffer}>}
      */
-    async _executeTool(opName, llmArgs, pipelineBuffer, currentText, operations) {
-        // Find the operation class by name from the operations index
+    async _executeTool(opName, llmArgs, currentBuffer, currentText, operations) {
         let OpClass = null;
         for (const key of Object.keys(operations)) {
             try {
@@ -227,7 +220,7 @@ class AIAgent extends Operation {
                     }
                 }
             } catch (e) {
-                // Skip operations that can't be instantiated
+                // Skip
             }
         }
 
@@ -241,16 +234,13 @@ class AIAgent extends Operation {
             throw new OperationError(`AI Agent: Tool '${opName}' is a flow-control operation and cannot be called as an agent tool.`);
         }
 
-        // Map LLM args object to an ordered ingValues array using op.args as schema
         const ingValues = op.args.map(arg => {
             const val = llmArgs[arg.name];
             if (val !== undefined && val !== null) {
-                // Type coerce if needed
                 if (arg.type === "number") return Number(val);
                 if (arg.type === "boolean") return Boolean(val);
                 return val;
             }
-            // Fall back to default value
             return Array.isArray(arg.value) ? (arg.value[0]?.value ?? arg.value[0] ?? "") : arg.value;
         });
 
@@ -260,7 +250,7 @@ class AIAgent extends Operation {
 
         let rawResult;
         if (isBinary) {
-            rawResult = await op.run(pipelineBuffer, ingValues);
+            rawResult = await op.run(currentBuffer, ingValues);
         } else {
             const inputData = op.inputType === "string" ?
                 currentText :
@@ -268,25 +258,26 @@ class AIAgent extends Operation {
             rawResult = await op.run(inputData, ingValues);
         }
 
-        // Coerce result to string.
-        // CyberChef ops can return: string, ArrayBuffer, Uint8Array,
-        // byteArray (plain JS Array of 0-255 numbers), or a plain object (JSON).
         let resultStr;
+        let updatedBuffer;
+
         if (rawResult instanceof ArrayBuffer) {
             resultStr = new TextDecoder("utf-8", { fatal: false }).decode(rawResult);
+            updatedBuffer = rawResult;
         } else if (rawResult instanceof Uint8Array) {
             resultStr = new TextDecoder("utf-8", { fatal: false }).decode(rawResult);
+            updatedBuffer = rawResult.buffer;
         } else if (Array.isArray(rawResult)) {
-            // byteArray output (e.g. From Base64) — decode as UTF-8 text
             resultStr = new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(rawResult));
+            updatedBuffer = new Uint8Array(rawResult).buffer;
         } else if (typeof rawResult === "object" && rawResult !== null) {
-            // Plain object / JSON (e.g. GCloud Vision response)
             resultStr = JSON.stringify(rawResult, null, 2);
+            updatedBuffer = new TextEncoder().encode(resultStr).buffer;
         } else {
             resultStr = String(rawResult ?? "");
+            updatedBuffer = new TextEncoder().encode(resultStr).buffer;
         }
 
-        // Push this tool call into the audit log so it appears alongside regular operation entries
         if (isWorkerEnvironment() && self.chef && self.chef.auditLog) {
             const truncatedResult = resultStr.length > 5000000 ?
                 resultStr.substring(0, 5000000) + "\n... [truncated for memory]" :
@@ -301,7 +292,7 @@ class AIAgent extends Operation {
             });
         }
 
-        return { result: resultStr, updatedText: resultStr };
+        return { result: resultStr, updatedText: resultStr, updatedBuffer };
     }
 
     /**
@@ -313,9 +304,6 @@ class AIAgent extends Operation {
         const [systemPrompt, modelName, mimeTypeArg, , toolsArg, maxTokens, temperature, maxIterations, outputMode] = args;
         const mimeType = resolveMimeType(input, mimeTypeArg);
 
-        // Dynamically import the operations index to avoid a circular dependency
-        // (index.mjs already imports AIAgent.mjs) and to prevent WASM-heavy operations
-        // like Jq from initialising when the Cloud worker module first loads.
         let operations;
         try {
             operations = await import("./index.mjs");
@@ -328,19 +316,17 @@ class AIAgent extends Operation {
             throw new OperationError("Please configure a Quota Project and Default Region in the 'Authenticate Google Cloud' operation before using this ingredient.");
         }
 
-        // Store original binary data for binary-input tools
-        const pipelineBuffer = input;
+        let currentBuffer = input;
         let currentText = new TextDecoder("utf-8", { fatal: false }).decode(input);
 
-        // === Build tool schemas ===
+        // Initialize state tracking for both text and binary data
+        let pipelineStateHistory = [{ text: currentText, buffer: currentBuffer }];
+
         const toolNames = toolsArg.split(",").map(s => s.trim()).filter(Boolean);
-        // eslint-disable-next-line no-console
-        console.log("toolNames", toolNames);
         const functionDeclarations = [];
-        const funcDeclByVertexName = {}; // vertex function name → { _ccName, _isBinary }
+        const funcDeclByVertexName = {};
 
         for (const toolName of toolNames) {
-            // Find the op by name from the dynamically loaded index
             let OpClass = null;
             for (const key of Object.keys(operations)) {
                 try {
@@ -371,17 +357,31 @@ class AIAgent extends Operation {
             funcDeclByVertexName[decl.name] = meta;
         }
 
+        // Inject Built-in Meta-Tools
+        const builtinTools = [
+            {
+                name: "Undo_Last_Step",
+                description: "Reverts the pipeline data to the state it was before the previous tool was called. Use this if a tool produces garbage, throws an error, or gives incorrect output.",
+                parameters: { type: "OBJECT", properties: { reason: { type: "STRING", description: "Why are you undoing?" } } }
+            },
+            {
+                name: "Reset_Pipeline",
+                description: "Reverts the pipeline data completely back to the original raw input data.",
+                parameters: { type: "OBJECT", properties: { reason: { type: "STRING", description: "Why are you resetting?" } } }
+            }
+        ];
+        functionDeclarations.push(...builtinTools);
+
         if (functionDeclarations.length === 0) {
-            throw new OperationError(`AI Agent: No valid tools could be built from '${toolNames}'. Check that the operation names are spelled correctly (case-sensitive, spaces included).`);
+            throw new OperationError(`AI Agent: No valid tools could be built. Check that the operation names are spelled correctly.`);
         }
 
-        // === Build system prompt with context injection ===
         const sizeKB = (input.byteLength / 1024).toFixed(1);
         const contextNote = [
-            `[Context] The current pipeline data is ${mimeType}, ${sizeKB} KB.`,
-            "Binary tools (e.g. GCloud Vision Analyze, GCloud Speech to Text) operate directly on this pipeline data — you do NOT need to pass file bytes as arguments, only provide the operation-specific parameters listed in each tool's schema.",
+            `[Context] The initial pipeline data is ${mimeType}, ${sizeKB} KB.`,
+            "Binary tools operate directly on the current pipeline data — you do NOT need to pass file bytes as arguments.",
             "Text tools operate on the current text output of the pipeline.",
-            "After each tool call you will receive the result and can decide what to do next.",
+            "After each tool call you will receive the result and can decide what to do next. If a tool fails or produces garbage, use Undo_Last_Step to revert the pipeline.",
             "When you have a final answer, respond with text only (no further tool calls)."
         ].join(" ");
 
@@ -389,7 +389,6 @@ class AIAgent extends Operation {
         const region = creds.defaultRegion;
         const url = `https://${region}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(region)}/publishers/google/models/${encodeURIComponent(modelName)}:generateContent`;
 
-        // === Initial user message ===
         const userMessageText = mimeType === "text/plain" ?
             currentText :
             `[${mimeType} data available in pipeline, ${sizeKB} KB]`;
@@ -398,10 +397,9 @@ class AIAgent extends Operation {
             { role: "user", parts: [{ text: userMessageText }] }
         ];
 
-        const toolCallLog = []; // Each entry: { name, args, result }
+        const toolCallLog = [];
         let iterations = 0;
 
-        // === Agent loop ===
         while (iterations < maxIterations) {
             iterations++;
 
@@ -417,9 +415,6 @@ class AIAgent extends Operation {
                     temperature
                 }
             };
-
-            // eslint-disable-next-line no-console
-            console.info(`AI Agent iteration ${iterations} prompt:`, JSON.stringify(body, null, 2));
 
             let data;
             try {
@@ -438,12 +433,10 @@ class AIAgent extends Operation {
             const candidate = data.candidates[0];
             const parts = candidate?.content?.parts ?? [];
 
-            // Collect all function calls in this turn (Gemini may request multiple)
             const functionCalls = parts.filter(p => p.functionCall);
             const textParts = parts.filter(p => p.text);
 
             if (functionCalls.length === 0 && textParts.length > 0) {
-                // Final text answer — done
                 const llmAnswer = textParts.map(p => p.text).join("");
 
                 if (outputMode === "AI Agent Flow & Output") {
@@ -463,23 +456,50 @@ class AIAgent extends Operation {
                 } else if (outputMode === "Agent Answer") {
                     return llmAnswer;
                 }
-
-                // Final Ingredient — return exactly what the last tool produced
                 return currentText;
             }
 
-            if (functionCalls.length === 0) {
-                // No function calls and no text — unexpected, break
-                break;
-            }
+            if (functionCalls.length === 0) break;
 
-            // Add the model's response turn (with all function calls)
             contents.push({ role: "model", parts });
 
-            // Execute each tool call and build the function response parts
             const responseParts = [];
             for (const fc of functionCalls) {
                 const { name: vertexName, args: llmArgs } = fc.functionCall;
+                let resultStr;
+
+                // Intercept Built-in Meta-Tools
+                if (vertexName === "Undo_Last_Step") {
+                    if (pipelineStateHistory.length > 1) {
+                        pipelineStateHistory.pop(); // Remove the current state
+                        const previousState = pipelineStateHistory[pipelineStateHistory.length - 1];
+                        currentText = previousState.text;
+                        currentBuffer = previousState.buffer;
+                        resultStr = `SUCCESS: Pipeline reverted. Reason provided: ${llmArgs?.reason || "none"}`;
+                    } else {
+                        resultStr = "ERROR: Cannot undo. You are already at the original input.";
+                    }
+
+                    if (isWorkerEnvironment()) self.sendStatusMessage(`⏪ Undoing last step...`);
+                    toolCallLog.push({ name: vertexName, args: llmArgs || {}, result: resultStr });
+                    responseParts.push({ functionResponse: { name: vertexName, response: { result: resultStr } } });
+                    continue;
+                }
+
+                if (vertexName === "Reset_Pipeline") {
+                    const originalState = pipelineStateHistory[0];
+                    currentText = originalState.text;
+                    currentBuffer = originalState.buffer;
+                    pipelineStateHistory = [originalState];
+                    resultStr = `SUCCESS: Pipeline reset to original raw input. Reason provided: ${llmArgs?.reason || "none"}`;
+
+                    if (isWorkerEnvironment()) self.sendStatusMessage(`🔄 Resetting pipeline...`);
+                    toolCallLog.push({ name: vertexName, args: llmArgs || {}, result: resultStr });
+                    responseParts.push({ functionResponse: { name: vertexName, response: { result: resultStr } } });
+                    continue;
+                }
+
+                // Standard CyberChef Tools
                 const meta = funcDeclByVertexName[vertexName];
 
                 if (!meta) {
@@ -495,13 +515,19 @@ class AIAgent extends Operation {
                 const ccName = meta._ccName;
                 if (isWorkerEnvironment()) self.sendStatusMessage(`🔧 Calling tool: ${ccName}...`);
 
-                let resultStr;
                 try {
-                    const { result, updatedText } = await this._executeTool(
-                        ccName, llmArgs || {}, pipelineBuffer, currentText, operations
+                    const { result, updatedText, updatedBuffer } = await this._executeTool(
+                        ccName, llmArgs || {}, currentBuffer, currentText, operations
                     );
                     resultStr = result;
                     currentText = updatedText;
+                    currentBuffer = updatedBuffer;
+
+                    // Save the new state to history upon success
+                    pipelineStateHistory.push({
+                        text: currentText,
+                        buffer: currentBuffer
+                    });
                 } catch (e) {
                     resultStr = `Error executing ${ccName}: ${e.message}`;
                 }
@@ -518,17 +544,15 @@ class AIAgent extends Operation {
                     functionResponse: {
                         name: vertexName,
                         response: {
-                            result: resultStr.slice(0, 8000) // Cap to avoid context window issues
+                            result: resultStr.slice(0, 8000)
                         }
                     }
                 });
             }
 
-            // Add the tool responses as a user turn
             contents.push({ role: "user", parts: responseParts });
         }
 
-        // Max iterations reached
         if (outputMode === "AI Agent Flow & Output") {
             return JSON.stringify({
                 "ai_agent": {
@@ -547,7 +571,6 @@ class AIAgent extends Operation {
             return "Agent stopped due to hitting Max Iterations limit prior to answering. Check the CyberChef output audit logs for more details on tool usage up to this point.";
         }
 
-        // Final Ingredient — return the last tool result even if max iterations hit
         return currentText;
     }
 
