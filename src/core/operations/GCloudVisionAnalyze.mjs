@@ -83,32 +83,17 @@ class GCloudVisionAnalyze extends Operation {
         this.name = "GCloud Vision Analyze";
         this.module = "Cloud";
         this.description = [
-            "Runs one or more <b>Google Cloud Vision API</b> feature detections on an image ",
-            "and returns the <b>raw JSON response</b>.",
+            "Analyzes images using the Google Cloud Vision API to detect faces, landmarks, logos, and explicit content.",
             "<br><br>",
-            "Useful for exploring the full depth of the API response before building downstream ",
-            "pipeline steps. Select the features you want from the checkboxes — multiple features ",
-            "are batched into a single API call.",
-            "<br><br>",
-            "<b>Available features:</b>",
-            "<ul>",
-            "<li><code>LABEL_DETECTION</code> — General objects, scenes, and activities</li>",
-            "<li><code>OBJECT_LOCALIZATION</code> — Objects with bounding box coordinates</li>",
-            "<li><code>FACE_DETECTION</code> — Faces and facial landmarks</li>",
-            "<li><code>LANDMARK_DETECTION</code> — Famous landmarks</li>",
-            "<li><code>LOGO_DETECTION</code> — Brand logos</li>",
-            "<li><code>TEXT_DETECTION</code> — Sparse text (signs, labels)</li>",
-            "<li><code>DOCUMENT_TEXT_DETECTION</code> — Dense text / documents</li>",
-            "<li><code>SAFE_SEARCH_DETECTION</code> — Adult / violence / racy content scoring</li>",
-            "<li><code>IMAGE_PROPERTIES</code> — Dominant colours</li>",
-            "<li><code>WEB_DETECTION</code> — Web references and visually similar images</li>",
-            "<li><code>CROP_HINTS</code> — Suggested crop regions</li>",
-            "</ul>",
+            "<b>Inputs:</b> An image file (JPEG, PNG, etc.) or a GCS URI.",
             "<br>",
-            "<b>Input Mode:</b> Either pipe raw image bytes (e.g. from <code>Load File</code>) ",
-            "or input a <code>gs://</code> URI. When in GCS mode, the image is fetched from Cloud ",
-            "Storage before being sent to the Vision API.",
-        ].join("");
+            "<b>Outputs:</b> A rich JSON format containing all detected image properties and confidence scores.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input an image of the Eiffel Tower, and receive landmark detection data.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://cloud.google.com/vision/docs/reference/rest/v1/images/annotate";
         this.inputType = "ArrayBuffer";
         this.outputType = "string";

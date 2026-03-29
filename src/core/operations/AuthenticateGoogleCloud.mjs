@@ -23,21 +23,16 @@ class AuthenticateGoogleCloud extends Operation {
         this.name = "Authenticate Google Cloud";
         this.module = "Cloud";
         this.description = [
-            "Authenticates with Google Cloud Platform.",
+            "Authenticates CyberChef with Google Cloud using an API Key, OAuth, or Personal Access Token.",
             "<br><br>",
-            "This operation should be placed at the top of your recipe. It securely manages credentials for downstream Google Cloud operations.",
-            "<br><br>",
-            "You can authenticate using:",
-            "<ul>",
-            "<li><b>OAuth 2.0 (Web Application: PKCE)</b>: The recommended, secure method for primary Cloud APIs (Storage, Vertex, Speech, etc). Provide your Web Application Client ID. The token is stored per-session and cleared when you close the tab.</li>",
-            "<li><b>Personal Access Token (PAT)</b>: Provide a short-lived bearer token (e.g. from <code>gcloud auth print-access-token</code>).</li>",
-            "<li><b>API Key</b>: Provide a Google Cloud API key. Highly recommended as a fallback alongside OAuth.</li>",
-            "</ul>",
+            "<b>Inputs:</b> Any data (data is passed through unmodified).",
             "<br>",
-            "<b>Dual Authentication (Recommended):</b><br>",
-            "Some Google APIs (e.g. Storage, Natural Language) require OAuth, while others (e.g. Geocoding, Places) <i>only</i> accept API Keys. ",
-            "To support workflows that mix both types, select <b>OAuth</b> or <b>PAT</b> as your primary <code>Auth Type</code>, and provide your API Key in the optional field below. ",
-            "CyberChef will automatically attach the correct credential based on the destination endpoint."
+            "<b>Outputs:</b> The exact same data as the input.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Set 'Auth Type' to 'OAuth' and input your Project ID to enable other Google Cloud operations.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> This must be the first step in the recipe before calling other Google Cloud operations."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/docs/authentication";
         this.inputType = "ArrayBuffer";

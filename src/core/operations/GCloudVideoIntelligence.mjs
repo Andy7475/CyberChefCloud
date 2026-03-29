@@ -54,12 +54,16 @@ class GCloudVideoIntelligence extends Operation {
         this.name = "GCloud Video Intelligence";
         this.module = "Cloud";
         this.description = [
-            "Analyzes video using the Google Cloud Video Intelligence API.",
+            "Analyzes video files using Google Cloud Video Intelligence API to detect shots, labels, explicit content, and track objects.",
             "<br><br>",
-            "<b>Inputs:</b> You can provide a GCS URI (<code>gs://...</code>), or a raw video file by loading it into CyberChef.",
-            "If providing a raw file, it will be uploaded as Base64. Google Cloud limits Base64 video sizes, so for large videos, use a <code>gs://</code> URI.",
+            "<b>Inputs:</b> A video file (MP4, etc.) or a GCS URI representing a video.",
+            "<br>",
+            "<b>Outputs:</b> A detailed JSON response with all detected annotations and timestamps.",
             "<br><br>",
-            "If <b>Include Media in Output</b> is checked, the raw video bytes will be embedded in the output JSON. This allows downstream operations (like <code>Play Media with Annotations</code>) to play the video."
+            "<b>Example:</b>",
+            "<ul><li>Input an mp4 file to detect explicit content and return timeline markers.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/video-intelligence/docs";
         this.inputType = "ArrayBuffer";

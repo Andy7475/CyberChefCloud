@@ -68,25 +68,17 @@ class GCloudWriteFile extends Operation {
         this.name = "GCloud Write File";
         this.module = "Cloud";
         this.description = [
-            "Writes the current data (text or binary) to a file in ",
-            "<b>Google Cloud Storage</b> and returns the <code>gs://</code> URI of ",
-            "the written file.",
+            "Writes the input data to a specified Google Cloud Storage (GCS) bucket.",
             "<br><br>",
-            "<b>Destination GCS URI</b> — full object path including filename, e.g. ",
-            "<code>gs://my-bucket/output/report.json</code>. ",
-            "You can use a CyberChef <code>Register</code> expression here to dynamically ",
-            "build the path from a previous step's output (e.g. capturing the URI from ",
-            "<code>GCloud Read File</code>).",
+            "<b>Inputs:</b> The data (file or text) you want to upload.",
+            "<br>",
+            "<b>Outputs:</b> A success message containing the written GCS URI.",
             "<br><br>",
-            "<b>MIME / Content Type</b> — the <code>Content-Type</code> uploaded with the object. ",
-            "Select from the list or type a custom value.",
-            "<br><br>",
-            "<b>Output</b> — the <code>gs://</code> URI of the uploaded object, which can be ",
-            "piped into further operations (e.g. <code>GCloud Natural Language</code> or ",
-            "<code>GCloud Speech to Text</code> via their GCS URI input mode).",
-            "<br><br>",
-            "Requires a prior <code>Authenticate Google Cloud</code> operation.",
-        ].join("");
+            "<b>Example:</b>",
+            "<ul><li>Configure the bucket URI in the arguments, and the input data will be uploaded there.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://cloud.google.com/storage/docs/json_api/v1/objects/insert";
         this.inputType = "ArrayBuffer";
         this.outputType = "string";

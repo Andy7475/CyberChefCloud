@@ -59,14 +59,16 @@ class GCloudTextToSpeech extends Operation {
         this.name = "GCloud Text to Speech";
         this.module = "Cloud";
         this.description = [
-            "Synthesizes natural-sounding speech from text using the Google Cloud Text-to-Speech API.",
+            "Converts inputted text into natural-sounding audio using Google Cloud Text-to-Speech.",
             "<br><br>",
-            "<b>Return to CyberChef mode:</b> Generates a standard audio response that is returned to CyberChef as raw bytes. ",
-            "This can then be piped into the 'Play Media' operation to listen to the generated speech in your browser.",
+            "<b>Inputs:</b> A text string.",
+            "<br>",
+            "<b>Outputs:</b> A generated audio file (e.g. WAV or MP3).",
             "<br><br>",
-            "<b>Write to GCS (Longform) mode:</b> Uses the Synthesize Long Audio API. This allows processing ",
-            "very large amounts of text (up to 1 million bytes) and writes the generated audio directly to a ",
-            "Google Cloud Storage bucket. Returns the destination <code>gs://</code> URI.",
+            "<b>Example:</b>",
+            "<ul><li>Input: <code>Hello world</code> -> Output: An audio file speaking those words.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/text-to-speech";
         this.inputType = "string";

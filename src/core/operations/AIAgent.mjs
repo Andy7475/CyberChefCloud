@@ -26,15 +26,16 @@ class AIAgent extends Operation {
         this.name = "AI Agent";
         this.module = "Cloud";
         this.description = [
-            "An autonomous AI agent powered by Google Cloud Vertex AI (Gemini). The agent receives your input and a set of CyberChef operations as 'tools', then decides which operations to call—and in what order—to solve your task.",
+            "Instantiates an autonomous AI Agent powered by Vertex AI that can intelligently chain Operations.",
             "<br><br>",
-            "<b>How tools work:</b> Enter a comma-separated list of CyberChef operation names (exactly as they appear in the operations panel, e.g. <code>From Base64, To Hex, Regular expression, GCloud Vision Analyze</code>). The agent can call any of these to transform data.",
+            "<b>Inputs:</b> The initial context or payload you want the Agent to process.",
+            "<br>",
+            "<b>Outputs:</b> The final result formulated by the Agent or the full iterative flow log.",
             "<br><br>",
-            "<b>Binary data support:</b> If your input is an image, audio, or video file, binary-input operations (like <code>GCloud Vision Analyze</code>) are called directly with the pipeline bytes. The AI never receives the raw file bytes—it only provides operation arguments.",
-            "<br><br>",
-            "<b>Status messages:</b> Each tool call is reported in real-time via status messages so you can follow the agent's reasoning.",
-            "<br><br>",
-            "Ensure you have added the <code>Authenticate Google Cloud</code> operation first, and that your Quota Project has the <code>Vertex AI API</code> (aiplatform.googleapis.com) enabled."
+            "<b>Example:</b>",
+            "<ul><li>Ask the agent to 'Extract the domain and resolve its IP address', and the agent will use CyberChef tools seamlessly.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.publishers.models/generateContent";
         this.inputType = "ArrayBuffer";

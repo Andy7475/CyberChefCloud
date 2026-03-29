@@ -41,19 +41,17 @@ class GCloudPlaceDetails extends Operation {
         this.name = "GCloud Place Details";
         this.module = "Cloud";
         this.description = [
-            "Gets detailed information about a place given its Place ID using the <b>Google Places API (New)</b>.",
+            "Fetches comprehensive details for a specific Google Place ID (e.g. reviews, opening hours, exact location).",
             "<br><br>",
-            "<b>Input:</b> One Place ID per line, OR a JSON array of objects with a <code>placeId</code> property (matches the <code>Lat/Long + Label JSON</code> output of other operations).",
-            "<br><br>",
-            "<b>Output Modes:</b>",
-            "<ul>",
-            "<li><code>Lat/Long + Label JSON</code> — Outputs a JSON array of objects compatible with <code>GCloud Show on Map</code>.</li>",
-            "<li><code>Text Summary</code> — Human-readable summary (Name, Address, Phone, Website, etc.).</li>",
-            "<li><code>JSON</code> — Raw API response.</li>",
-            "</ul>",
+            "<b>Inputs:</b> A Google Place ID (e.g. <code>ChIJN1t_tDeuEmsRUsoyG83frY4</code>).",
             "<br>",
-            "Requires a prior <code>Authenticate Google Cloud</code> operation using an API Key with Maps Platform API access."
-        ].join("");
+            "<b>Outputs:</b> A rich JSON object containing all requested details for the place.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input a Place ID gathered from Places Search to see its full address and ratings.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://developers.google.com/maps/documentation/places/web-service/place-details";
         this.inputType = "string";
         this.outputType = "string";

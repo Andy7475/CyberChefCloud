@@ -94,24 +94,16 @@ class GCloudSpeechToText extends Operation {
         this.name = "GCloud Speech to Text";
         this.module = "Cloud";
         this.description = [
-            "Transcribes audio using the Google Cloud Speech-to-Text API.",
+            "Transcribes audio files into text using the Google Cloud Speech-to-Text API.",
             "<br><br>",
-            "<b>GCS URI mode (recommended for large files):</b> Input a <code>gs://</code> URI ",
-            "(e.g. <code>gs://my-bucket/audio/file.mp3</code>). The audio is processed entirely within ",
-            "Google Cloud — the raw audio never passes through the browser. Suitable for files of any size. ",
-            "Uses the asynchronous <code>longrunningrecognize</code> API with internal polling.",
+            "<b>Inputs:</b> An audio file (ArrayBuffer) or a GCS URI depending on the Input Mode.",
+            "<br>",
+            "<b>Outputs:</b> A textual transcript of the spoken audio.",
             "<br><br>",
-            "<b>Raw Audio mode:</b> Provide Base64-encoded audio bytes directly. Only suitable for short ",
-            "clips (under ~1 minute). Uses the synchronous <code>recognize</code> API.",
-            "<br><br>",
-            "<b>Write to GCS mode:</b> Instead of returning the transcript to CyberChef, writes it to a ",
-            "structured path in a GCS bucket and returns the destination <code>gs://</code> URI. This is ",
-            "ideal for batch processing with Fork — each fork branch writes its transcript and returns a URI, ",
-            "which can be saved and used as input to a later recipe.",
-            "<br><br>",
-            "<b>Output Directory:</b> If left blank, the transcript is written to the same directory as the input file ",
-            "but with a <code>_ccc_stt.txt</code> suffix to prevent overwriting. If you provide a <code>gs://</code> URI ",
-            "directory, it will write the file there preserving the original filename.",
+            "<b>Example:</b>",
+            "<ul><li>Input an mp3 file, and receive the spoken words as text.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/speech-to-text/docs/reference/rest";
         this.inputType = "string";

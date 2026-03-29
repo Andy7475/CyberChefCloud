@@ -42,25 +42,17 @@ class GCloudGeocode extends Operation {
         this.name = "GCloud Geocode";
         this.module = "Cloud";
         this.description = [
-            "Converts addresses (like '1600 Amphitheatre Parkway, Mountain View, CA') into geographic coordinates ",
-            "(latitude and longitude) using the <b>Google Maps Geocoding API</b>.",
+            "Converts human-readable addresses into geographic coordinates (Geocoding) or vice versa (Reverse Geocoding) using Google Maps API.",
             "<br><br>",
-            "<b>Input:</b>",
-            "<ul>",
-            "<li>For <i>Geocode</i>: One address per line.</li>",
-            "<li>For <i>Reverse Geocode</i>: <code>lat, long</code> per line OR a JSON array of objects with <code>lat</code> and <code>lng</code> properties (matches the <code>Lat/Long + Label JSON</code> output of other operations).</li>",
-            "</ul>",
+            "<b>Inputs:</b> A text address (e.g. <code>1600 Amphitheatre Parkway</code>) or coordinates (e.g. <code>37.42,-122.08</code>).",
             "<br>",
-            "<b>Output Modes:</b>",
-            "<ul>",
-            "<li><code>Lat/Long + Label JSON</code> — Outputs a JSON array of objects compatible with <code>GCloud Show on Map</code>.</li>",
-            "<li><code>Lat/Long (for Show on Map)</code> — Outputs one <code>lat, long</code> pair per line, compatible with the classic <code>Show on Map</code> operation.</li>",
-            "<li><code>Text Summary</code> — Human-readable summary.</li>",
-            "<li><code>JSON</code> — Raw API response.</li>",
-            "</ul>",
+            "<b>Outputs:</b> Latitude/Longitude pairs or formatted addresses.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input <code>London</code> -> Output <code>51.5072, -0.1276</code>.</li></ul>",
             "<br>",
-            "Requires a prior <code>Authenticate Google Cloud</code> operation using either an API Key with Maps Platform API access, or an OAuth token."
-        ].join("");
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://developers.google.com/maps/documentation/geocoding/overview";
         this.inputType = "string";
         this.outputType = "string";

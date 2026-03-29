@@ -22,25 +22,17 @@ class GCloudShowOnMap extends Operation {
         this.name = "GCloud Show on Map";
         this.module = "Cloud";
         this.description = [
-            "Displays multiple geographic coordinates as markers on a Google Map.",
+            "Renders geographic coordinates or Place IDs on an interactive Google Map.",
             "<br><br>",
-            "<b>Input:</b> A JSON array of location objects. This matches the <code>Lat/Long + Label JSON</code> output mode ",
-            "of other Google Cloud location operations (Geocode, Places API, etc.).",
-            "<br><br>",
-            "Example JSON:",
-            "<pre>[",
-            "  { &quot;lat&quot;: 37.422, &quot;lng&quot;: -122.084, &quot;label&quot;: &quot;Googleplex&quot; }",
-            "]</pre>",
+            "<b>Inputs:</b> A JSON array of locations, usually generated from Geocode or Places Search.",
             "<br>",
-            "<b>Google Maps JavaScript API</b>:<br>",
-            "If using Google Maps, the Google Cloud Project associated with your API key must have the ",
-            "<b>Maps JavaScript API</b> enabled in the Cloud Console. An API Key is required.",
+            "<b>Outputs:</b> An interactive HTML map viewing all the inputted points.",
             "<br><br>",
-            "<b>OpenStreetMap</b>:<br>",
-            "Uses Leaflet and OpenStreetMap tiles. No API key required.",
-            "<br><br>",
-            "Requires a prior <code>Authenticate Google Cloud</code> operation using an API Key if using Google Maps."
-        ].join("");
+            "<b>Example:</b>",
+            "<ul><li>Map output from <code>GCloud Places Search</code> visually.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://developers.google.com/maps/documentation/javascript/overview";
         this.inputType = "string";
         this.outputType = "html";

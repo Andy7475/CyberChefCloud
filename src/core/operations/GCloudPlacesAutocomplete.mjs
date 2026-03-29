@@ -54,21 +54,17 @@ class GCloudPlacesAutocomplete extends Operation {
         this.name = "GCloud Places Autocomplete";
         this.module = "Cloud";
         this.description = [
-            "Returns place predictions in response to an HTTP request using the <b>Google Places API (New)</b>.",
+            "Returns place predictions/suggestions for partial text queries using the Google Places API.",
             "<br><br>",
-            "<b>Input:</b> Partial place string (one per line).",
+            "<b>Inputs:</b> A partial text query (e.g. <code>Trafalgar Squ</code>).",
+            "<br>",
+            "<b>Outputs:</b> A list of suggested place names and their Place IDs.",
             "<br><br>",
-            "<b>Output Modes:</b>",
-            "<ul>",
-            "<li><code>Lat/Long + Label JSON</code> — Fast mode: queries <code>autocomplete</code> for placeId, then <code>places:details</code> for lat/long. Returns <code>[{lat, lng, label, placeId}]</code> array for the map.</li>",
-            "<li><code>Text Summary</code> — Human-readable list of predicted places.</li>",
-            "<li><code>JSON</code> — Raw prediction API response.</li>",
-            "</ul>",
+            "<b>Example:</b>",
+            "<ul><li>Input <code>Pizza in New Yo</code> -> Returns autocompleted place suggestions.</li></ul>",
             "<br>",
-            "<i>Note:</i> To get latitude and longitude for a prediction, the operation must make a secondary call to the Place Details API using the returned Place ID. This is done automatically in <code>Lat/Long + Label JSON</code> mode.",
-            "<br>",
-            "Requires a prior <code>Authenticate Google Cloud</code> operation using an API Key with Maps Platform API access."
-        ].join("");
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://developers.google.com/maps/documentation/places/web-service/place-autocomplete";
         this.inputType = "string";
         this.outputType = "string";

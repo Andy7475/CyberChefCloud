@@ -52,14 +52,16 @@ class GCloudReadFile extends Operation {
         this.name = "GCloud Read File";
         this.module = "Cloud";
         this.description = [
-            "Downloads a file from Google Cloud Storage and returns its raw bytes.",
+            "Reads the contents of a file from Google Cloud Storage (GCS).",
             "<br><br>",
-            "Input must be a <code>gs://</code> URI (e.g. <code>gs://my-bucket/images/photo.png</code>).",
+            "<b>Inputs:</b> A Google Cloud Storage URI (e.g. <code>gs://my-bucket/file.txt</code>).",
+            "<br>",
+            "<b>Outputs:</b> The raw binary or text data of the file.",
             "<br><br>",
-            "<b>Note:</b> This operation downloads the full file into the browser. ",
-            "It is best suited for small files such as text or images. ",
-            "For large audio or video files, use the GCS URI input mode within the Speech-to-Text or ",
-            "Video Intelligence operations instead — they process the file entirely within Google Cloud.",
+            "<b>Example:</b>",
+            "<ul><li>Input: <code>gs://my-bucket/data.csv</code> -> Output: The CSV file contents.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/storage/docs/json_api/v1/objects/get";
         this.inputType = "string";

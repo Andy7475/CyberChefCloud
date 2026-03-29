@@ -5,10 +5,9 @@
  */
 
 import Operation from "../Operation.mjs";
+import OperationError from "../errors/OperationError.mjs";
 import { getGcpCredentials, gcpFetch } from "../lib/GoogleCloud.mjs";
 import { placesSearchText } from "./GCloudPlacesSearch.mjs";
-
-const PUBLIC_KG_SEARCH_URL = "https://kgsearch.googleapis.com/v1/entities:search";
 
 /**
  * Calls the Google Knowledge Graph Search API (Public).
@@ -18,20 +17,28 @@ const PUBLIC_KG_SEARCH_URL = "https://kgsearch.googleapis.com/v1/entities:search
  * @param {number} limit - Max results.
  * @param {string} language - Optional language code.
  * @param {string} apiKey - Optional but recommended API Key.
+ * @param {string} project - The Quota Project ID.
+ * @param {string} typeFilter - Optional schema type filter.
  * @returns {Promise<Object>} The parsed API response body.
  */
-async function kgSearch(queryOrId, isLookup, limit, language, apiKey) {
+async function kgSearch(queryOrId, isLookup, limit, language, apiKey, project, typeFilter) {
+    const baseUrl = `https://enterpriseknowledgegraph.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/global/publicKnowledgeGraphEntities`;
     const params = {};
+    let endpoint = "";
+
     if (isLookup) {
+        endpoint = `${baseUrl}:Lookup`;
         params.ids = queryOrId;
     } else {
+        endpoint = `${baseUrl}:Search`;
         params.query = queryOrId;
+        if (typeFilter) params.types = [typeFilter];
+        if (limit > 0) params.limit = limit.toString();
     }
-    if (limit > 0) params.limit = limit.toString();
     if (language) params.languages = language;
     if (apiKey) params.key = apiKey;
 
-    return await gcpFetch(PUBLIC_KG_SEARCH_URL, {
+    return await gcpFetch(endpoint, {
         params: params
     });
 }
@@ -47,6 +54,16 @@ function formatEntitySummary(item) {
     const name = result.name || "(Unnamed)";
     const score = item.resultScore ? ` [Score: ${item.resultScore}]` : "";
     lines.push(`===== ${name}${score} =====`);
+
+    if (result["@id"]) {
+        lines.push(`ID:          ${result["@id"].replace(/^kg:/, "")}`);
+    }
+    if (result.identifier && Array.isArray(result.identifier)) {
+        const midObj = result.identifier.find(id => id.propertyID === "googleKgMID");
+        if (midObj && midObj.value) {
+            lines.push(`MID:         ${midObj.value}`);
+        }
+    }
 
     if (result["@type"]) {
         const types = Array.isArray(result["@type"]) ? result["@type"].join(", ") : result["@type"];
@@ -88,23 +105,17 @@ class GCloudKnowledgeGraph extends Operation {
         this.name = "GCloud Knowledge Graph";
         this.module = "Cloud";
         this.description = [
-            "Searches or looks up entities in the <b>Google Knowledge Graph</b>.",
+            "Searches or looks up entities in the Google Enterprise Knowledge Graph.",
             "<br><br>",
-            "Automatically detects if the input is a Machine ID (MID) or a text query:",
-            "<ul>",
-            "<li>If the input starts with <code>/m/</code>, <code>/g/</code>, or <code>c-</code>, it performs an exact <b>Lookup</b> by MID.</li>",
-            "<li>Otherwise, it performs a <b>Text Search</b> for entities matching the text.</li>",
-            "</ul>",
+            "<b>Inputs:</b> A text search query (e.g. <code>Taylor Swift</code>) or a Machine ID (e.g. <code>c-0260160kc</code> or <code>/m/0dl567</code>).",
             "<br>",
-            "<b>Output Modes:</b>",
-            "<ul>",
-            "<li><code>Lat/Long + Label JSON</code> — If the entity is a Place/City with coordinates (rarely populated), converts it for <code>GCloud Show on Map</code>.</li>",
-            "<li><code>Text Summary</code> — Human-readable summary including Wikipedia links and description.</li>",
-            "<li><code>JSON</code> — Raw Schema.org JSON-LD response.</li>",
-            "</ul>",
+            "<b>Outputs:</b> A textual summary of the entity (description, type, ID) or raw JSON-LD.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input <code>Dune</code> and filter by <code>Book</code> type to retrieve details about the novel.</li></ul>",
             "<br>",
-            "Requires a prior <code>Authenticate Google Cloud</code> operation using an API Key."
-        ].join("");
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://developers.google.com/knowledge-graph/";
         this.inputType = "string";
         this.outputType = "string";
@@ -113,6 +124,23 @@ class GCloudKnowledgeGraph extends Operation {
                 "name": "Output Format",
                 "type": "option",
                 "value": ["Text Summary", "Lat/Long + Label JSON", "JSON"]
+            },
+            {
+                "name": "Type Filter",
+                "type": "editableOption",
+                "value": [
+                    {name: "Any (No filter)", value: ""},
+                    {name: "Person", value: "Person"},
+                    {name: "Organization", value: "Organization"},
+                    {name: "Place", value: "Place"},
+                    {name: "LocalBusiness", value: "LocalBusiness"},
+                    {name: "Product", value: "Product"},
+                    {name: "Book", value: "Book"},
+                    {name: "Movie", value: "Movie"},
+                    {name: "MusicAlbum", value: "MusicAlbum"},
+                    {name: "Event", value: "Event"},
+                    {name: "Recipe", value: "Recipe"}
+                ]
             },
             {
                 "name": "Search Limit",
@@ -135,14 +163,17 @@ class GCloudKnowledgeGraph extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [outputFormat, limitRaw, language] = args;
+        const [outputFormat, typeFilter, limitRaw, language] = args;
         const limit = parseInt(limitRaw, 10) || 1;
 
         if (!input || input.trim() === "") return "";
 
-        // API Key is required for high quota, although public KG search doesn't strictly always need it,
-        // it requires it in practice.
         const creds = getGcpCredentials();
+        if (!creds || !creds.quotaProject) {
+            throw new OperationError("Please configure a Quota Project in the 'Authenticate Google Cloud' operation before using this ingredient.");
+        }
+        const project = creds.quotaProject;
+
         let apiKey = "";
         if (creds) {
             if (creds.authType === "API Key" && creds.authString) {
@@ -158,7 +189,7 @@ class GCloudKnowledgeGraph extends Operation {
 
         for (const query of queries) {
             const isLookup = query.startsWith("/m/") || query.startsWith("/g/") || query.startsWith("c-");
-            const data = await kgSearch(query, isLookup, limit, language, apiKey);
+            const data = await kgSearch(query, isLookup, limit, language, apiKey, project, typeFilter);
 
             if (outputFormat === "JSON") {
                 results.push(JSON.stringify(data, null, 2));

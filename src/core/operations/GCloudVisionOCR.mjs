@@ -89,23 +89,17 @@ class GCloudVisionOCR extends Operation {
         this.name = "GCloud Vision OCR";
         this.module = "Cloud";
         this.description = [
-            "Extracts text from an image using the <b>Google Cloud Vision API</b>.",
+            "Extracts text from images using the Google Cloud Vision API (Optical Character Recognition).",
             "<br><br>",
-            "<b>Standard Text mode</b> (<code>TEXT_DETECTION</code>): Best for sparse text in natural images — ",
-            "road signs, product labels, menus. Returns a clean string of all detected text.",
+            "<b>Inputs:</b> An image file (JPEG, PNG, etc.) or a GCS URI.",
+            "<br>",
+            "<b>Outputs:</b> The plain text extracted from the image.",
             "<br><br>",
-            "<b>Dense Document mode</b> (<code>DOCUMENT_TEXT_DETECTION</code>): Optimised for scanned documents, ",
-            "books, and forms. Returns structured output with paragraph breaks preserved.",
-            "<br><br>",
-            "<b>Language Hints:</b> Optionally specify a comma-separated list of BCP-47 language codes ",
-            "(e.g. <code>en,fr,de</code>) to improve accuracy when the language is known. Leave blank ",
-            "for automatic language detection.",
-            "<br><br>",
-            "<b>Input Mode:</b> Either pipe raw image bytes (from <code>Load File</code>) or input a ",
-            "<code>gs://</code> URI to fetch an image from Google Cloud Storage.",
-            "<br><br>",
-            "Requires prior <code>Authenticate Google Cloud</code> operation.",
-        ].join("");
+            "<b>Example:</b>",
+            "<ul><li>Input a photo of a receipt, output: the textual contents of the receipt.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://cloud.google.com/vision/docs/ocr";
         this.inputType = "ArrayBuffer";
         this.outputType = "string";

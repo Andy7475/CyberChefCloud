@@ -52,13 +52,16 @@ class GCloudListBucket extends Operation {
         this.name = "GCloud List Bucket";
         this.module = "Cloud";
         this.description = [
-            "Lists objects in a Google Cloud Storage bucket and returns their <code>gs://</code> URIs.",
+            "Lists objects within a Google Cloud Storage (GCS) bucket.",
             "<br><br>",
-            "The output is one URI per line, making it suitable for piping directly into a <b>Fork</b> operation ",
-            "to batch-process multiple files (e.g. transcribing all audio files in a folder).",
+            "<b>Inputs:</b> A GCS bucket URI (e.g. <code>gs://my-bucket/</code>).",
+            "<br>",
+            "<b>Outputs:</b> A list of file URIs or a JSON array of objects.",
             "<br><br>",
-            "Input can be just a bucket name (e.g. <code>cyber-chef-cloud-examples</code>) or a full ",
-            "<code>gs://</code> URI prefix.",
+            "<b>Example:</b>",
+            "<ul><li>Input: <code>gs://my-bucket/reports/</code> to list all reports.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/storage/docs/json_api/v1/objects/list";
         this.inputType = "string";

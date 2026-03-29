@@ -23,11 +23,16 @@ class PromptLLM extends Operation {
         this.name = "Prompt LLM";
         this.module = "Cloud";
         this.description = [
-            "Prompts a Google Cloud Vertex AI (Gemini) model to generate content based on the input text or media.",
+            "Prompts a Google Cloud Vertex AI (Gemini) model to generate content based on text or media.",
             "<br><br>",
-            "Provide the system prompt and the model name to use. You can select a model or type your own. The CyberChef input will be sent as the user's prompt or media payload.",
+            "<b>Inputs:</b> The user's prompt or media payload (e.g. text, image, audio, or PDF).",
+            "<br>",
+            "<b>Outputs:</b> The generated text response from the LLM.",
             "<br><br>",
-            "Ensure you have added the <code>Authenticate Google Cloud</code> operation first, and that your Quota Project has the <code>Vertex AI API</code> (aiplatform.googleapis.com) enabled."
+            "<b>Example:</b>",
+            "<ul><li>Input an image and ask the model to describe what it sees in the System Prompt.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.publishers.models/generateContent";
         this.inputType = "ArrayBuffer";

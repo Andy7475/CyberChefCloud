@@ -22,10 +22,16 @@ class GoogleTranslate extends Operation {
         this.name = "Google Translate";
         this.module = "Cloud";
         this.description = [
-            "Translates text using the Google Cloud Translation API.",
+            "Translates text between thousands of language pairs using the Google Cloud Translation API.",
             "<br><br>",
-            "Supports providing an API Key or an OAuth Bearer Token. ",
-            "See the setup guide in the documentation for how to secure your Cloud project.",
+            "<b>Inputs:</b> The raw text that needs to be translated.",
+            "<br>",
+            "<b>Outputs:</b> The translated text string.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input <code>Bonjour</code> with English as the Target Language -> Output <code>Hello</code>.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/translate/docs/reference/rest/v2/translate";
         this.inputType = "string";

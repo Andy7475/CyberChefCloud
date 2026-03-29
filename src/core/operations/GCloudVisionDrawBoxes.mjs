@@ -189,24 +189,17 @@ class GCloudVisionDrawBoxes extends Operation {
         this.name = "GCloud Vision Draw Bounding Boxes";
         this.module = "Cloud";
         this.description = [
-            "Analyses an image with the <b>Google Cloud Vision API</b> and returns the image ",
-            "with bounding boxes and labels drawn on it. ",
-            "Ideal for visually verifying what the Vision API detects in an image.",
+            "Draws bounding boxes around objects, faces, or text detected by the Google Cloud Vision API.",
             "<br><br>",
-            "<b>Browser Upload mode:</b> Provide raw image bytes (from a <code>Load File</code> operation). ",
-            "The image is Base64-encoded in the browser and sent directly to the Vision API.",
+            "<b>Inputs:</b> An image file (JPEG, PNG).",
+            "<br>",
+            "<b>Outputs:</b> The original image rendered with coloured bounding boxes overlaid.",
             "<br><br>",
-            "<b>GCS URI mode:</b> Provide a <code>gs://</code> URI. The image is fetched from Google Cloud ",
-            "Storage, analysed, and returned annotated.",
-            "<br><br>",
-            "<b>Detection Type:</b> Choose <em>Objects</em> (localizedObjectAnnotations), ",
-            "<em>Faces</em> (faceAnnotations), or <em>Text</em> (textAnnotations).",
-            "<br><br>",
-            "The annotated image is returned as binary image data to CyberChef, ",
-            "or optionally written to GCS.",
-            "<br><br>",
-            "Requires prior <code>Authenticate Google Cloud</code> operation.",
-        ].join("");
+            "<b>Example:</b>",
+            "<ul><li>Input a group photo, and receive the photo with boxes drawn around all detected faces.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://cloud.google.com/vision/docs/reference/rest/v1/images/annotate";
         this.inputType = "ArrayBuffer";
         this.outputType = "ArrayBuffer";

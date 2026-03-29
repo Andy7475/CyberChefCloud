@@ -80,27 +80,17 @@ class GCloudVisionLabelImage extends Operation {
         this.name = "GCloud Vision Label Image";
         this.module = "Cloud";
         this.description = [
-            "Calls the <b>Google Cloud Vision API</b> to identify labels (objects, scenes, activities) ",
-            "and physical objects in an image and returns a clean, human-readable list.",
+            "Classifies images into broad categories/labels using the Google Cloud Vision API.",
             "<br><br>",
-            "This is the 'describe this image' and 'list objects' ingredient. ",
-            "Unlike <i>GCloud Vision Analyze</i>, it strips out the raw JSON and gives you a ",
-            "simple flat list, ready for display, further text processing, or saving to a file.",
-            "<br><br>",
-            "<b>Features used:</b>",
-            "<ul>",
-            "<li><code>LABEL_DETECTION</code> — General descriptors (scenes, themes, activities)</li>",
-            "<li><code>OBJECT_LOCALIZATION</code> — Physical objects with location info</li>",
-            "</ul>",
-            "<b>Output Formats:</b>",
-            "<ul>",
-            "<li><b>List</b> — One label per line with confidence score</li>",
-            "<li><b>CSV</b> — type,description,confidence</li>",
-            "<li><b>JSON</b> — Compact structured array</li>",
-            "</ul>",
+            "<b>Inputs:</b> An image file (JPEG, PNG, etc.) or a GCS URI.",
             "<br>",
-            "Requires prior <code>Authenticate Google Cloud</code> operation.",
-        ].join("");
+            "<b>Outputs:</b> A comma-separated list of detected labels or a detailed JSON result.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input a picture of a dog, output: <code>Dog, Pet, Golden Retriever, Animal</code>.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://cloud.google.com/vision/docs/labels";
         this.inputType = "ArrayBuffer";
         this.outputType = "string";

@@ -66,19 +66,17 @@ class GCloudPlacesSearch extends Operation {
         this.name = "GCloud Places Search";
         this.module = "Cloud";
         this.description = [
-            "Searches for places using a free-text string (e.g. 'Spicy Vegetarian Food in Sydney') using the <b>Google Places API (New)</b>.",
+            "Searches for places and businesses using a text query via the Google Places API.",
             "<br><br>",
-            "<b>Input:</b> One free-text query per line.",
-            "<br><br>",
-            "<b>Output Modes:</b>",
-            "<ul>",
-            "<li><code>Lat/Long + Label JSON</code> — Outputs a JSON array of objects compatible with <code>GCloud Show on Map</code>.</li>",
-            "<li><code>Text Summary</code> — Human-readable ranked list of results.</li>",
-            "<li><code>JSON</code> — Raw API response.</li>",
-            "</ul>",
+            "<b>Inputs:</b> A text string search query (e.g. <code>Restaurants in Tokyo</code>).",
             "<br>",
-            "Requires a prior <code>Authenticate Google Cloud</code> operation using an API Key with Maps Platform API access."
-        ].join("");
+            "<b>Outputs:</b> A list of matching places along with their details (names, coordinates, addresses).",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input <code>Eiffel Tower</code> -> Outputs detailed information about the location.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://developers.google.com/maps/documentation/places/web-service/text-search";
         this.inputType = "string";
         this.outputType = "string";

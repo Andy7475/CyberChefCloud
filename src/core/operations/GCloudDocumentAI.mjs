@@ -24,21 +24,17 @@ class GCloudDocumentAI extends Operation {
         this.name = "GCloud Document AI";
         this.module = "Cloud";
         this.description = [
-            "Processes a document using the <b>Google Cloud Document AI</b> API. Works with any processor type — Enterprise Document OCR, Form Parser, custom classifiers, splitters, and more.<br><br>",
-            "<b>Processor ID:</b> Create a processor in the <a href='https://console.cloud.google.com/ai/document-ai'>GCP Console</a> and paste its ID here (e.g. <code>abc123456789</code>). The processor type determines the returned data.<br><br>",
-            "<b>Input Modes:</b>",
-            "<ul>",
-            "<li><b>Inline Upload:</b> The file in the pipeline is base64-encoded and sent directly.</li>",
-            "<li><b>GCS URI:</b> Input a <code>gs://bucket/path/to/doc.pdf</code> URI as plain text.</li>",
-            "</ul>",
-            "<b>Output Modes:</b>",
-            "<ul>",
-            "<li><b>Extracted Text:</b> Full plain text extracted from the document.</li>",
-            "<li><b>Form Fields (JSON):</b> Structured key-value pairs (Form Parser).</li>",
-            "<li><b>Full Document (JSON):</b> The complete response object.</li>",
-            "</ul><br>",
-            "Requires a prior <b>Authenticate Google Cloud</b> operation. Ensure <code>documentai.processors.processOnline</code> IAM permission is granted."
-        ].join("");
+            "Uses Google Cloud DocumentAI to extract text, entities, and form data from documents.",
+            "<br><br>",
+            "<b>Inputs:</b> A document file (PDF, TIFF, Image) or a GCS URI.",
+            "<br>",
+            "<b>Outputs:</b> Extracted text or a highly detailed JSON structure of the document.",
+            "<br><br>",
+            "<b>Example:</b>",
+            "<ul><li>Input an invoice PDF, and extract the structured data (invoice number, total amount) via JSON.</li></ul>",
+            "<br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+        ].join("\n");
         this.infoURL = "https://cloud.google.com/document-ai/docs/overview";
         this.inputType = "ArrayBuffer";
         this.outputType = "string";
