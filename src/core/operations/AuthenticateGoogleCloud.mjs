@@ -49,12 +49,14 @@ class AuthenticateGoogleCloud extends Operation {
                 "name": "Credentials (Client ID, PAT, or API Key)",
                 "type": "toggleString",
                 "value": "",
-                "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"]
+                "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"],
+                "autocomplete": "gcp-credentials"
             },
             {
                 "name": "Quota Project (OAuth only)",
                 "type": "string",
-                "value": ""
+                "value": "",
+                "autocomplete": "gcp-quota-project"
             },
             {
                 "name": "Default Region",

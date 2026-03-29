@@ -15,3 +15,4 @@ tests/browser/output/*
 .node-version
 .env
 .antigravity
+api-gateway.yml

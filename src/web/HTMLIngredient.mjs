@@ -38,6 +38,7 @@ class HTMLIngredient {
         this.min = (typeof config.min === "number") ? config.min : "";
         this.max = (typeof config.max === "number") ? config.max : "";
         this.step = config.step || 1;
+        this.autocomplete = config.autocomplete || false;
     }
 
 
@@ -63,6 +64,7 @@ class HTMLIngredient {
                         id="${this.id}"
                         tabindex="${this.tabIndex}"
                         arg-name="${this.name}"
+                        ${this.autocomplete ? `name="${this.autocomplete}" autocomplete="on"` : ""}
                         value="${this.value}"
                         ${this.disabled ? "disabled" : ""}
                         ${this.maxLength ? `maxlength="${this.maxLength}"` : ""}>
@@ -79,6 +81,7 @@ class HTMLIngredient {
                         id="${this.id}"
                         tabindex="${this.tabIndex}"
                         arg-name="${this.name}"
+                        ${this.autocomplete ? `name="${this.autocomplete}" autocomplete="on"` : ""}
                         value="${this.value}"
                         ${this.disabled ? "disabled" : ""}
                         ${this.maxLength ? `maxlength="${this.maxLength}"` : ""}>
@@ -95,6 +98,7 @@ class HTMLIngredient {
                             id="${this.id}"
                             tabindex="${this.tabIndex}"
                             arg-name="${this.name}"
+                            ${this.autocomplete ? `name="${this.autocomplete}" autocomplete="on"` : ""}
                             value="${this.value}"
                             ${this.disabled ? "disabled" : ""}
                             ${this.maxLength ? `maxlength="${this.maxLength}"` : ""}>
@@ -213,6 +217,7 @@ class HTMLIngredient {
                         id="${this.id}"
                         tabindex="${this.tabIndex}"
                         arg-name="${this.name}"
+                        ${this.autocomplete ? `name="${this.autocomplete}" autocomplete="on"` : ""}
                         value="${this.value[this.defaultIndex].value}"
                         ${this.disabled ? "disabled" : ""}>
                     <div class="input-group-append">
@@ -244,6 +249,7 @@ class HTMLIngredient {
                         id="${this.id}"
                         tabindex="${this.tabIndex}"
                         arg-name="${this.name}"
+                        ${this.autocomplete ? `name="${this.autocomplete}" autocomplete="on"` : ""}
                         value="${this.value[this.defaultIndex].value}"
                         ${this.disabled ? "disabled" : ""}>
                     <div class="input-group-append inline">
