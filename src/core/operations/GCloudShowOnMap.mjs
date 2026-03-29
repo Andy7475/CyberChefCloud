@@ -177,7 +177,7 @@ function initMap_${mapId}() {
         
         if (loc.label) {
             marker.addListener("click", function() {
-                infoWindow.setContent("<div><strong>" + (loc.label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")) + "</strong></div>");
+                infoWindow.setContent("<div><strong>" + (loc.label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\\n/g, "<br>")) + "</strong></div>");
                 infoWindow.open(map, marker);
             });
         }
@@ -216,7 +216,7 @@ function initOSM_${mapId}() {
     locations.forEach(function(loc) {
         var marker = L.marker([loc.lat, loc.lng]).addTo(group);
         if (loc.label) {
-            marker.bindPopup("<div><strong>" + (loc.label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")) + "</strong></div>");
+            marker.bindPopup("<div><strong>" + (loc.label.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\\n/g, "<br>")) + "</strong></div>");
         }
     });
     group.addTo(map);

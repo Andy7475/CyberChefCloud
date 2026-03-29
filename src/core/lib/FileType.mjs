@@ -265,3 +265,21 @@ export function extractFile(bytes, fileDetail, offset) {
 
     throw new Error(`No extraction algorithm available for "${fileDetail.mime}" files`);
 }
+
+/**
+ * Resolves the MIME type of a given input, automatically detecting it if requested.
+ *
+ * @param {Uint8Array|ArrayBuffer} input - The input data to check.
+ * @param {string} mimeTypeArg - The user-provided MIME type, or "Auto".
+ * @returns {string} The resolved MIME type.
+ */
+export function resolveMimeType(input, mimeTypeArg) {
+    if (mimeTypeArg === "Auto") {
+        const detected = detectFileType(input);
+        if (detected && detected.length > 0) {
+            return detected[0].mime;
+        }
+        return "application/octet-stream";
+    }
+    return mimeTypeArg;
+}

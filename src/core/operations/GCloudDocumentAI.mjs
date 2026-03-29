@@ -7,6 +7,7 @@
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { resolveMimeType } from "../lib/FileType.mjs";
 
 /**
  * GCloud Document AI operation — processor-agnostic wrapper for the Document AI
@@ -49,6 +50,7 @@ class GCloudDocumentAI extends Operation {
                 "name": "Input MIME Type",
                 "type": "editableOption",
                 "value": [
+                    { name: "Auto", value: "Auto" },
                     { name: "PDF", value: "application/pdf" },
                     { name: "JPEG", value: "image/jpeg" },
                     { name: "PNG", value: "image/png" },
@@ -82,7 +84,8 @@ class GCloudDocumentAI extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [inputMode, mimeType, processorId, location, outputMode] = args;
+        const [inputMode, mimeTypeArg, processorId, location, outputMode] = args;
+        const mimeType = resolveMimeType(input, mimeTypeArg);
 
         if (!processorId || !processorId.trim()) {
             throw new OperationError(

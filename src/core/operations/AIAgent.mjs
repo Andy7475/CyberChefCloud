@@ -7,6 +7,7 @@
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { resolveMimeType } from "../lib/FileType.mjs";
 import { isWorkerEnvironment } from "../Utils.mjs";
 // NOTE: operations/index.mjs is loaded lazily via dynamic import inside run()
 // to avoid a circular dependency (index.mjs imports AIAgent.mjs) and to prevent
@@ -64,6 +65,7 @@ class AIAgent extends Operation {
                 "name": "Input MIME Type",
                 "type": "editableOption",
                 "value": [
+                    { name: "Auto", value: "Auto" },
                     { name: "text/plain", value: "text/plain" },
                     { name: "image/jpeg", value: "image/jpeg" },
                     { name: "image/png", value: "image/png" },
@@ -283,7 +285,8 @@ class AIAgent extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [systemPrompt, modelName, mimeType, toolsArg, maxTokens, temperature, maxIterations, outputMode] = args;
+        const [systemPrompt, modelName, mimeTypeArg, toolsArg, maxTokens, temperature, maxIterations, outputMode] = args;
+        const mimeType = resolveMimeType(input, mimeTypeArg);
 
         // Dynamically import the operations index to avoid a circular dependency
         // (index.mjs already imports AIAgent.mjs) and to prevent WASM-heavy operations

@@ -209,11 +209,16 @@ class GCloudKnowledgeGraph extends Operation {
                     // But if it is, it would be in result.geo.latitude
                     for (const item of data.itemListElement) {
                         const r = item.result;
+
+                        let descStr = "";
+                        if (r && r.description) descStr += ` - ${r.description}`;
+                        if (r && r.detailedDescription && r.detailedDescription.articleBody) descStr += `\n\n${r.detailedDescription.articleBody}`;
+
                         if (r && r.geo && r.geo.latitude && r.geo.longitude) {
                             jsonOutput.push({
                                 lat: r.geo.latitude,
                                 lng: r.geo.longitude,
-                                label: r.name || query
+                                label: (r.name || query) + descStr
                             });
                         } else if (r && r.name && r["@type"]) {
                             const typeArray = Array.isArray(r["@type"]) ? r["@type"] : [r["@type"]];
@@ -238,7 +243,7 @@ class GCloudKnowledgeGraph extends Operation {
                                                 jsonOutput.push({
                                                     lat: p.location.latitude,
                                                     lng: p.location.longitude,
-                                                    label: p.formattedAddress || p.displayName?.text || r.name,
+                                                    label: (p.formattedAddress || p.displayName?.text || r.name) + descStr,
                                                     placeId: explicitPlaceId
                                                 });
                                                 continue; // Move on to next KG entity
@@ -256,7 +261,7 @@ class GCloudKnowledgeGraph extends Operation {
                                             jsonOutput.push({
                                                 lat: p.location.latitude,
                                                 lng: p.location.longitude,
-                                                label: p.formattedAddress || p.displayName?.text || r.name,
+                                                label: (p.formattedAddress || p.displayName?.text || r.name) + descStr,
                                                 placeId: p.id
                                             });
                                         }

@@ -47,7 +47,35 @@ return data.responses[0];
 - **Input/Output Types**: Operations can accept and return nine data types: `string`, `byteArray`, `number`, `html`, `ArrayBuffer`, `BigNumber`, `JSON`, `File`, and `List<File>`.
 - **Argument Types**: CyberChef UI arguments can be `string`, `shortString`, `binaryString`, `text`, `byteArray`, `number`, `boolean`, `option` (dropdown), `editableOption`, `populateOption`, or `toggleString`.
 
-## 5. Presenting Complex Data
+## 5. Auto MIME Type Detection
+
+If your ingredient accepts an arbitrary file and needs to send its precise MIME type to a Google Cloud API, you should add an `"Auto"` option to the dropdown.
+Use `resolveMimeType()` from `../lib/FileType.mjs` to easily resolve it at runtime.
+
+**Argument Definition:**
+```javascript
+{
+    "name": "Input MIME Type",
+    "type": "editableOption",
+    "value": [
+        { name: "Auto", value: "Auto" },
+        { name: "text/plain", value: "text/plain" }
+    ]
+}
+```
+
+**Implementation in run():**
+```javascript
+import { resolveMimeType } from "../lib/FileType.mjs";
+
+async run(input, args) {
+    const [mimeTypeArg] = args;
+    const mimeType = resolveMimeType(input, mimeTypeArg);
+    // mimeType is now the resolved string (e.g. "application/pdf")
+}
+```
+
+## 6. Presenting Complex Data
 
 If your operation generates complex data (like a large JSON structure), but you want the user to see a friendly formatted view in the output pane, use the `present` lifecycle function.
 - Define `this.presentType = "html"` (or `"string"`) in the constructor.
@@ -60,7 +88,7 @@ CyberChef Cloud employs a strict Content Security Policy. If your new ingredient
 1. Open `src/web/html/index.html` and append the endpoint to the `connect-src` directive in the `<meta http-equiv="Content-Security-Policy">` tag.
 2. Add the endpoint to `docs/AuthorizedEndpoints.md`.
 
-## 7. Input & Output Strategies (Google Cloud Storage)
+## 8. Input & Output Strategies (Google Cloud Storage)
 
 When interacting with large media/datasets that cannot fit in browser memory, accept GCS URIs as input and write back to GCS as output. Operations must adhere to the **Hybrid Target Directory Pattern**:
 
@@ -73,6 +101,6 @@ You **MUST** use the `generateGCSDestinationUri(inputUri, destDir, suffix, exten
 
 When "Write to GCS" succeeds, the ingredient **must** return the full destination GCS URI (`gs://...`) back to the CyberChef output for pipelining.
 
-## 8. Error Handling & Verbose Output
+## 9. Error Handling & Verbose Output
 
 If you manually use `fetch` (for binary APIs), ensure you catch errors and throw an `OperationError` containing HTTP Status, Status Text, and raw error text. `gcpFetch` does this automatically for JSON APIs. These verbose errors bubble up to the UI so users can effectively diagnose IAM permissions or incorrect inputs.

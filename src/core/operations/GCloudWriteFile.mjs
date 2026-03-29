@@ -7,6 +7,7 @@
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import { getGcpCredentials, writeGCSBytes } from "../lib/GoogleCloud.mjs";
+import { resolveMimeType } from "../lib/FileType.mjs";
 
 
 /**
@@ -14,6 +15,7 @@ import { getGcpCredentials, writeGCSBytes } from "../lib/GoogleCloud.mjs";
  * The first value is the default.
  */
 const MIME_TYPES = [
+    { name: "Auto", value: "Auto" },
     // Text
     { name: "text/plain", value: "text/plain" },
     { name: "text/plain; charset=utf-8", value: "text/plain; charset=utf-8" },
@@ -105,7 +107,8 @@ class GCloudWriteFile extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [destUri, mimeType] = args;
+        const [destUri, mimeTypeArg] = args;
+        const mimeType = resolveMimeType(input, mimeTypeArg);
 
         if (!destUri || !destUri.trim()) {
             throw new OperationError("GCloud Write File: 'Destination GCS URI' is required (e.g. gs://bucket/path/file.txt).");

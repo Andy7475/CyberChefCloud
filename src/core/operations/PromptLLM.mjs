@@ -7,6 +7,7 @@
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { resolveMimeType } from "../lib/FileType.mjs";
 import { toBase64 } from "../lib/Base64.mjs";
 
 /**
@@ -63,6 +64,7 @@ class PromptLLM extends Operation {
                 "name": "Input MIME Type",
                 "type": "editableOption",
                 "value": [
+                    { name: "Auto", value: "Auto" },
                     { name: "text/plain", value: "text/plain" },
                     { name: "image/jpeg", value: "image/jpeg" },
                     { name: "image/png", value: "image/png" },
@@ -91,7 +93,8 @@ class PromptLLM extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [systemPrompt, modelName, mimeType, maxTokens, temperature] = args;
+        const [systemPrompt, modelName, mimeTypeArg, maxTokens, temperature] = args;
+        const mimeType = resolveMimeType(input, mimeTypeArg);
 
         const hasInput = input && input.byteLength > 0;
 
