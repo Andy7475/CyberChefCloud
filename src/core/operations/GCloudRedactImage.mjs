@@ -7,7 +7,7 @@
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import { resolveMimeType } from "../lib/FileType.mjs";
-import { applyGCPAuth, generateGCSDestinationUri, writeGCSBinary, gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, gcpFetch, writeGCSBytes, getGcpCredentials } from "../lib/GoogleCloud.mjs";
 import { toBase64, fromBase64 } from "../lib/Base64.mjs";
 
 
@@ -46,7 +46,7 @@ async function fetchGCSImageBuffer(gcsUri) {
         } catch (e) { /* ignore */ }
         throw new OperationError(`GCS fetch error (${response.status}): ${msg}`);
     }
-    
+
     // Attempt to guess mime type from GCS headers, otherwise fallback
     const mimeType = response.headers.get("content-type") || "image/jpeg";
     return { buffer: await response.arrayBuffer(), mimeType };
@@ -157,7 +157,7 @@ class GCloudRedactImage extends Operation {
             gcsUri = uri;
             const fetched = await fetchGCSImageBuffer(gcsUri);
             imageBuffer = fetched.buffer;
-            
+
             // For GCS, Auto resolution evaluates the fetched buffer. For specific mimetype drop down
             // values, resolveMimeType returns it properly.
             mimeType = resolveMimeType(imageBuffer, mimeTypeArg);
@@ -188,7 +188,7 @@ class GCloudRedactImage extends Operation {
             requestBody.inspectConfig = {
                 infoTypes: infoTypesFilter
             };
-            
+
             requestBody.imageRedactionConfigs = infoTypesFilter.map(infoType => ({
                 infoType: infoType
                 // default colour is black, so no need to pass redactionColor
@@ -227,7 +227,7 @@ class GCloudRedactImage extends Operation {
         if (outputDest === "Write to GCS") {
             const virtualInputUri = gcsUri || "gs://upload/image" + ext;
             const dest = generateGCSDestinationUri(virtualInputUri, outputDirectory, "_ccc_redact", ext);
-            await writeGCSBinary(dest.bucket, dest.objectPath, redactedBuffer, mimeType);
+            await writeGCSBytes(dest.bucket, dest.objectPath, redactedBuffer, mimeType);
             return new TextEncoder().encode(dest.gcsUri).buffer;
         }
 
