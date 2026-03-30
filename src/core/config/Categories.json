@@ -560,6 +560,8 @@
             "GCloud Vision Label Image",
             "GCloud Vision OCR",
             "GCloud Natural Language",
+            "GCloud Redact Text",
+            "GCloud Redact Image",
             "GCloud Geocode",
             "GCloud Places Autocomplete",
             "GCloud Places Search",
