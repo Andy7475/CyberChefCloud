@@ -103,6 +103,11 @@ class PlayMediaWithAnnotations extends Operation {
         const events = [];
         const ann = data.annotations || {};
 
+        events.push({
+            title: "Start",
+            start: 0,
+            end: 0
+        });
         // 1. Person Detection
         if (ann.personDetectionAnnotations) {
             ann.personDetectionAnnotations.forEach((person, i) => {
