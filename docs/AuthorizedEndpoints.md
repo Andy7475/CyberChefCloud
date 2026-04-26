@@ -22,3 +22,4 @@ When a new Google Cloud ingredient is added that connects to a new API service, 
 - `https://*.aiplatform.googleapis.com` (Vertex AI API, Gemini LLMs)
 - `https://dlp.googleapis.com` (Cloud DLP / Sensitive Data Protection)
 - `https://cyber-chef-cloud-convert-593556123914.europe-west2.run.app` (CloudConvert Proxy)
+- `https://google-http-proxy-593556123914.europe-west2.run.app` (Google HTTP Proxy)

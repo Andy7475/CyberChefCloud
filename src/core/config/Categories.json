@@ -571,7 +571,8 @@
             "Google Translate",
             "Prompt LLM",
             "AI Agent",
-            "Cloud Convert"
+            "Cloud Convert",
+            "Google HTTP Request"
         ]
     },
     {
