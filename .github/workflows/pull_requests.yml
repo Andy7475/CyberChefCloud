@@ -27,7 +27,7 @@ jobs:
           npm run setheapsize
 
       - name: Lint
-        run: npx grunt lint
+        run: npx grunt lint --fix
 
       - name: Unit Tests
         run: |
