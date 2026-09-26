@@ -64,7 +64,9 @@ class RenderMarkdown extends Operation {
         md.core.ruler.push("heading_anchors", addHeadingAnchors);
         const rendered = md.render(input);
 
-        return `<div style="font-family: var(--primary-font-family)">${rendered}</div>`;
+        // white-space: normal stops the output pane's pre-wrap from turning the
+        // newlines between rendered elements into blank lines
+        return `<div style="font-family: var(--primary-font-family); white-space: normal">${rendered}</div>`;
     }
 
 }

@@ -436,6 +436,21 @@ TestRegister.addTests([
         ],
     },
     {
+        name: "Ontology Summary: HTML output renders the Markdown report",
+        input: VEHICLES_TTL,
+        expectedMatch: /^<div style="font-family: var\(--primary-font-family\); white-space: normal"><h1[\s\S]*<h3 id="user-content-electriccar"><code>:ElectricCar<\/code><\/h3>[\s\S]*<li><code>:hasWheel<\/code> → <a href="#user-content-wheel"><code>:Wheel<\/code><\/a> — object, from <a href="#user-content-car"><code>:Car<\/code><\/a><\/li>/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "HTML", true, 10, true, "en", ""] }],
+    },
+    {
+        name: "Ontology Summary: HTML output passes Markdown to a following operation",
+        input: VEHICLES_TTL,
+        expectedMatch: /^# [\s\S]*## Class hierarchy\n/,
+        recipeConfig: [
+            { op: "Ontology Summary", args: ["Auto", "HTML", true, 10, false, "en", ""] },
+            { op: "Remove whitespace", args: [false, false, false, false, false, false] },
+        ],
+    },
+    {
         name: "Ontology Summary: Markdown contents and hierarchy link to sections",
         input: VEHICLES_TTL,
         expectedMatch: /\*\*Contents:\*\* \[Counts\]\(#counts\) · \[Namespaces\]\(#namespaces\) · \[Class hierarchy\]\(#class-hierarchy\) · \[Classes\]\(#classes\) · \[Properties for any class\]\(#properties-that-apply-to-any-class\) · \[Properties matching no class\]\(#properties-whose-domain-matches-no-class\)\n[\s\S]*## Class hierarchy\n\n- \[`:Battery`\]\(#battery\)\n- \[`:Person`\]\(#person\)\n- \[`:Vehicle`\]\(#vehicle\)\n {2}- \[`:Boat`\]\(#boat\)\n {2}- \[`:Car`\]\(#car\)\n {4}- \[`:ElectricCar`\]\(#electriccar\)\n/,

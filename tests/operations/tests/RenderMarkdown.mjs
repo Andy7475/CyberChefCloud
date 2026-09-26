@@ -11,7 +11,7 @@ TestRegister.addTests([
     {
         name: "Render Markdown: headings get GitHub-style anchors",
         input: "# Class hierarchy\n\n## `ex:Pizza` Größe & Übung!",
-        expectedOutput: "<div style=\"font-family: var(--primary-font-family)\"><h1 id=\"user-content-class-hierarchy\">Class hierarchy</h1>\n" +
+        expectedOutput: "<div style=\"font-family: var(--primary-font-family); white-space: normal\"><h1 id=\"user-content-class-hierarchy\">Class hierarchy</h1>\n" +
             "<h2 id=\"user-content-expizza-größe--übung\"><code>ex:Pizza</code> Größe &amp; Übung!</h2>\n</div>",
         recipeConfig: [{ op: "Render Markdown", args: [false, true] }],
     },

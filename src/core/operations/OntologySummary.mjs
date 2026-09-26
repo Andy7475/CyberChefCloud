@@ -10,6 +10,7 @@ import {
 } from "../lib/RDF.mjs";
 import { readClassHierarchy, readDescriptions, buildClassDetails } from "../lib/OntologyModel.mjs";
 import { HeadingSlugger } from "../lib/MarkdownAnchors.mjs";
+import RenderMarkdown from "./RenderMarkdown.mjs";
 
 const MAX_TREE_LINES = 5000;
 
@@ -44,8 +45,10 @@ class OntologySummary extends Operation {
             "every property that applies to it through rdfs:domain on the class or an ancestor (with the range and the class it is inherited from), and its OWL restrictions (e.g. <code>hasTopping some Tomato</code>). " +
             "Properties with no domain apply to any class and are listed once at the end.<br><br>" +
             "<b>Language</b> filters descriptions (e.g. <code>en</code>, or <code>en, fr</code>; leave empty for all). Untagged text is always included. Labels prefer this language and fall back to others.<br><br>" +
-            "Choose 'Markdown' and follow this operation with <b>Render Markdown</b> to read the report as a formatted document. " +
-            "In the Markdown, class names (in the hierarchy, superclasses, paths, ranges, domains and restrictions) link to the class's entry in the class details, and a contents line links to each section. " +
+            "Choose 'HTML' to read the report as a formatted document: this is the Markdown report displayed through <b>Render Markdown</b>. " +
+            "HTML is only rendered when this is the last operation; otherwise the Markdown is passed to the next operation. " +
+            "Choose 'Markdown' to get the Markdown text itself (e.g. to save it or view it on GitHub). " +
+            "In the Markdown and HTML, class names (in the hierarchy, superclasses, paths, ranges, domains and restrictions) link to the class's entry in the class details, and a contents line links to each section. " +
             "Choose 'Counts CSV' followed by <b>To Table</b> ('Make first row header' ticked) to show the counts as a table." +
             "<br><br><b>Additional prefixes</b>: prefix declarations to use as well as those in the input (Turtle <code>@prefix</code>, SPARQL <code>PREFIX</code>, RDF/XML <code>xmlns:</code> or a JSON-LD <code>@context</code>). " +
             "To reuse the prefixes of the original file after a step that loses them (e.g. N-Triples), put <b>Register</b> at the start of the recipe and enter <code>$R0</code> here.";
@@ -61,7 +64,7 @@ class OntologySummary extends Operation {
             {
                 name: "Output",
                 type: "option",
-                value: ["Text report", "Markdown", "JSON", "Counts CSV"]
+                value: ["Text report", "HTML", "Markdown", "JSON", "Counts CSV"]
             },
             {
                 name: "Include class hierarchy",
@@ -166,8 +169,25 @@ class OntologySummary extends Operation {
                 propertiesMatchingNoClass: details ? details.unmatched : undefined,
             }, null, 2);
         }
-        if (output === "Markdown") return markdownReport(report);
+        if (output === "Markdown" || output === "HTML") return markdownReport(report);
         return textReport(report);
+    }
+
+    /**
+     * Renders the Markdown report as HTML when the output is 'HTML'. Other
+     * outputs are displayed as text.
+     *
+     * @param {string} data - the result of run()
+     * @param {Object[]} args
+     * @returns {string}
+     */
+    present(data, args) {
+        if (args[1] !== "HTML") {
+            this.presentType = "string";
+            return data;
+        }
+        this.presentType = "html";
+        return new RenderMarkdown().run(data, [false, true]);
     }
 
 }
