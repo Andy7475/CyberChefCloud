@@ -10,8 +10,10 @@ Each operation parses its input into an in-memory RDF store ([Oxigraph](https://
 | SPARQL Query | Runs a SPARQL 1.1 SELECT / ASK / CONSTRUCT / DESCRIBE query against the input. |
 | Ontology Summary | Reports the ontology IRI, version, title and imports; counts; namespaces; the class hierarchy; and a per-class reference of descriptions, applicable properties (own and inherited) and restrictions. |
 | Ontology Graph | Draws the ontology as an interactive graph (drag, zoom, hover for IRIs and annotations, search to highlight), with a 'Max nodes' limit (default 200). |
+| Ontology Reasoner | Applies the RDFS and OWL 2 RL rules (as SPARQL CONSTRUCT queries) and shows the triples they add, in a report or as TriG for the other operations. |
+| Ontology Quality Checks | Lists missing labels and descriptions, classes and properties used but not declared, duplicate labels, orphan classes and other common problems. |
 
-All four are in the **Ontology / RDF** category. `Convert RDF Format` is also listed under **Data format**.
+All six are in the **Ontology / RDF** category. `Convert RDF Format` is also listed under **Data format**.
 
 ## Formats
 
@@ -35,7 +37,7 @@ Notes:
 
 - **Auto-detection.** 'Auto' picks the format from the content: XML → RDF/XML, `{` → JSON-LD, graph blocks → TriG; otherwise it tries Turtle, which also reads N-Triples, then N-Quads.
 - **Prefixes.** With 'Use prefixes' on, output uses the prefixes declared in the input (`@prefix`, `PREFIX`, `xmlns:`, JSON-LD `@context`) plus common vocabularies (rdf, rdfs, owl, xsd, skos, dc, dcterms, foaf, schema, prov, sh). N-Triples and N-Quads contain no prefixes, so converting through them loses the prefix names, but not the data.
-- **Restoring prefixes with Register.** All four operations have an 'Additional prefixes' argument. It accepts prefix declarations in any of the syntaxes above, and they take precedence over prefixes found in the input. To bring back the original file's prefixes after a step that drops them, store the file with the existing **Register** operation. Its default extractor `([\s\S]*)` puts the whole input into `$R0` and passes the input through unchanged.
+- **Restoring prefixes with Register.** All the ontology operations have an 'Additional prefixes' argument. It accepts prefix declarations in any of the syntaxes above, and they take precedence over prefixes found in the input. To bring back the original file's prefixes after a step that drops them, store the file with the existing **Register** operation. Its default extractor `([\s\S]*)` puts the whole input into `$R0` and passes the input through unchanged.
 
   ```
   Register                (Extractor: ([\s\S]*))
@@ -92,7 +94,9 @@ How a property is matched to classes:
 | No domain, but a super-property has one | the super-property's domain (shown as "domain via"). The range is inherited the same way. |
 | No domain at all, or `owl:Thing` / `rdfs:Resource` | any class. Listed once under "Properties that apply to any class" and not repeated for every class. |
 
-Only asserted `rdfs:subClassOf` links are used; no reasoner runs. For example, a class defined only by `owl:equivalentClass` is not moved under its inferred superclass.
+Ontology Summary does not reason by itself: it uses the `rdfs:subClassOf` links in its input. To include inferred superclasses, put **Ontology Reasoner** (Output: 'Asserted and inferred (TriG)') before it. Links that only exist in the reasoner's inferred graphs are then marked "(inferred)" in the hierarchy and in each class's "Subclass of" line, and the counts include "Inferred triples".
+
+**Include quality checks** (off by default) adds the results of the Ontology Quality Checks operation as a final "Quality checks" section (and `qualityChecks` in the JSON output), so a Summary at the end of any ontology recipe gives one report.
 
 For a long ontology, choose **Output: HTML**. This produces the Markdown report and displays it through **Render Markdown**, as a formatted document. The rendering is done in `present()`, so it only happens when Ontology Summary is the last operation; a following operation receives the Markdown text. Choose **Output: Markdown** for the Markdown text itself (for example to save it, or to add Render Markdown with different options). Properties are a list rather than a table, because a table with long descriptions is squeezed unreadably in the output pane. Render Markdown disables raw HTML, so descriptions from the file cannot inject markup.
 
@@ -144,9 +148,89 @@ The graph is drawn only when this is the last operation. Otherwise it outputs th
 
 Drawing loads vis-network 10.1.2 from unpkg.com at display time, the same way 'Show on map' loads Leaflet. It is pinned with a Subresource Integrity hash (`VIS_NETWORK_SRI` in `OntologyGraph.mjs`; update it when changing the version). This needs internet access; without it the op shows a message. Data embedded in the page's script is escaped (`<`, `>`, U+2028/9), so labels cannot inject HTML.
 
+### Inferred edges
+
+After **Ontology Reasoner** (TriG output), edges whose triple was inferred are drawn as **thick magenta long-dashed lines**, labelled with the rule that produced them (e.g. `:hasPart · prp-trp`), with "Inferred by rule …" in the tooltip. Asserted edges are thin and grey, and restrictions are thin grey short dashes, so the three can't be confused. Magenta is not used by any node group. The legend shows a sample of the inferred line, and the summary line counts the inferred edges.
+
+A **Show inferred** checkbox appears at the top right when there are inferred edges. Unticking it hides them without redrawing the graph, which shows the graph before and after reasoning.
+
+## Ontology Reasoner
+
+Ontology Reasoner materialises inferences ("triple expansion"): it applies reasoning rules to the input and adds the triples they produce. Oxigraph has no reasoning of its own, so the rules are written as SPARQL CONSTRUCT queries and applied to the store repeatedly until a round adds nothing new. Choose Output **Rules (SPARQL)** to see every rule as a query.
+
+**Rule sets**:
+
+- **OWL RL (includes RDFS)**: the rules of the [OWL 2 RL/RDF rule tables](https://www.w3.org/TR/owl2-profiles/#Reasoning_in_OWL_2_RL_and_RDF_Graphs_using_Rules), with the W3C rule ids (`cax-sco`, `prp-inv1`, `cls-svf1`, …):
+  - property rules: domain and range, sub-properties, property chains of length 2 and 3, inverse, symmetric, transitive, equivalent, functional and inverse-functional properties;
+  - class rules: intersections, unions, `someValuesFrom`, `allValuesFrom`, `hasValue`, `maxCardinality 1`;
+  - schema rules: transitivity of `subClassOf` and `subPropertyOf`, equivalent classes and properties, domains and ranges of super-classes and sub-properties, subsumption between restrictions, intersections and unions.
+  The `owl:sameAs` substitution rules (`eq-rep-s/p/o`) copy every statement about an individual to each of its aliases, which grows the output very quickly, so they only run with **Apply owl:sameAs substitution** ticked.
+- **RDFS**: the RDFS entailment rules rdfs2, rdfs3, rdfs5, rdfs7, rdfs9 and rdfs11. rdfs4a/4b ("everything is an rdfs:Resource") and the axiomatic triples are left out as noise.
+- **Custom rules only**: only the rules in **Custom rules**.
+
+**Custom rules** are extra CONSTRUCT queries, run in the same loop as the built-in rules. Each rule starts on a line beginning with `CONSTRUCT`, and the comment and `PREFIX` lines just above it belong to it. A comment `# rule: name` names the rule; other comment lines become its description. The input's prefixes are added automatically. The 'Rules (SPARQL)' output is in this format, so a built-in rule can be copied, changed and pasted back:
+
+```
+# rule: grandparent
+# Grandparents from parents.
+CONSTRUCT { ?x :hasGrandparent ?z }
+WHERE { ?x :hasParent ?y . ?y :hasParent ?z }
+```
+
+**Consistency.** The OWL RL rules whose conclusion is "false" are run as checks: an individual in two disjoint classes (`cax-dw`, including `owl:AllDisjointClasses`), in `owl:Nothing` (`cls-nothing2`), or in a class and its complement (`cls-com`); `owl:sameAs` together with `owl:differentFrom` (`eq-diff1`); violations of irreflexive, asymmetric and disjoint properties (`prp-irp`, `prp-asyp`, `prp-pdw`); and `maxCardinality 0` (`cls-maxc1`). The report also lists classes that are subclasses of two disjoint classes, so can have no instances (e.g. pizza.owl's `CheeseyVegetableTopping`). This is found from the subclass links only, so it is incomplete.
+
+**Where inferred triples go.** Each rule's new triples are put in the named graph `urn:ccc:inferred:<rule id>`, and a triple already in the input (in any graph) is never added again. The rule id is therefore carried along when the output is TriG or N-Quads, with no reification. Each triple is credited to the rule that produced it in the final step.
+
+**Outputs**:
+
+- **Impact report** (HTML or Markdown):
+  1. consistency problems;
+  2. a table of the rules that added triples, with how many each added and how many are shown;
+  3. the new superclasses, types, equivalences and `sameAs` links, property schema (domains, ranges, sub-properties) and property values, each with the rule that produced it, linked to the specification.
+- **Asserted and inferred (TriG)**: the input in the default graph, plus the inferred graphs. Ontology Summary, Ontology Graph, Ontology Quality Checks and SPARQL Query read all graphs as one, so they can follow directly; Summary and Graph mark the inferred parts. `Convert RDF Format` → Turtle merges everything into one graph, for exporting to Protégé or elsewhere.
+- **Inferred triples only (Turtle)**: only the new triples, grouped by rule with a comment before each group.
+
+**Show only direct inferences** (on by default) hides inferred triples that add nothing new to read:
+
+- triples implied by a more specific one through transitivity: an inferred `x a :Food` when x is also a `:Pizza` and `:Pizza` is a subclass of `:Food`, and likewise for `rdfs:subClassOf`, `rdfs:subPropertyOf`, `rdfs:domain` and `rdfs:range`;
+- trivial triples: `x a owl:Thing`, `C rdfs:subClassOf C`, `x owl:sameAs x`;
+- triples involving blank nodes (restrictions and class expressions), which the rules use as intermediate steps. For example, a pizza with a cheese topping is first put in the restriction `hasTopping some Cheese` (`cls-svf1`), then in the intersection (`cls-int1`), and only then in `CheeseyPizza`.
+
+The full closure is still computed, and the report says how many triples are hidden. Untick the option to see them all.
+
+**Limits.** OWL RL is designed to be computed by rules like these, but it is less complete than a DL reasoner (HermiT, Pellet or ELK in Protégé). It places *individuals* in defined classes, and finds some subclass links between *classes* (for example, pizza.owl's `CheeseyPizza`, `SpicyPizza` and `VegetarianPizza` are placed under `Pizza`, from their definitions as intersections). It does not find subclass links that need reasoning about hypothetical individuals: for example, `MargheritaPizza` is not placed under `CheeseyPizza`, which Protégé's reasoner does. It also ignores cardinalities above 1 and does not use `complementOf` or unions in superclasses. For full DL reasoning, load the ontology into a triple store with a reasoner (e.g. GraphDB) or use Protégé.
+
+**Limits on the loop.** 'Max rounds' (default 50) and a cap of 200,000 inferred triples stop runaway rules (usually `owl:sameAs` substitution, or custom rules that create new terms); the error names the rule that added the most triples. Each round runs every rule over the whole store, which takes about 0.2 s for pizza.owl (2,300 triples, 4 rounds).
+
+## Ontology Quality Checks
+
+Checks, each with the number of problems and the terms affected (up to 'Max items per check', default 50):
+
+| Check | What it reports |
+| :--- | :--- |
+| Classes / properties without a label | Declared classes and properties with no `rdfs:label` or `skos:prefLabel`. |
+| Classes / properties without a description | No `skos:definition`, OBO definition, `rdfs:comment`, `dcterms:description` or `dc:description` in the chosen **Language** (untagged counts). |
+| Classes used but not declared | IRIs used as a type, in `subClassOf`, `equivalentClass` or `disjointWith`, as a domain, as the range of a non-datatype property, in a restriction, or in a union or intersection, that are not typed `owl:Class`, `rdfs:Class` or `rdfs:Datatype`. |
+| Properties used but not declared | Predicates (and IRIs in `owl:onProperty`, `rdfs:subPropertyOf`, `owl:inverseOf`, `owl:equivalentProperty`) with no property type. |
+| Labels used by more than one term | The same label (ignoring case) in the same language on different terms. |
+| Terms with more than one label in the same language | Several `rdfs:label` / `skos:prefLabel` values in one language on one term. |
+| Classes with no superclass that nothing refers to | Declared classes not connected to anything else. |
+| Named individuals with no class | `owl:NamedIndividual`s with no other type. |
+| Deprecated terms still used | Terms with `owl:deprecated true` that other triples still refer to. |
+| Ontology header | No `owl:Ontology`, or one without a title, description, version (`owl:versionIRI` / `owl:versionInfo`) or licence (`dcterms:license`, `dcterms:rights`, `dc:rights`, `cc:license`). |
+
+Terms in the common vocabularies (RDF, RDFS, OWL, XSD, SKOS, Dublin Core, FOAF, schema.org, PROV, SHACL) are not checked.
+
+It works on plain RDF or on the Reasoner's TriG output. **Triples to check** chooses 'All (asserted and inferred)' or 'Asserted only', which ignores the `urn:ccc:inferred:*` graphs. Running both on the same reasoned input shows what reasoning changes. For example, an individual whose type comes only from a property's domain is reported as having no class under 'Asserted only' but not under 'All'.
+
+Outputs: HTML (a table of checks with ✓ or a count, then the items of each failing check), Markdown, Text, JSON, and CSV with one row per problem for **To Table**. The same checks are available in Ontology Summary through **Include quality checks**.
+
 ## Implementation
 
 - `src/core/lib/OntologyModel.mjs`: class hierarchy, class expressions, restrictions, descriptions, and property-to-class matching for Ontology Summary.
+- `src/core/lib/Reasoning.mjs`: the rule table (`RULES`, `CHECKS`), `runRules` (the loop), `directInferences` (the display filter), `inferredIndex` (which triples are only inferred, used by Graph and Summary) and `withoutInferred`.
+- `src/core/lib/OntologyQuality.mjs`: the quality checks and their Text, Markdown and CSV formatters, shared by Ontology Quality Checks and Ontology Summary.
+- `src/core/lib/OntologyMarkdown.mjs`: Markdown escaping, and rendering through Render Markdown for the ops' HTML outputs. Each op sets `presentType` to `html` inside `present()` only for its HTML option, so the other outputs stay plain text.
 - `src/core/lib/RDF.mjs`: shared helpers.
   - `getOxigraph()` initialises the WASM once. In the browser, `oxigraph/web_bg.wasm` is inlined as base64 by a `base64-loader` rule in `webpack.config.js` (the same pattern as argon2) and passed to `init()`. Oxigraph's default loader resolves the file from `import.meta.url`, which fails inside the ChefWorker; a separate `.wasm` file would also break the standalone build. The Node build loads the WASM itself.
   - It also provides format detection, `loadStore`, prefix extraction, and `serialise`.
@@ -159,7 +243,7 @@ Drawing loads vis-network 10.1.2 from unpkg.com at display time, the same way 'S
 - The operations use their own webpack module (`Ontology`), so the WASM (~5.4 MB as base64) is only downloaded when an ontology operation is first used.
 - Node 18 has no global `crypto`, which Oxigraph needs for blank-node ids, so `getOxigraph()` sets it from Node's `webcrypto`.
 - Tests:
-  - `tests/operations/tests/Ontology.mjs` and `tests/operations/tests/ToTable.mjs` (offline, `npm test`).
+  - `tests/operations/tests/Ontology.mjs`, `tests/operations/tests/OntologyReasoning.mjs` and `tests/operations/tests/ToTable.mjs` (offline, `npm test`).
   - `tests/browser/OntologyOps.js` (Nightwatch; checks that the WASM loads in the real ChefWorker and that the graph draws from unpkg).
 
 ## Possible next steps
@@ -168,3 +252,4 @@ Drawing loads vis-network 10.1.2 from unpkg.com at display time, the same way 'S
 - **SHACL validation** with `rdf-validate-shacl`.
 - **Remote SPARQL endpoints** such as Wikidata or DBpedia. These need CSP `connect-src` entries.
 - **OWL/XML, Functional, Manchester and OBO** via a ROBOT Cloud Run proxy, following the pattern in `infrastructure/`.
+- **Full DL reasoning** (Protégé-style classification) via an external store such as GraphDB, or `robot reason` in the same proxy.

@@ -6,11 +6,13 @@
 
 import Operation from "../Operation.mjs";
 import {
-    getOxigraph, loadStore, inputPrefixes, allPrefixes, withPrefixes, shortenIRI, localName, preferredLabels, langMatches, INPUT_FORMATS
+    getOxigraph, loadStore, inputPrefixes, allPrefixes, withPrefixes, shortenIRI, localName, preferredLabels, langMatches, WELL_KNOWN_PREFIXES, INPUT_FORMATS
 } from "../lib/RDF.mjs";
 import { readClassHierarchy, readDescriptions, buildClassDetails } from "../lib/OntologyModel.mjs";
 import { HeadingSlugger } from "../lib/MarkdownAnchors.mjs";
-import RenderMarkdown from "./RenderMarkdown.mjs";
+import { md, code, renderMarkdown } from "../lib/OntologyMarkdown.mjs";
+import { inferredIndex, tripleKey } from "../lib/Reasoning.mjs";
+import { readQualityChecks, qualityTextLines, qualityMarkdownLines } from "../lib/OntologyQuality.mjs";
 
 const MAX_TREE_LINES = 5000;
 
@@ -51,7 +53,9 @@ class OntologySummary extends Operation {
             "In the Markdown and HTML, class names (in the hierarchy, superclasses, paths, ranges, domains and restrictions) link to the class's entry in the class details, and a contents line links to each section. " +
             "Choose 'Counts CSV' followed by <b>To Table</b> ('Make first row header' ticked) to show the counts as a table." +
             "<br><br><b>Additional prefixes</b>: prefix declarations to use as well as those in the input (Turtle <code>@prefix</code>, SPARQL <code>PREFIX</code>, RDF/XML <code>xmlns:</code> or a JSON-LD <code>@context</code>). " +
-            "To reuse the prefixes of the original file after a step that loses them (e.g. N-Triples), put <b>Register</b> at the start of the recipe and enter <code>$R0</code> here.";
+            "To reuse the prefixes of the original file after a step that loses them (e.g. N-Triples), put <b>Register</b> at the start of the recipe and enter <code>$R0</code> here.<br><br>" +
+            "<b>Include quality checks</b> adds the checks of <b>Ontology Quality Checks</b> (missing labels and descriptions, classes used but not declared, duplicate labels, …) as a final section.<br><br>" +
+            "After <b>Ontology Reasoner</b> (TriG output), subclass links that were inferred are marked '(inferred)', and the counts include the number of inferred triples.";
         this.infoURL = "https://www.w3.org/TR/owl2-primer/";
         this.inputType = "string";
         this.outputType = "string";
@@ -91,6 +95,11 @@ class OntologySummary extends Operation {
                 name: "Additional prefixes",
                 type: "text",
                 value: ""
+            },
+            {
+                name: "Include quality checks",
+                type: "boolean",
+                value: false
             }
         ];
     }
@@ -101,7 +110,7 @@ class OntologySummary extends Operation {
      * @returns {Promise<string>}
      */
     async run(input, args) {
-        const [inputFormat, output, includeTree, maxDepth, includeDetails, language, additionalPrefixes] = args;
+        const [inputFormat, output, includeTree, maxDepth, includeDetails, language, additionalPrefixes, includeQuality = false] = args;
         const lang = (language || "").trim();
         const ox = await getOxigraph();
         const { store, format } = loadStore(ox, input, inputFormat);
@@ -126,8 +135,10 @@ class OntologySummary extends Operation {
             imports: values(ontRows, "imp"),
         };
 
-        // Counts
+        // Counts (triples include inferred ones)
+        const inferred = inferredIndex(store);
         const counts = { "Triples": store.size };
+        if (inferred.size) counts["Inferred triples"] = inferred.size;
         counts["Distinct subjects"] = countOf(select("SELECT (COUNT(DISTINCT ?s) AS ?n) WHERE { ?s ?p ?o }"));
         for (const [label, pattern] of COUNTS) {
             counts[label] = countOf(select(`SELECT (COUNT(DISTINCT ?x) AS ?n) WHERE { ${pattern} }`));
@@ -153,13 +164,18 @@ class OntologySummary extends Operation {
 
         // Class hierarchy and details
         const needHierarchy = includeTree || includeDetails;
-        const hierarchy = needHierarchy ? readClassHierarchy(select, labelOf) : null;
+        const iriTerm = value => ({ termType: "NamedNode", value });
+        const subClassOf = iriTerm(WELL_KNOWN_PREFIXES.rdfs + "subClassOf");
+        const isInferred = (c, p) => inferred.has(tripleKey(iriTerm(c), subClassOf, iriTerm(p)));
+        const hierarchy = needHierarchy ? readClassHierarchy(select, labelOf, isInferred) : null;
         const tree = includeTree ? classTree(hierarchy, short, labelOf, Math.max(1, maxDepth || 1)) : null;
         const details = includeDetails ?
             buildClassDetails({ select, hierarchy, short, labelOf, descriptions: readDescriptions(select, lang) }) :
             null;
 
-        const report = { format, language: lang, ontology, counts, namespaces, tree, details };
+        const quality = includeQuality ? readQualityChecks(select, { language: lang, short, maxItems: 50 }) : null;
+
+        const report = { format, language: lang, ontology, counts, namespaces, tree, details, quality };
         if (output === "JSON") {
             return JSON.stringify({
                 format, language: lang, ontology, counts, namespaces,
@@ -167,6 +183,7 @@ class OntologySummary extends Operation {
                 classes: details ? details.classes : undefined,
                 propertiesForAnyClass: details ? details.anyClass : undefined,
                 propertiesMatchingNoClass: details ? details.unmatched : undefined,
+                qualityChecks: quality ?? undefined,
             }, null, 2);
         }
         if (output === "Markdown" || output === "HTML") return markdownReport(report);
@@ -187,7 +204,7 @@ class OntologySummary extends Operation {
             return data;
         }
         this.presentType = "html";
-        return new RenderMarkdown().run(data, [false, true]);
+        return renderMarkdown(data);
     }
 
 }
@@ -221,30 +238,31 @@ function nameWithLabel(name, label, iri) {
  * @param {function(string): string} short - IRI shortener
  * @param {function(string): string|null} labelOf
  * @param {number} maxDepth
- * @returns {{nodes: Object[], rows: {depth: number, iri: string, name: string, label: string|null, text: string, more: number}[], truncated: boolean}}
+ * @returns {{nodes: Object[], rows: {depth: number, iri: string, name: string, label: string|null, text: string, inferred: boolean, more: number}[], truncated: boolean}}
  */
 function classTree(hierarchy, short, labelOf, maxDepth) {
     const { children, roots } = hierarchy;
     const rows = [];
     let truncated = false;
-    const build = (iri, depth, path) => {
-        const node = { iri, label: labelOf(iri) };
+    const build = (iri, depth, path, parent) => {
+        const inferred = parent !== null && hierarchy.inferredLinks.has(iri + " " + parent);
+        const node = { iri, label: labelOf(iri), ...(inferred ? { inferred: true } : {}) };
         if (rows.length >= MAX_TREE_LINES) {
             truncated = true;
             return node;
         }
-        rows.push({ depth, iri, name: short(iri), label: labelOf(iri), text: nameWithLabel(short(iri), labelOf(iri), iri) });
+        rows.push({ depth, iri, name: short(iri), label: labelOf(iri), text: nameWithLabel(short(iri), labelOf(iri), iri), inferred });
         const kids = (children.get(iri) || []).filter(k => !path.has(k));
         if (kids.length && depth + 1 >= maxDepth) {
             rows.push({ depth: depth + 1, more: kids.length });
         } else if (kids.length) {
             path.add(iri);
-            node.children = kids.map(k => build(k, depth + 1, path));
+            node.children = kids.map(k => build(k, depth + 1, path, iri));
             path.delete(iri);
         }
         return node;
     };
-    const nodes = roots.map(r => build(r, 0, new Set()));
+    const nodes = roots.map(r => build(r, 0, new Set(), null));
     return { nodes, rows, truncated };
 }
 
@@ -275,7 +293,7 @@ function rangeText(p) {
  * @param {Object} report
  * @returns {string}
  */
-function textReport({ format, language, ontology, counts, namespaces, tree, details }) {
+function textReport({ format, language, ontology, counts, namespaces, tree, details, quality }) {
     const out = [];
     const field = (name, vals) => {
         if (vals.length) out.push(`${(name + ":").padEnd(14)}${vals.map(v => v.replace(/\s+/g, " ")).join("\n" + " ".repeat(14))}`);
@@ -304,7 +322,7 @@ function textReport({ format, language, ontology, counts, namespaces, tree, deta
     if (tree) {
         out.push("", "Class hierarchy");
         if (!tree.rows.length) out.push("  (no classes)");
-        for (const row of tree.rows) out.push("  " + "  ".repeat(row.depth) + (row.more ? moreText(row.more) : row.text));
+        for (const row of tree.rows) out.push("  " + "  ".repeat(row.depth) + (row.more ? moreText(row.more) : row.text + (row.inferred ? " (inferred)" : "")));
         if (tree.truncated) out.push(`  … truncated at ${MAX_TREE_LINES} lines`);
     }
 
@@ -318,7 +336,8 @@ function textReport({ format, language, ontology, counts, namespaces, tree, deta
                 vals.forEach((v, i) => out.push(`${pad}  ${(i ? "" : label + ":").padEnd(15)}${flat(v)}`));
             };
             out.push("", pad + nameWithLabel(c.name, c.label, c.iri));
-            sub("Subclass of", c.subClassOf);
+            const inferredSupers = new Set(c.inferredSubClassOf || []);
+            sub("Subclass of", c.subClassOf.map(s => (inferredSupers.has(s) ? s + " (inferred)" : s)));
             sub("Equivalent to", c.equivalentTo);
             sub("Description", c.descriptions);
             if (c.properties.length) {
@@ -352,28 +371,8 @@ function textReport({ format, language, ontology, counts, namespaces, tree, deta
         globalList("Properties that apply to any class (no domain, or owl:Thing)", details.anyClass);
         globalList("Properties whose domain matches no class", details.unmatched);
     }
+    if (quality) out.push("", "Quality checks", ...qualityTextLines(quality));
     return out.join("\n");
-}
-
-/**
- * Escapes text for Markdown (including table cells).
- *
- * @param {string} s
- * @returns {string}
- */
-function md(s) {
-    return String(s).replace(/\s+/g, " ").replace(/([\\`*_[\]<>#|~&])/g, "\\$1");
-}
-
-/**
- * Formats an identifier or class expression as inline code.
- *
- * @param {string} s
- * @returns {string}
- */
-function code(s) {
-    const text = String(s).replace(/\s+/g, " ").replace(/\|/g, "\\|");
-    return text.includes("`") ? `\`\` ${text} \`\`` : `\`${text}\``;
 }
 
 /** Splits a class expression into quoted literals, names/keywords, and separators. */
@@ -504,7 +503,7 @@ function propertyItem(p, doc) {
  * @param {Object} report
  * @returns {string}
  */
-function markdownReport({ format, language, ontology, counts, namespaces, tree, details }) {
+function markdownReport({ format, language, ontology, counts, namespaces, tree, details, quality }) {
     const doc = new LinkedMarkdown(new Set(details ? details.classes.map(c => c.name) : []));
     const title = ontology.title[0] || "Ontology summary";
     doc.heading(1, md(title), title.replace(/\s+/g, " "));
@@ -524,6 +523,7 @@ function markdownReport({ format, language, ontology, counts, namespaces, tree, 
         if (details.anyClass.length) sections.push(["Properties that apply to any class", "Properties for any class"]);
         if (details.unmatched.length) sections.push(["Properties whose domain matches no class", "Properties matching no class"]);
     }
+    if (quality) sections.push(["Quality checks"]);
     doc.push("", "**Contents:** " + sections.map(([heading, short]) => doc.link("section:" + heading, short || heading)).join(" · "), "");
 
     doc.heading(2, "Counts", "Counts", "section:Counts");
@@ -550,7 +550,7 @@ function markdownReport({ format, language, ontology, counts, namespaces, tree, 
                 doc.push(`${pad}- ${md(moreText(row.more))}`);
             } else {
                 const label = row.label && row.label !== localName(row.iri) ? " " + md(row.label) : "";
-                doc.push(`${pad}- ${doc.name(row.name)}${label}`);
+                doc.push(`${pad}- ${doc.name(row.name)}${label}${row.inferred ? " *(inferred)*" : ""}`);
             }
         }
         if (tree.truncated) doc.push("", `… truncated at ${MAX_TREE_LINES} lines`);
@@ -569,7 +569,10 @@ function markdownReport({ format, language, ontology, counts, namespaces, tree, 
                 "class:" + c.name);
             const lines = [];
             if (c.path.length > 1) lines.push(`**Path:** ${[...c.path.slice(0, -1).map(n => doc.name(n)), code(c.name)].join(" › ")}`);
-            if (c.subClassOf.length) lines.push(`**Subclass of:** ${c.subClassOf.map(e => doc.expression(e)).join(", ")}`);
+            const inferredSupers = new Set(c.inferredSubClassOf || []);
+            if (c.subClassOf.length) {
+                lines.push(`**Subclass of:** ${c.subClassOf.map(e => doc.expression(e) + (inferredSupers.has(e) ? " *(inferred)*" : "")).join(", ")}`);
+            }
             if (c.equivalentTo.length) lines.push(`**Equivalent to:** ${c.equivalentTo.map(e => doc.expression(e)).join(", ")}`);
             lines.push(`**IRI:** ${code(c.iri)}`);
             doc.push(lines.join("  \n"), "");
@@ -593,6 +596,11 @@ function markdownReport({ format, language, ontology, counts, namespaces, tree, 
         };
         globalList("Properties that apply to any class", details.anyClass);
         globalList("Properties whose domain matches no class", details.unmatched);
+    }
+    if (quality) {
+        doc.push("");
+        doc.heading(2, "Quality checks", "Quality checks", "section:Quality checks");
+        doc.push(...qualityMarkdownLines(quality, n => doc.name(n)), "");
     }
     return doc.toString();
 }

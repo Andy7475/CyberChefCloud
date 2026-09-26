@@ -39,17 +39,21 @@ const MAX_EXPRESSION_DEPTH = 6;
  *
  * @param {function(string): Map<string, Object>[]} select
  * @param {function(string): string|null} labelOf
+ * @param {function(string, string): boolean} [isInferred] - tests whether "class rdfs:subClassOf parent" was inferred
  * @returns {{classes: Set<string>, parents: Map<string, Set<string>>, children: Map<string, string[]>,
- *     roots: string[], byName: function(string, string): number}}
+ *     roots: string[], byName: function(string, string): number, inferredLinks: Set<string>}}
+ *     inferredLinks holds "class parent" for each inferred link
  */
-export function readClassHierarchy(select, labelOf) {
+export function readClassHierarchy(select, labelOf, isInferred = () => false) {
     const classes = new Set(select("SELECT DISTINCT ?c WHERE { { ?c a owl:Class } UNION { ?c a rdfs:Class } FILTER(isIRI(?c)) }").map(r => r.get("c").value));
     const parents = new Map();
     const children = new Map();
+    const inferredLinks = new Set();
     for (const r of select("SELECT DISTINCT ?c ?p WHERE { ?c rdfs:subClassOf ?p FILTER(isIRI(?c) && isIRI(?p) && ?c != ?p) }")) {
         const c = r.get("c").value, p = r.get("p").value;
         classes.add(c);
         if (p === OWL_THING) continue;
+        if (isInferred(c, p)) inferredLinks.add(c + " " + p);
         classes.add(p);
         if (!parents.has(c)) parents.set(c, new Set());
         parents.get(c).add(p);
@@ -82,7 +86,7 @@ export function readClassHierarchy(select, labelOf) {
             mark(c);
         }
     }
-    return { classes, parents, children, roots, byName };
+    return { classes, parents, children, roots, byName, inferredLinks };
 }
 
 /**
@@ -396,12 +400,14 @@ export function buildClassDetails({ select, hierarchy, short, labelOf, descripti
             }
         }
 
+        const inferredSupers = [...(parents.get(iri) || [])].filter(p => hierarchy.inferredLinks?.has(iri + " " + p)).sort(byName).map(short);
         return {
             iri,
             name: short(iri),
             label: labelOf(iri),
             depth,
             path: path.map(short),
+            ...(inferredSupers.length ? { inferredSubClassOf: inferredSupers } : {}),
             subClassOf: [
                 ...[...(parents.get(iri) || [])].sort(byName).map(short),
                 ...[...(otherSupers.get(iri) || [])].sort(),

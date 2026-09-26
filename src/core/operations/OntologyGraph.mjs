@@ -11,6 +11,7 @@ import {
     WELL_KNOWN_PREFIXES, INPUT_FORMATS
 } from "../lib/RDF.mjs";
 import { readDescriptions, DESCRIPTION_PREDICATES } from "../lib/OntologyModel.mjs";
+import { inferredIndex, tripleKey } from "../lib/Reasoning.mjs";
 
 const RDF = WELL_KNOWN_PREFIXES.rdf, RDFS = WELL_KNOWN_PREFIXES.rdfs, OWL = WELL_KNOWN_PREFIXES.owl;
 const OWL_THING = OWL + "Thing";
@@ -61,6 +62,19 @@ const SELECTED_COLOUR = "#d94801";
 const RELATIVES = {
     parent: { label: "superclass", color: "#7f2704", borderWidth: 3, selectionWidth: 2 },
     child: { label: "subclass", color: "#fd8d3c", borderWidth: 2, selectionWidth: 1 },
+};
+
+/**
+ * Style for edges inferred by Ontology Reasoner: thick, long-dashed and
+ * magenta, a colour no node group or other edge uses, so they stand out from
+ * asserted edges (thin, grey) and restrictions (thin, grey, short dashes).
+ */
+const INFERRED_COLOUR = "#c2185b";
+const INFERRED_EDGE = {
+    width: 3,
+    dashes: [10, 6],
+    color: { color: INFERRED_COLOUR, highlight: INFERRED_COLOUR, hover: INFERRED_COLOUR },
+    font: { color: INFERRED_COLOUR },
 };
 
 /**
@@ -155,7 +169,7 @@ class OntologyGraph extends Operation {
         const prefixes = allPrefixes(inputPrefixes(input, additionalPrefixes));
         const select = query => store.query(withPrefixes(query, prefixes), { "use_default_graph_as_union": true });
         const labels = preferredLabels(ox, store, lang || "en");
-        const graph = new GraphBuilder(prefixes, labels, labelMode === "Prefixed name", readAnnotations(select, lang));
+        const graph = new GraphBuilder(prefixes, labels, labelMode === "Prefixed name", readAnnotations(select, lang), inferredIndex(store));
 
         const terms = classifyTerms(select, store);
 
@@ -215,14 +229,24 @@ class OntologyGraph extends Operation {
                 { solver: "forceAtlas2Based", forceAtlas2Based: { gravitationalConstant: -60, springLength: 120 }, stabilization: { iterations: 400 } },
         };
 
-        const summary = graph.truncated ?
-            `Showing ${graph.nodes.length} of ${graph.totalNodes} nodes and ${graph.edges.length} of ${graph.totalEdges} edges (limited by 'Max nodes').` :
-            `${graph.nodes.length} nodes, ${graph.edges.length} edges.`;
+        // Inferred edges: the rule in the label and tooltip, and a style that stands out
+        graph.edges = graph.edges.map(e => !e.inferred ? e : {
+            ...e,
+            ...INFERRED_EDGE,
+            label: e.label ? `${e.label} · ${e.inferred}` : e.inferred,
+            title: (e.title ? e.title + "\n\n" : "") + `Inferred by rule ${e.inferred}`,
+        });
+        const inferredCount = graph.edges.filter(e => e.inferred).length;
+        const summary = (graph.truncated ?
+            `Showing ${graph.nodes.length} of ${graph.totalNodes} nodes and ${graph.edges.length} of ${graph.totalEdges} edges (limited by 'Max nodes')` :
+            `${graph.nodes.length} nodes, ${graph.edges.length} edges`) +
+            (inferredCount ? `, ${inferredCount} inferred.` : ".");
         const usedGroups = new Set(graph.nodes.map(n => n.group));
         const legend = Object.entries(GROUPS)
             .filter(([name]) => usedGroups.has(name))
             .map(([, g]) => `<span style="display:inline-block;width:10px;height:10px;margin:0 4px 0 10px;border:1px solid ${g.border};background:${g.background};border-radius:${g.shape === "box" ? "2px" : "50%"}"></span>${g.label}`)
-            .join("") + (graph.edges.some(e => e.dashes) ? "<span style=\"margin-left:10px\">- - restriction</span>" : "") +
+            .join("") + (graph.edges.some(e => e.dashes === true) ? "<span style=\"margin-left:10px\">- - restriction</span>" : "") +
+            (inferredCount ? `<span style="display:inline-block;width:24px;height:0;margin:0 4px 3px 10px;border-top:3px dashed ${INFERRED_COLOUR}"></span><span style="color:${INFERRED_COLOUR};font-weight:bold">inferred</span>` : "") +
             (graph.edges.some(e => e.subClassOf) ?
                 "<span style=\"margin-left:10px\">Selected class:</span>" + Object.values(RELATIVES)
                     .map(r => `<span style="display:inline-block;width:14px;height:0;margin:0 4px 3px 8px;border-top:${r.borderWidth}px solid ${r.color}"></span>${r.label}`)
@@ -252,6 +276,7 @@ class OntologyGraph extends Operation {
         ${Utils.escapeHtml(summary)}${legend}<span style="margin-left:10px;color:#666">Scroll to zoom, drag to pan, hover for details.</span>
     </div>
     <div style="position: absolute; top: 6px; right: 8px; font-size: 12px; background: rgba(255,255,255,0.85); color: #333; padding: 3px 6px; border-radius: 4px;">
+        ${inferredCount ? `<label title="Show or hide the edges inferred by Ontology Reasoner, to compare the graph before and after reasoning." style="margin: 0 8px 0 0; color: ${INFERRED_COLOUR}; font-weight: bold; cursor: pointer;"><input id="ontologyGraphInferred" type="checkbox" checked style="vertical-align: middle; margin: 0 3px 0 0;">Show inferred</label>` : ""}
         <input id="ontologyGraphSearch" type="search" placeholder="Search nodes" title="Highlights nodes whose label, IRI or annotations contain this text. Enter: next match, Shift+Enter: previous, Esc: clear." style="width: 150px; font-size: 12px; padding: 1px 4px; border: 1px solid #aaa; border-radius: 3px; background: #fff; color: #1b1b1b;">
         <span id="ontologyGraphCount" style="margin-left: 4px; color: #666;"></span>
     </div>
@@ -279,6 +304,7 @@ class OntologyGraph extends Operation {
         network.on("select", markRelatives);
         network.on("dragStart", markRelatives);
         setupSearch(network, nodes, edges, markRelatives);
+        setupInferredToggle(edges);
         // Stop the simulation once laid out so nodes stay where the user drags them.
         // If the whole graph only fits at an unreadable size, zoom in on the most
         // connected node instead; the user can pan or zoom out from there.
@@ -324,6 +350,16 @@ class OntologyGraph extends Operation {
             });
             if (nodeUpdates.length) nodes.update(nodeUpdates);
         };
+    }
+    // Hides or shows the inferred edges when the "Show inferred" box changes.
+    function setupInferredToggle(edges) {
+        var box = document.getElementById("ontologyGraphInferred");
+        if (!box) return;
+        box.addEventListener("change", function () {
+            edges.update(edges.get({ filter: function (e) { return e.inferred; } }).map(function (e) {
+                return { id: e.id, hidden: !box.checked };
+            }));
+        });
     }
     // Dims nodes that do not match the search text, selects the ones that do,
     // and steps through the matches with Enter / Shift+Enter.
@@ -420,12 +456,14 @@ class GraphBuilder {
      * @param {Map<string, string>} labels - IRI -> preferred label
      * @param {boolean} prefixedNamesOnly - ignore rdfs:label etc.
      * @param {Map<string, string>} [annotations] - IRI -> tooltip annotation text
+     * @param {Map<string, string>} [inferred] - from inferredIndex(): triple key -> rule id
      */
-    constructor(prefixes, labels, prefixedNamesOnly, annotations = new Map()) {
+    constructor(prefixes, labels, prefixedNamesOnly, annotations = new Map(), inferred = new Map()) {
         this.prefixes = prefixes;
         this.labels = labels;
         this.prefixedNamesOnly = prefixedNamesOnly;
         this.annotations = annotations;
+        this.inferred = inferred;
         this.nodes = new Map();
         this.edges = new Map();
     }
@@ -514,20 +552,37 @@ class GraphBuilder {
     }
 
     /**
+     * Returns the rule that inferred a triple, or null if it is asserted.
+     *
+     * @param {...Object} triples - [subject, predicate, object] term triples; the first inferred one counts
+     * @returns {string|null}
+     */
+    inferredRule(...triples) {
+        for (const [s, p, o] of triples) {
+            const rule = this.inferred.get(tripleKey(s, p, o));
+            if (rule) return rule;
+        }
+        return null;
+    }
+
+    /**
      * Adds a directed edge between two existing nodes (duplicates are ignored).
      *
      * @param {string} from
      * @param {string} to
      * @param {string} label
-     * @param {boolean} [dashes]
-     * @param {string} [title] - tooltip text
-     * @param {boolean} [subClassOf] - true for an rdfs:subClassOf edge (subclass → superclass)
+     * @param {Object} [options]
+     * @param {boolean} [options.dashes] - draw dashed (restrictions)
+     * @param {string} [options.title] - tooltip text
+     * @param {boolean} [options.subClassOf] - true for an rdfs:subClassOf edge (subclass → superclass)
+     * @param {string|null} [options.inferredBy] - the rule that inferred the edge's triple
      */
-    addEdge(from, to, label, dashes = false, title = "", subClassOf = false) {
+    addEdge(from, to, label, { dashes = false, title = "", subClassOf = false, inferredBy = null } = {}) {
         const key = `${from}\u0000${to}\u0000${label}`;
         if (!this.edges.has(key)) {
             this.edges.set(key, {
-                from, to, ...(label ? { label } : {}), ...(dashes ? { dashes: true } : {}), ...(title ? { title } : {}), ...(subClassOf ? { subClassOf: true } : {})
+                from, to, ...(label ? { label } : {}), ...(dashes ? { dashes: true } : {}), ...(title ? { title } : {}),
+                ...(subClassOf ? { subClassOf: true } : {}), ...(inferredBy ? { inferred: inferredBy } : {})
             });
         }
     }
@@ -644,29 +699,34 @@ function readAnnotations(select, language) {
 function buildClassGraph(select, graph, withProperties) {
     const iri = value => ({ termType: "NamedNode", value });
     const addClass = value => graph.addNode(iri(value), "class");
+    const SUB_CLASS_OF = iri(RDFS + "subClassOf"), DOMAIN = iri(RDFS + "domain"), RANGE = iri(RDFS + "range");
 
     for (const r of select("SELECT DISTINCT ?c WHERE { { ?c a owl:Class } UNION { ?c a rdfs:Class } FILTER(isIRI(?c) && ?c != owl:Thing) }")) {
         addClass(r.get("c").value);
     }
     for (const r of select("SELECT DISTINCT ?c ?p WHERE { ?c rdfs:subClassOf ?p FILTER(isIRI(?c) && isIRI(?p) && ?c != ?p) }")) {
         const c = addClass(r.get("c").value);
-        if (r.get("p").value !== OWL_THING) graph.addEdge(c, addClass(r.get("p").value), "", false, "", true);
+        if (r.get("p").value === OWL_THING) continue;
+        const inferredBy = graph.inferredRule([r.get("c"), SUB_CLASS_OF, r.get("p")]);
+        graph.addEdge(c, addClass(r.get("p").value), "", { subClassOf: true, inferredBy });
     }
     if (!withProperties) return;
 
+    const domainRangeRule = r => graph.inferredRule([r.get("p"), DOMAIN, r.get("d")], [r.get("p"), RANGE, r.get("r")]);
     for (const r of select("SELECT DISTINCT ?p ?d ?r WHERE { ?p a owl:ObjectProperty ; rdfs:domain ?d ; rdfs:range ?r FILTER(isIRI(?d) && isIRI(?r)) }")) {
         const p = r.get("p").value;
-        graph.addEdge(addClass(r.get("d").value), addClass(r.get("r").value), graph.display(p), false, graph.edgeTooltip(p));
+        graph.addEdge(addClass(r.get("d").value), addClass(r.get("r").value), graph.display(p), { title: graph.edgeTooltip(p), inferredBy: domainRangeRule(r) });
     }
     // Datatype properties get their own datatype node each, as a shared
     // xsd:string node would pull unrelated classes together.
     for (const r of select("SELECT DISTINCT ?p ?d ?r WHERE { ?p a owl:DatatypeProperty ; rdfs:domain ?d ; rdfs:range ?r FILTER(isIRI(?d) && isIRI(?r)) }")) {
         const p = r.get("p").value, range = r.get("r").value;
         const target = graph.addNode(iri(range), "datatype", { id: `datatype:${p}:${range}`, label: graph.short(range), title: range });
-        graph.addEdge(addClass(r.get("d").value), target, graph.display(p), false, graph.edgeTooltip(p));
+        graph.addEdge(addClass(r.get("d").value), target, graph.display(p), { title: graph.edgeTooltip(p), inferredBy: domainRangeRule(r) });
     }
-    const restrictions = select(`SELECT DISTINCT ?c ?p ?v ?kind WHERE {
-        ?c rdfs:subClassOf|owl:equivalentClass ?r .
+    const restrictions = select(`SELECT DISTINCT ?c ?link ?r ?p ?v ?kind WHERE {
+        VALUES ?link { rdfs:subClassOf owl:equivalentClass }
+        ?c ?link ?r .
         ?r owl:onProperty ?p .
         { ?r owl:someValuesFrom ?v BIND("some" AS ?kind) } UNION { ?r owl:allValuesFrom ?v BIND("only" AS ?kind) }
         FILTER(isIRI(?c) && isIRI(?p) && isIRI(?v))
@@ -678,7 +738,8 @@ function buildClassGraph(select, graph, withProperties) {
             addClass(target);
         const p = r.get("p").value, kind = r.get("kind").value;
         const restriction = `${kind === "some" ? "owl:someValuesFrom" : "owl:allValuesFrom"} restriction\n\n`;
-        graph.addEdge(addClass(r.get("c").value), to, `${graph.display(p)} (${kind})`, true, restriction + graph.edgeTooltip(p));
+        const inferredBy = graph.inferredRule([r.get("c"), r.get("link"), r.get("r")]);
+        graph.addEdge(addClass(r.get("c").value), to, `${graph.display(p)} (${kind})`, { dashes: true, title: restriction + graph.edgeTooltip(p), inferredBy });
     }
 }
 
@@ -750,17 +811,20 @@ function classifyTerms(select, store) {
 function addTriple(q, graph, groupOf) {
     const s = graph.addNode(q.subject, groupOf(q.subject));
     const predicate = graph.short(q.predicate.value);
+    const inferredBy = graph.inferredRule([q.subject, q.predicate, q.object]);
+    const note = inferredBy ? ` (inferred by ${inferredBy})` : "";
     if (q.object.termType === "Literal") {
-        if (q.subject.termType === "NamedNode" && ANNOTATION_PREDICATES.has(q.predicate.value)) return;
+        if (q.subject.termType === "NamedNode" && ANNOTATION_PREDICATES.has(q.predicate.value) && !inferredBy) return;
         const value = q.object.value.length > 120 ? q.object.value.slice(0, 117) + "…" : q.object.value;
-        graph.addInfo(s, `${predicate}: ${value}${q.object.language ? "@" + q.object.language : ""}`);
+        graph.addInfo(s, `${predicate}: ${value}${q.object.language ? "@" + q.object.language : ""}${note}`);
     } else if (isBuiltInType(q)) {
         // Every class would otherwise link to one owl:Class hub node.
-        graph.addInfo(s, `a ${graph.short(q.object.value)}`);
+        graph.addInfo(s, `a ${graph.short(q.object.value)}${note}`);
     } else {
         const group = q.predicate.value === RDF + "type" ? "class" : groupOf(q.object);
         const subClassOf = q.predicate.value === RDFS + "subClassOf" && q.object.termType === "NamedNode";
-        graph.addEdge(s, graph.addNode(q.object, group), q.predicate.value === RDF + "type" ? "a" : predicate, false, graph.edgeTooltip(q.predicate.value), subClassOf);
+        graph.addEdge(s, graph.addNode(q.object, group), q.predicate.value === RDF + "type" ? "a" : predicate,
+            { title: graph.edgeTooltip(q.predicate.value), subClassOf, inferredBy });
     }
 }
 

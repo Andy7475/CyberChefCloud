@@ -584,6 +584,8 @@
             "SPARQL Query",
             "Ontology Summary",
             "Ontology Graph",
+            "Ontology Reasoner",
+            "Ontology Quality Checks",
             "To Table"
         ]
     },

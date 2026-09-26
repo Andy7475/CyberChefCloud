@@ -17,6 +17,20 @@ const PIZZA_TTL = `@prefix : <http://example.org/pizza#> .
 :Margherita a owl:Class ; rdfs:subClassOf :Pizza .
 `;
 
+/** A pizza whose topping makes it a CheeseyPizza, plus inverse and transitive properties. */
+const REASONING_TTL = `@prefix : <http://ex.org/#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+:Food a owl:Class . :Pizza a owl:Class ; rdfs:subClassOf :Food .
+:Cheese a owl:Class ; rdfs:subClassOf :Food . :Mozzarella a owl:Class ; rdfs:subClassOf :Cheese .
+:CheeseyPizza a owl:Class ;
+    owl:equivalentClass [ owl:intersectionOf ( :Pizza [ a owl:Restriction ; owl:onProperty :hasTopping ; owl:someValuesFrom :Cheese ] ) ] .
+:hasTopping a owl:ObjectProperty ; owl:inverseOf :isToppingOf .
+:hasPart a owl:TransitiveProperty .
+:p1 a :Pizza ; :hasTopping :m1 . :m1 a :Mozzarella .
+:p1 :hasPart :base . :base :hasPart :flour .
+`;
+
 /**
  * Returns the current output text.
  *
@@ -202,6 +216,46 @@ module.exports = {
         }, [P], function ({ value }) {
             browser.assert.deepStrictEqual(value, [0, 1], "Deselecting resets the superclass border");
         });
+    },
+
+    "Ontology Reasoner: impact report renders": function (browser) {
+        browserUtils.loadRecipeConfig(browser, [
+            { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Impact report (HTML)", true, false, "", 50, ""] }
+        ], REASONING_TTL);
+        browserUtils.bake(browser);
+
+        browser.expect.element("#output-html h1").text.to.equal("Reasoning impact").before(10000);
+        browser.expect.element("#output-html").text.to.contain("cax-sco");
+        browser.expect.element("#output-html").text.to.contain(":isToppingOf");
+        browser.saveScreenshot("tests/browser/output/ontology-reasoner-report.png");
+    },
+
+    "Ontology Reasoner → Graph: inferred edges are styled and can be hidden": function (browser) {
+        browserUtils.loadRecipeConfig(browser, [
+            { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Asserted and inferred (TriG)", true, false, "", 50, ""] },
+            { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en", "TBox and ABox"] }
+        ], REASONING_TTL);
+        browserUtils.bake(browser);
+        browser.expect.element("#ontologyGraph canvas").to.be.present.before(15000);
+        browser.expect.element("#ontologyGraphInferred").to.be.present;
+        browser.expect.element("#output-html").text.to.contain("inferred");
+        browser.pause(1000);
+        browser.saveScreenshot("tests/browser/output/ontology-graph-inferred.png");
+
+        const visibleInferred = function () {
+            const edges = document.getElementById("ontologyGraph").visNetwork.body.data.edges.get({ filter: e => e.inferred });
+            return { visible: edges.filter(e => !e.hidden).length, width: edges.length ? edges[0].width : 0 };
+        };
+        browser.execute(visibleInferred, [], function ({ value }) {
+            browser.assert.strictEqual(value.visible, 4, "Four inferred edges are drawn");
+            browser.assert.strictEqual(value.width, 3, "Inferred edges are thick");
+        });
+        browser.click("#ontologyGraphInferred");
+        browser.pause(300);
+        browser.execute(visibleInferred, [], function ({ value }) {
+            browser.assert.strictEqual(value.visible, 0, "Unticking 'Show inferred' hides them");
+        });
+        browser.click("#ontologyGraphInferred");
     },
 
     after: browser => {
