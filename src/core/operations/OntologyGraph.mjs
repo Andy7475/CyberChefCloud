@@ -29,6 +29,14 @@ const EXTRA_ANNOTATIONS = [
     [RDFS + "seeAlso", "See also"],
     [OWL + "deprecated", "Deprecated"],
 ];
+/** Predicates whose subject is part of the schema (TBox). */
+const SCHEMA_PREDICATES = [
+    "rdfs:subClassOf", "rdfs:subPropertyOf", "rdfs:domain", "rdfs:range",
+    "owl:equivalentClass", "owl:equivalentProperty", "owl:disjointWith", "owl:disjointUnionOf",
+    "owl:inverseOf", "owl:propertyChainAxiom", "owl:propertyDisjointWith", "owl:hasKey",
+];
+/** SPARQL test for an IRI in the RDF, RDFS or OWL vocabularies. */
+const IS_BUILT_IN = iri => "(" + BUILT_IN.map(ns => `STRSTARTS(STR(${iri}), "${ns}")`).join(" || ") + ")";
 /** Literal-valued predicates shown in the annotation block rather than as separate tooltip lines. */
 const ANNOTATION_PREDICATES = new Set([...DESCRIPTION_PREDICATES, ...EXTRA_ANNOTATIONS.map(([p]) => p).filter(p => p !== RDFS + "seeAlso")]);
 
@@ -39,6 +47,7 @@ const VIS_NETWORK_SRI = "sha384-RDdG1CLOxjNlTHh4JYx/rnAueaMHbkBHmeHwrEyljMQw3LF0
 const GROUPS = {
     "class": { label: "Class", background: "#cfe2ff", border: "#3d6fb6", shape: "box" },
     "datatype": { label: "Datatype", background: "#fff3cd", border: "#b8860b", shape: "box" },
+    "individual": { label: "Individual", background: "#e7dcf7", border: "#6f42c1", shape: "ellipse" },
     "resource": { label: "Resource", background: "#d1e7dd", border: "#2e7d4f", shape: "box" },
     "bnode": { label: "Blank node", background: "#e9ecef", border: "#6c757d", shape: "dot" },
 };
@@ -72,6 +81,9 @@ class OntologyGraph extends Operation {
             "<li><b>Class hierarchy</b>: named classes, with an arrow from each class to its superclass (rdfs:subClassOf).</li>" +
             "<li><b>Classes and properties</b>: the hierarchy plus object properties (domain → range), datatype properties (domain → datatype) and someValuesFrom / allValuesFrom restrictions (dashed).</li>" +
             "<li><b>All triples</b>: every IRI and blank node, one edge per triple. Literal values, and types from the OWL/RDFS/RDF vocabularies (e.g. owl:Class), are shown in the node's tooltip and colour rather than as edges, to avoid hub nodes.</li></ul>" +
+            "<b>Show</b> picks the schema (TBox), the instance data (ABox) or both, in any view. " +
+            "The TBox is classes, properties, the ontology header, and the restrictions and class expressions attached to them; everything else is ABox. " +
+            "In the class views the ABox adds individuals with an 'a' edge to their class; 'Classes and properties' also draws property assertions between individuals. Literal values are shown in the tooltip.<br><br>" +
             "Hovering over a node or property edge shows its IRI and annotations: descriptions (rdfs:comment, skos:definition, dcterms:description, OBO definition), " +
             "synonyms (skos:altLabel, oboInOwl:hasExactSynonym), skos:example, skos:scopeNote, skos:note, rdfs:seeAlso and owl:deprecated. " +
             "<b>Language</b> filters these (e.g. <code>en</code>, or <code>en, fr</code>; leave empty for all); untagged text is always included. Labels prefer this language.<br><br>" +
@@ -120,6 +132,11 @@ class OntologyGraph extends Operation {
                 name: "Language",
                 type: "string",
                 value: "en"
+            },
+            {
+                name: "Show",
+                type: "option",
+                value: ["TBox and ABox", "TBox only", "ABox only"]
             }
         ];
     }
@@ -130,7 +147,8 @@ class OntologyGraph extends Operation {
      * @returns {Promise<string>} the graph as JSON
      */
     async run(input, args) {
-        const [inputFormat, view, maxNodes, labelMode, , additionalPrefixes, language = "en"] = args;
+        const [inputFormat, view, maxNodes, labelMode, , additionalPrefixes, language = "en", show = "TBox and ABox"] = args;
+        const showTBox = show !== "ABox only", showABox = show !== "TBox only";
         const lang = (language || "").trim();
         const ox = await getOxigraph();
         const { store } = loadStore(ox, input, inputFormat);
@@ -139,10 +157,14 @@ class OntologyGraph extends Operation {
         const labels = preferredLabels(ox, store, lang || "en");
         const graph = new GraphBuilder(prefixes, labels, labelMode === "Prefixed name", readAnnotations(select, lang));
 
+        const terms = classifyTerms(select, store);
+
         if (view === "All triples") {
-            buildTripleGraph(ox, store, graph);
+            buildTripleGraph(terms, graph, showTBox, showABox);
         } else {
-            buildClassGraph(select, graph, view === "Classes and properties");
+            const withProperties = view === "Classes and properties";
+            if (showTBox) buildClassGraph(select, graph, withProperties);
+            if (showABox) buildIndividuals(terms, graph, withProperties);
         }
         return JSON.stringify(graph.limit(Math.max(1, Math.floor(maxNodes) || 1)), null, 2);
     }
@@ -162,7 +184,7 @@ class OntologyGraph extends Operation {
             graph = null;
         }
         if (!graph || !Array.isArray(graph.nodes)) return `<pre>${Utils.escapeHtml(data)}</pre>`;
-        if (!graph.nodes.length) return "<p>No nodes to draw for this view. Try the 'All triples' view.</p>";
+        if (!graph.nodes.length) return "<p>No nodes to draw for this view. Try the 'All triples' view, or a different 'Show' setting.</p>";
 
         const hierarchical = args[4] === "Hierarchical";
         const groups = {};
@@ -199,7 +221,7 @@ class OntologyGraph extends Operation {
         const usedGroups = new Set(graph.nodes.map(n => n.group));
         const legend = Object.entries(GROUPS)
             .filter(([name]) => usedGroups.has(name))
-            .map(([, g]) => `<span style="display:inline-block;width:10px;height:10px;margin:0 4px 0 10px;border:1px solid ${g.border};background:${g.background};border-radius:${g.shape === "dot" ? "50%" : "2px"}"></span>${g.label}`)
+            .map(([, g]) => `<span style="display:inline-block;width:10px;height:10px;margin:0 4px 0 10px;border:1px solid ${g.border};background:${g.background};border-radius:${g.shape === "box" ? "2px" : "50%"}"></span>${g.label}`)
             .join("") + (graph.edges.some(e => e.dashes) ? "<span style=\"margin-left:10px\">- - restriction</span>" : "") +
             (graph.edges.some(e => e.subClassOf) ?
                 "<span style=\"margin-left:10px\">Selected class:</span>" + Object.values(RELATIVES)
@@ -661,38 +683,133 @@ function buildClassGraph(select, graph, withProperties) {
 }
 
 /**
- * Adds a node for every IRI and blank node and an edge for every triple;
- * literal values are listed in the subject's tooltip (annotations of IRIs are
- * already in the tooltip's annotation block, so they are not repeated).
+ * Splits the store's subjects into schema (TBox) and instance data (ABox).
  *
- * @param {Object} ox
+ * A SPARQL query finds the TBox terms: anything typed with an RDF/RDFS/OWL
+ * type other than owl:NamedIndividual or owl:Thing (classes, properties, the
+ * ontology header, restrictions), subjects of schema predicates such as
+ * rdfs:subClassOf and rdfs:domain, and classes used as an rdf:type or as the
+ * object of rdfs:subClassOf. Blank nodes reachable from these through other
+ * blank nodes (restrictions, lists, class expressions) are TBox too; this step
+ * is done here because a SPARQL property path cannot be limited to blank nodes.
+ * Every other subject is ABox, so untyped instance data counts as ABox.
+ * IRIs that ABox triples are about or link to are drawn as individuals.
+ *
+ * @param {function(string): Map<string, Object>[]} select - runs a SPARQL SELECT
  * @param {Object} store
- * @param {GraphBuilder} graph
+ * @returns {{quads: Object[], isTBox: function(Object): boolean, groupOf: function(Object): string}}
  */
-function buildTripleGraph(ox, store, graph) {
-    const classes = new Set();
-    for (const type of [OWL + "Class", RDFS + "Class"]) {
-        for (const q of store.match(null, ox.namedNode(RDF + "type"), ox.namedNode(type), null)) classes.add(q.subject.value);
-    }
-    const groupOf = t => (t.termType === "BlankNode" ? "bnode" : classes.has(t.value) ? "class" : "resource");
+function classifyTerms(select, store) {
+    const key = t => (t.termType === "BlankNode" ? "_:" + t.value : t.value);
+    const tbox = new Set(select(`SELECT DISTINCT ?t WHERE {
+        { ?t a ?type FILTER(isIRI(?type) && ${IS_BUILT_IN("?type")} && ?type NOT IN (owl:NamedIndividual, owl:Thing)) }
+        UNION { ?x a ?t FILTER(isIRI(?t) && !${IS_BUILT_IN("?t")}) }
+        UNION { VALUES ?p { ${SCHEMA_PREDICATES.join(" ")} } ?t ?p ?o }
+        UNION { VALUES ?p { rdfs:subClassOf owl:equivalentClass owl:disjointWith } ?x ?p ?t FILTER(isIRI(?t)) }
+    }`).map(r => key(r.get("t"))));
+    const classes = new Set(select("SELECT DISTINCT ?c WHERE { { ?c a owl:Class } UNION { ?c a rdfs:Class } FILTER(isIRI(?c)) }").map(r => r.get("c").value));
 
-    for (const q of store.match()) {
-        if (q.subject.termType === "Quad" || q.object.termType === "Quad") continue;
-        const s = graph.addNode(q.subject, groupOf(q.subject));
-        const predicate = graph.short(q.predicate.value);
-        if (q.object.termType === "Literal") {
-            if (q.subject.termType === "NamedNode" && ANNOTATION_PREDICATES.has(q.predicate.value)) continue;
-            const value = q.object.value.length > 120 ? q.object.value.slice(0, 117) + "…" : q.object.value;
-            graph.addInfo(s, `${predicate}: ${value}${q.object.language ? "@" + q.object.language : ""}`);
-        } else if (q.predicate.value === RDF + "type" && q.object.termType === "NamedNode" && BUILT_IN.some(ns => q.object.value.startsWith(ns))) {
-            // Every class would otherwise link to one owl:Class hub node.
-            graph.addInfo(s, `a ${graph.short(q.object.value)}`);
-        } else {
-            const group = q.predicate.value === RDF + "type" ? "class" : groupOf(q.object);
-            const subClassOf = q.predicate.value === RDFS + "subClassOf" && q.object.termType === "NamedNode";
-            graph.addEdge(s, graph.addNode(q.object, group), q.predicate.value === RDF + "type" ? "a" : predicate, false, graph.edgeTooltip(q.predicate.value), subClassOf);
+    const quads = [...store.match()].filter(q => q.subject.termType !== "Quad" && q.object.termType !== "Quad");
+    const bySubject = new Map();
+    for (const q of quads) {
+        const s = key(q.subject);
+        if (!bySubject.has(s)) bySubject.set(s, []);
+        bySubject.get(s).push(q);
+    }
+    const stack = [...tbox];
+    while (stack.length) {
+        for (const q of bySubject.get(stack.pop()) || []) {
+            const o = key(q.object);
+            if (q.object.termType === "BlankNode" && !tbox.has(o)) {
+                tbox.add(o);
+                stack.push(o);
+            }
         }
     }
+    const isTBox = t => tbox.has(key(t));
+    // Individuals: IRIs that ABox triples are about or link to (not their classes)
+    const individuals = new Set();
+    for (const q of quads) {
+        if (isTBox(q.subject)) continue;
+        if (q.subject.termType === "NamedNode") individuals.add(q.subject.value);
+        if (q.object.termType === "NamedNode" && q.predicate.value !== RDF + "type") individuals.add(q.object.value);
+    }
+    const groupOf = t => (t.termType === "BlankNode" ? "bnode" : classes.has(t.value) ? "class" : individuals.has(t.value) && !isTBox(t) ? "individual" : "resource");
+    return { quads, isTBox, groupOf };
+}
+
+/**
+ * Adds one triple: an edge between IRI/blank-node terms, or a tooltip line
+ * for a literal value or an RDF/RDFS/OWL type (annotations of IRIs are
+ * already in the tooltip's annotation block, so they are not repeated).
+ *
+ * @param {Object} q - quad
+ * @param {GraphBuilder} graph
+ * @param {function(Object): string} groupOf
+ */
+function addTriple(q, graph, groupOf) {
+    const s = graph.addNode(q.subject, groupOf(q.subject));
+    const predicate = graph.short(q.predicate.value);
+    if (q.object.termType === "Literal") {
+        if (q.subject.termType === "NamedNode" && ANNOTATION_PREDICATES.has(q.predicate.value)) return;
+        const value = q.object.value.length > 120 ? q.object.value.slice(0, 117) + "…" : q.object.value;
+        graph.addInfo(s, `${predicate}: ${value}${q.object.language ? "@" + q.object.language : ""}`);
+    } else if (isBuiltInType(q)) {
+        // Every class would otherwise link to one owl:Class hub node.
+        graph.addInfo(s, `a ${graph.short(q.object.value)}`);
+    } else {
+        const group = q.predicate.value === RDF + "type" ? "class" : groupOf(q.object);
+        const subClassOf = q.predicate.value === RDFS + "subClassOf" && q.object.termType === "NamedNode";
+        graph.addEdge(s, graph.addNode(q.object, group), q.predicate.value === RDF + "type" ? "a" : predicate, false, graph.edgeTooltip(q.predicate.value), subClassOf);
+    }
+}
+
+/**
+ * Returns true for an rdf:type triple whose type is in the RDF, RDFS or OWL vocabularies.
+ *
+ * @param {Object} q - quad
+ * @returns {boolean}
+ */
+function isBuiltInType(q) {
+    return q.predicate.value === RDF + "type" && q.object.termType === "NamedNode" && BUILT_IN.some(ns => q.object.value.startsWith(ns));
+}
+
+/**
+ * Adds a node for every IRI and blank node and an edge for every triple whose
+ * subject is in a box being shown.
+ *
+ * @param {Object} terms - from classifyTerms()
+ * @param {GraphBuilder} graph
+ * @param {boolean} showTBox
+ * @param {boolean} showABox
+ */
+function buildTripleGraph(terms, graph, showTBox, showABox) {
+    for (const q of terms.quads) {
+        if (terms.isTBox(q.subject) ? showTBox : showABox) addTriple(q, graph, terms.groupOf);
+    }
+}
+
+/**
+ * Adds the ABox to a class view: individuals with an "a" edge to each class
+ * they belong to, and literal values in their tooltips. With properties, every
+ * other triple about individuals (e.g. property assertions) is drawn too;
+ * without, only individuals that have a class are drawn, as the hierarchy
+ * view has no property edges.
+ *
+ * @param {Object} terms - from classifyTerms()
+ * @param {GraphBuilder} graph
+ * @param {boolean} withProperties
+ */
+function buildIndividuals(terms, graph, withProperties) {
+    const abox = terms.quads.filter(q => !terms.isTBox(q.subject));
+    if (withProperties) {
+        abox.forEach(q => addTriple(q, graph, terms.groupOf));
+        return;
+    }
+    const isClassType = q => q.predicate.value === RDF + "type" && q.object.termType === "NamedNode" && !isBuiltInType(q);
+    abox.filter(isClassType).forEach(q => addTriple(q, graph, terms.groupOf));
+    const drawn = q => q.subject.termType === "NamedNode" && graph.nodes.has(q.subject.value);
+    abox.filter(q => drawn(q) && (q.object.termType === "Literal" || isBuiltInType(q))).forEach(q => addTriple(q, graph, terms.groupOf));
 }
 
 export default OntologyGraph;

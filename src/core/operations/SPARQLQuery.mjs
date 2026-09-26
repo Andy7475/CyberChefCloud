@@ -25,9 +25,10 @@ class SPARQLQuery extends Operation {
         this.name = "SPARQL Query";
         this.module = "Ontology";
         this.description = "Runs a SPARQL 1.1 query against the input ontology or RDF data, which is loaded into an in-memory triple store.<br><br>" +
-            "<ul><li><b>SELECT</b> returns CSV, TSV, SPARQL JSON or SPARQL XML results. To view them as a table, follow this operation with <b>To Table</b> (cell delimiter <code>,</code>, 'Make first row header' ticked).</li>" +
-            "<li><b>ASK</b> returns <code>true</code> or <code>false</code>.</li>" +
-            "<li><b>CONSTRUCT</b> and <b>DESCRIBE</b> return RDF in the chosen graph output format, so the result can be chained into other ontology operations.</li></ul>" +
+            "<ul><li><b>SELECT</b>: set <b>Output format</b> to CSV, TSV, JSON (SPARQL JSON) or XML (SPARQL XML). To view the results as a table, follow this operation with <b>To Table</b> (cell delimiter <code>,</code>, 'Make first row header' ticked).</li>" +
+            "<li><b>ASK</b>: returns <code>true</code> or <code>false</code> (or SPARQL JSON/XML).</li>" +
+            "<li><b>CONSTRUCT</b> and <b>DESCRIBE</b>: set <b>Output format</b> to RDF. The result is written in the chosen <b>RDF format</b>, so it can be chained into other ontology operations, e.g. Ontology Graph.</li></ul>" +
+            "Choosing RDF for a SELECT or ASK query, or a table format for a CONSTRUCT or DESCRIBE query, gives an error.<br><br>" +
             "Prefixes declared in the input (and common ones such as owl, rdfs, rdf, xsd, skos) are added to the query automatically, so <code>SELECT ?c WHERE { ?c a owl:Class }</code> works without PREFIX lines.<br><br>" +
             "Named graphs in TriG/N-Quads input are queried as one merged default graph." +
             "<br><br><b>Additional prefixes</b>: prefix declarations to use as well as those in the input (Turtle <code>@prefix</code>, SPARQL <code>PREFIX</code>, RDF/XML <code>xmlns:</code> or a JSON-LD <code>@context</code>). " +
@@ -47,9 +48,9 @@ class SPARQLQuery extends Operation {
                 value: INPUT_FORMATS
             },
             {
-                name: "Results format",
+                name: "Output format",
                 type: "option",
-                value: ["CSV", "TSV", "JSON", "XML"]
+                value: ["CSV", "TSV", "JSON", "XML", "RDF"]
             },
             {
                 name: "Shorten IRIs with prefixes",
@@ -57,7 +58,7 @@ class SPARQLQuery extends Operation {
                 value: true
             },
             {
-                name: "Graph output format",
+                name: "RDF format",
                 type: "option",
                 value: OUTPUT_FORMATS
             },
@@ -80,7 +81,7 @@ class SPARQLQuery extends Operation {
      * @returns {Promise<string>}
      */
     async run(input, args) {
-        const [query, inputFormat, resultsFormat, shorten, graphFormat, baseIRI, additionalPrefixes] = args;
+        const [query, inputFormat, outputFormat, shorten, rdfFormat, baseIRI, additionalPrefixes] = args;
         if (!query.trim()) throw new OperationError("Enter a SPARQL query.");
 
         const ox = await getOxigraph();
@@ -108,19 +109,25 @@ class SPARQLQuery extends Operation {
         // SELECT and ASK return SPARQL JSON results; CONSTRUCT and DESCRIBE return
         // the resulting graph as JSON-LD, which is loaded into a new store.
         if (!result.startsWith("{\"head\"")) {
+            if (outputFormat !== "RDF") {
+                throw new OperationError(`This query returns RDF (CONSTRUCT or DESCRIBE), so set Output format to RDF instead of ${outputFormat}.`);
+            }
             const graph = new ox.Store();
             graph.load(result, { format: RDF_FORMATS["JSON-LD"].mime });
-            return serialise(ox, graph, graphFormat, declared);
+            return serialise(ox, graph, rdfFormat, declared);
+        }
+        if (outputFormat === "RDF") {
+            throw new OperationError("RDF output needs a CONSTRUCT or DESCRIBE query. For SELECT or ASK, choose CSV, TSV, JSON or XML.");
         }
 
         const json = JSON.parse(result);
         if (typeof json.boolean === "boolean") {
-            if (resultsFormat === "JSON") return JSON.stringify(json, null, 2);
-            if (resultsFormat === "XML") return store.query(fullQuery, { ...options, "results_format": "xml" });
+            if (outputFormat === "JSON") return JSON.stringify(json, null, 2);
+            if (outputFormat === "XML") return store.query(fullQuery, { ...options, "results_format": "xml" });
             return String(json.boolean);
         }
 
-        switch (resultsFormat) {
+        switch (outputFormat) {
             case "JSON":
                 return JSON.stringify(json, null, 2);
             case "XML":

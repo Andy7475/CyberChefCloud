@@ -52,9 +52,11 @@ Notes:
 ## SPARQL Query
 
 - Prefixes from the input and the common vocabularies above are added to the query automatically, so `SELECT ?c WHERE { ?c a owl:Class }` works without `PREFIX` lines. Prefixes declared in the query take precedence.
-- **SELECT** → CSV (default), TSV, SPARQL JSON or SPARQL XML. With 'Shorten IRIs with prefixes' on, CSV/TSV show `:Pizza` rather than the full IRI.
-- **ASK** → `true` / `false`.
-- **CONSTRUCT / DESCRIBE** → RDF in the 'Graph output format'.
+- **Output format** is chosen to match the query:
+  - **SELECT** → CSV (default), TSV, JSON (SPARQL JSON) or XML (SPARQL XML). With 'Shorten IRIs with prefixes' on, CSV/TSV show `:Pizza` rather than the full IRI.
+  - **ASK** → `true` / `false` with CSV/TSV, or SPARQL JSON/XML.
+  - **CONSTRUCT / DESCRIBE** → RDF, written in the **RDF format** setting (Turtle, RDF/XML, …) so it can be chained into other ontology operations.
+- A mismatch is an error rather than a silent switch: RDF with SELECT/ASK, or CSV/TSV/JSON/XML with CONSTRUCT/DESCRIBE. (Before this, CONSTRUCT ignored the results format and always returned RDF; saved recipes that relied on that now need Output format = RDF.)
 - Named graphs are queried as one merged default graph.
 - SPARQL Update (INSERT/DELETE) is not supported yet.
 
@@ -63,7 +65,7 @@ Notes:
 Use the existing **To Table** operation rather than a separate table output:
 
 ```
-SPARQL Query      (Results format: CSV)
+SPARQL Query      (Output format: CSV)
 To Table          (Cell delimiters: ,   Make first row header: ticked   Format: HTML, ASCII or Markdown)
 ```
 
@@ -108,6 +110,15 @@ Views:
   - `someValuesFrom` / `allValuesFrom` restrictions as dashed edges labelled `property (some)` / `property (only)`.
 - **Class hierarchy**: only classes and subclass arrows.
 - **All triples**: every IRI and blank node, with one edge per triple. Literal values, and `rdf:type` links to OWL/RDFS/RDF built-ins such as `owl:Class`, go into the node's tooltip and colour instead of becoming edges. Otherwise every class would link to one `owl:Class` hub.
+
+**Show** (default 'TBox and ABox') picks the schema, the instance data, or both, in any view:
+
+- **TBox** terms are found with a SPARQL query: anything typed with an RDF/RDFS/OWL type other than `owl:NamedIndividual` / `owl:Thing` (classes, properties, the ontology header, restrictions), subjects of schema predicates (`rdfs:subClassOf`, `rdfs:domain`, `rdfs:range`, `owl:equivalentClass`, `owl:inverseOf`, …), and classes used as an `rdf:type` or as the object of `rdfs:subClassOf`. Blank nodes reachable from these through other blank nodes (restrictions, RDF lists, class expressions) are TBox too. That last step is done in JavaScript, because a SPARQL property path cannot be restricted to pass only through blank nodes: `owl:hasValue :acme` would otherwise pull in `:acme`'s own blank nodes.
+- **ABox** is every other subject, so untyped data such as `:bob :knows :alice` counts as ABox. IRIs that ABox triples are about or link to are drawn as **Individual** nodes (purple ellipses).
+- In the class views, the ABox adds individuals with an `a` edge to each class they belong to, and literal values (e.g. `:age: 34`) in their tooltip. 'Classes and properties' also draws property assertions between individuals and blank nodes such as addresses; 'Class hierarchy' draws only the `a` edges, as it has no property edges for the TBox either. With 'ABox only', classes appear only as the targets of `a` edges.
+- In 'All triples', each triple is kept or dropped according to whether its subject is TBox or ABox.
+
+The same split can be done by hand with `SPARQL Query` (CONSTRUCT, Output format RDF) → `Ontology Graph`, for a custom selection.
 
 **Max nodes** (default 200) caps the drawing, because vis-network slows down and becomes unreadable with thousands of nodes. When the graph is larger, nodes are chosen breadth-first from the most connected node, so the part shown stays connected. The summary line says e.g. "Showing 200 of 514 nodes".
 

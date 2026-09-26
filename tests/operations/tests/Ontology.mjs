@@ -39,6 +39,21 @@ const ANNOTATED_TTL = `@prefix : <http://example.org/a#> .
     rdfs:comment "What the food is made from." .
 `;
 
+const ABOX_TTL = `@prefix : <http://example.org/org#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+:Person a owl:Class .
+:Employee a owl:Class ; rdfs:subClassOf :Person .
+:Company a owl:Class .
+:worksFor a owl:ObjectProperty ; rdfs:domain :Employee ; rdfs:range :Company .
+:Local a owl:Class ; rdfs:subClassOf [ a owl:Restriction ; owl:onProperty :worksFor ; owl:hasValue :acme ] .
+
+:alice a owl:NamedIndividual, :Employee ; :worksFor :acme ; :age 34 .
+:acme a :Company ; :address [ :city "Leeds" ] .
+:bob :knows :alice .
+`;
+
 const PIZZA_RDFXML = `<?xml version="1.0" encoding="utf-8"?>
 <rdf:RDF
     xmlns="http://example.org/pizza#"
@@ -136,12 +151,12 @@ const DEFAULT_QUERY = "SELECT ?class ?label WHERE {\n  ?class a owl:Class .\n  O
  * Builds a SPARQL Query recipe step.
  *
  * @param {string} query
- * @param {string} resultsFormat
- * @param {string} graphFormat
+ * @param {string} outputFormat
+ * @param {string} rdfFormat
  * @returns {Object}
  */
-function sparql(query, resultsFormat = "CSV", graphFormat = "Turtle") {
-    return { op: "SPARQL Query", args: [query, "Auto", resultsFormat, true, graphFormat, "", ""] };
+function sparql(query, outputFormat = "CSV", rdfFormat = "Turtle") {
+    return { op: "SPARQL Query", args: [query, "Auto", outputFormat, true, rdfFormat, "", ""] };
 }
 
 TestRegister.addTests([
@@ -313,7 +328,19 @@ TestRegister.addTests([
         name: "SPARQL Query: CONSTRUCT returns Turtle",
         input: PIZZA_TTL,
         expectedOutput: "@prefix : <http://example.org/pizza#>.\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.\n\n<http://example.org/pizza>\n  rdfs:label \"Pizza ontology\".\n\n:Pizza\n  rdfs:label \"Pizza, Italian\"@en.\n",
+        recipeConfig: [sparql("CONSTRUCT { ?c rdfs:label ?l } WHERE { ?c rdfs:label ?l }", "RDF")],
+    },
+    {
+        name: "SPARQL Query: CONSTRUCT with a table output format is rejected",
+        input: PIZZA_TTL,
+        expectedOutput: "This query returns RDF (CONSTRUCT or DESCRIBE), so set Output format to RDF instead of CSV.",
         recipeConfig: [sparql("CONSTRUCT { ?c rdfs:label ?l } WHERE { ?c rdfs:label ?l }")],
+    },
+    {
+        name: "SPARQL Query: RDF output format needs a CONSTRUCT or DESCRIBE query",
+        input: PIZZA_TTL,
+        expectedOutput: "RDF output needs a CONSTRUCT or DESCRIBE query. For SELECT or ASK, choose CSV, TSV, JSON or XML.",
+        recipeConfig: [sparql(DEFAULT_QUERY, "RDF")],
     },
     {
         name: "Ontology Graph: classes and properties view",
@@ -387,6 +414,51 @@ TestRegister.addTests([
         expectedMatch: /^\{"truncated":false,"totalNodes":4,"totalEdges":3,"nodes":\[/,
         recipeConfig: [
             { op: "Ontology Graph", args: ["Auto", "Class hierarchy", 200, "Prefixed name", "Force-directed", ""] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: class views show individuals, their classes and assertions by default",
+        input: ABOX_TTL,
+        expectedMatch: /"id":"http:\/\/example\.org\/org#alice","label":":alice","title":"http:\/\/example\.org\/org#alice\\n\\n[^"]*:age: 34[^"]*","group":"individual"[\s\S]*"from":"http:\/\/example\.org\/org#alice","to":"http:\/\/example\.org\/org#acme","label":":worksFor"[\s\S]*"from":"http:\/\/example\.org\/org#alice","to":"http:\/\/example\.org\/org#Employee","label":"a"/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en", "TBox and ABox"] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: class hierarchy with the ABox has type edges but no assertions",
+        input: ABOX_TTL,
+        expectedMatch: /^\{"truncated":false,"totalNodes":6,"totalEdges":3,(?![\s\S]*:worksFor)/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "Class hierarchy", 200, "Prefixed name", "Force-directed", "", "en", "TBox and ABox"] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: TBox only leaves out individuals",
+        input: ABOX_TTL,
+        unexpectedMatch: /"group":"individual"/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en", "TBox only"] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: ABox only in all triples leaves out schema triples",
+        input: ABOX_TTL,
+        expectedMatch: /^\{"truncated":false,"totalNodes":6,"totalEdges":5,(?![\s\S]*rdfs:(domain|subClassOf))/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "All triples", 200, "Prefixed name", "Force-directed", "", "en", "ABox only"] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: restriction blank nodes stay in the TBox",
+        input: ABOX_TTL,
+        expectedMatch: /"label":"owl:hasValue"/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "All triples", 200, "Prefixed name", "Force-directed", "", "en", "TBox only"] },
             { op: "JSON Minify", args: [] },
         ],
     },
