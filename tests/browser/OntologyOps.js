@@ -117,6 +117,60 @@ module.exports = {
         browser.expect.element("#ontologyGraphCount").text.to.equal("0 matches").before(2000);
     },
 
+    "Ontology Graph: clicking a class colours its superclass and subclass links": function (browser) {
+        const P = "http://example.org/pizza#";
+        browserUtils.loadRecipeConfig(browser, [
+            { op: "Ontology Graph", args: ["Auto", "Class hierarchy", 200, "Label, else prefixed name", "Force-directed", "", "en"] }
+        ], PIZZA_TTL + ":Food a owl:Class .\n:Pizza rdfs:subClassOf :Food .\n");
+        browserUtils.bake(browser);
+        browser.expect.element("#ontologyGraph canvas").to.be.present.before(15000);
+        browser.expect.element("#output-html").text.to.contain("superclass").before(2000);
+
+        // Centre :Pizza (the middle class) using the search, clear the search, then click it
+        browser.setValue("#ontologyGraphSearch", "italian");
+        browser.sendKeys("#ontologyGraphSearch", browser.Keys.ENTER);
+        browser.expect.element("#ontologyGraphCount").text.to.equal("1 of 1").before(2000);
+        browser.pause(1000);
+        browser.sendKeys("#ontologyGraphSearch", browser.Keys.ESCAPE);
+        browser.click("#ontologyGraph canvas");
+        browser.pause(500);
+        browser.saveScreenshot("tests/browser/output/ontology-graph-relatives.png");
+
+        browser.execute(function (p) {
+            const network = document.getElementById("ontologyGraph").visNetwork;
+            const node = id => network.body.nodes[id].options;
+            const edge = (from, to) => Object.values(network.body.edges).find(e => e.fromId === from && e.toId === to).options;
+            return {
+                selected: network.getSelectedNodes(),
+                parent: [node(p + "Food").color.border, node(p + "Food").borderWidth],
+                child: [node(p + "Margherita").color.border, node(p + "Margherita").borderWidth],
+                upEdge: [edge(p + "Pizza", p + "Food").color.highlight, edge(p + "Pizza", p + "Food").selectionWidth],
+                downEdge: [edge(p + "Margherita", p + "Pizza").color.highlight, edge(p + "Margherita", p + "Pizza").selectionWidth],
+            };
+        }, [P], function ({ value }) {
+            browser.assert.deepStrictEqual(value.selected, [P + "Pizza"], "Clicking selects :Pizza");
+            browser.assert.deepStrictEqual(value.parent, ["#7f2704", 3], "Superclass :Food has a dark, thick border");
+            browser.assert.deepStrictEqual(value.child, ["#fd8d3c", 2], "Subclass :Margherita has a light border");
+            browser.assert.deepStrictEqual(value.upEdge, ["#7f2704", 2], "Arrow to the superclass is dark");
+            browser.assert.deepStrictEqual(value.downEdge, ["#fd8d3c", 1], "Arrow from the subclass is light");
+        });
+
+        // Clicking empty space clears the colouring
+        browser.execute(function () {
+            const network = document.getElementById("ontologyGraph").visNetwork;
+            network.fit();
+            return network.getBoundingBox(Object.keys(network.body.nodes)[0]);
+        });
+        browser.moveToElement("#ontologyGraph canvas", 5, 5).mouseButtonClick();
+        browser.pause(500);
+        browser.execute(function (p) {
+            const network = document.getElementById("ontologyGraph").visNetwork;
+            return [network.getSelectedNodes().length, network.body.nodes[p + "Food"].options.borderWidth];
+        }, [P], function ({ value }) {
+            browser.assert.deepStrictEqual(value, [0, 1], "Deselecting resets the superclass border");
+        });
+    },
+
     after: browser => {
         browser.end();
     }
