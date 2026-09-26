@@ -135,6 +135,21 @@ export function generateGCSDestinationUri(inputUri, destDir, suffix, extensionOv
 }
 
 /**
+ * Builds a Vertex AI Gemini generateContent URL.
+ * The "global" location is served from the bare aiplatform.googleapis.com host;
+ * regional locations use the {location}-aiplatform.googleapis.com host.
+ * Most Gemini 3.x models are only available on the global location.
+ * @param {string} project - GCP project ID.
+ * @param {string} location - "global" or a region such as "us-central1".
+ * @param {string} model - Publisher model ID, e.g. "gemini-3.8-flash".
+ * @returns {string} The generateContent URL.
+ */
+export function vertexGeminiUrl(project, location, model) {
+    const host = location === "global" ? "aiplatform.googleapis.com" : `${location}-aiplatform.googleapis.com`;
+    return `https://${host}/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`;
+}
+
+/**
  * A unified fetcher for Google Cloud APIs.
  * Handles Auth, Query Params, JSON Body parsing, and consistent Error Handling.
  * @param {string} urlStr - The base URL or full URL.

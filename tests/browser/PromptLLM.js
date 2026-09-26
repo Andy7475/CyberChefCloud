@@ -44,7 +44,7 @@ module.exports = {
                 op: "Prompt LLM",
                 args: [
                     "You are a test automaton. You must always reply with exactly 'I am a robot.'",
-                    "gemini-2.5-flash",
+                    "gemini-3.8-flash",
                     "text/plain",
                     8192,
                     1.0
@@ -100,7 +100,7 @@ module.exports = {
                 op: "Prompt LLM",
                 args: [
                     "What size is this image?",
-                    "gemini-2.5-flash",
+                    "gemini-3.8-flash",
                     "image/png",
                     8192,
                     1.0

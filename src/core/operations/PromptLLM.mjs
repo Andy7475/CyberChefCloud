@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { gcpFetch, getGcpCredentials, vertexGeminiUrl } from "../lib/GoogleCloud.mjs";
 import { resolveMimeType } from "../lib/FileType.mjs";
 import { toBase64 } from "../lib/Base64.mjs";
 
@@ -33,6 +33,8 @@ class PromptLLM extends Operation {
             "<b>Example:</b>",
             "<ul><li>Input an image and ask the model to describe what it sees in the System Prompt.</li></ul>",
             "<br>",
+            "<b>Location:</b> Most Gemini 3.x models are only served from the <code>global</code> location (the default). Choose <code>Default Region</code> to use the region set in <code>Authenticate Google Cloud</code> when data must stay in one region; gemini-3.5-flash is available regionally (e.g. europe-west2).",
+            "<br><br>",
             "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.publishers.models/generateContent";
@@ -49,9 +51,12 @@ class PromptLLM extends Operation {
                 "name": "Model",
                 "type": "editableOption",
                 "value": [
-                    { name: "gemini-2.5-flash", value: "gemini-2.5-flash" },
-                    { name: "gemini-2.5-pro", value: "gemini-2.5-pro" },
-                    { name: "gemini-2.5-flash-image", value: "gemini-2.5-flash-image" }
+                    { name: "gemini-3.8-flash", value: "gemini-3.8-flash" },
+                    { name: "gemini-3.1-pro-preview", value: "gemini-3.1-pro-preview" },
+                    { name: "gemini-3.5-flash", value: "gemini-3.5-flash" },
+                    { name: "gemini-3.5-flash-lite", value: "gemini-3.5-flash-lite" },
+                    { name: "gemini-3.1-flash-image", value: "gemini-3.1-flash-image" },
+                    { name: "gemini-3-pro-image", value: "gemini-3-pro-image" }
                 ]
             },
             {
@@ -77,6 +82,14 @@ class PromptLLM extends Operation {
                 "name": "Temperature",
                 "type": "number",
                 "value": 1.0
+            },
+            {
+                "name": "Location",
+                "type": "editableOption",
+                "value": [
+                    { name: "global", value: "global" },
+                    { name: "Default Region", value: "Default Region" }
+                ]
             }
         ];
     }
@@ -87,7 +100,7 @@ class PromptLLM extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [systemPrompt, modelName, mimeTypeArg, maxTokens, temperature] = args;
+        const [systemPrompt, modelName, mimeTypeArg, maxTokens, temperature, locationArg = "global"] = args;
         const mimeType = resolveMimeType(input, mimeTypeArg);
 
         const hasInput = input && input.byteLength > 0;
@@ -97,15 +110,12 @@ class PromptLLM extends Operation {
         }
 
         const creds = getGcpCredentials();
-        if (!creds || !creds.quotaProject || !creds.defaultRegion) {
-            throw new OperationError("Please configure a Quota Project and Default Region in the 'Authenticate Google Cloud' operation before using this ingredient.");
+        const location = locationArg === "Default Region" ? creds?.defaultRegion : locationArg;
+        if (!creds || !creds.quotaProject || !location) {
+            throw new OperationError("Please configure a Quota Project (and a Default Region if Location is 'Default Region') in the 'Authenticate Google Cloud' operation before using this ingredient.");
         }
 
-        const project = creds.quotaProject;
-        const region = creds.defaultRegion;
-        const publisher = "google";
-
-        const url = `https://${region}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(region)}/publishers/${encodeURIComponent(publisher)}/models/${encodeURIComponent(modelName)}:generateContent`;
+        const url = vertexGeminiUrl(creds.quotaProject, location, modelName);
 
         const requestBody = {
             contents: [],

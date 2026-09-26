@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { gcpFetch, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { gcpFetch, getGcpCredentials, vertexGeminiUrl } from "../lib/GoogleCloud.mjs";
 import { resolveMimeType } from "../lib/FileType.mjs";
 import { isWorkerEnvironment } from "../Utils.mjs";
 
@@ -40,6 +40,8 @@ class AIAgent extends Operation {
             "<li><b>AI Agent Flow & Output:</b> A JSON payload containing the full trace of tool calls, the LLM answer, and the final ingredient result.</li>",
             "</ul>",
             "<br>",
+            "<b>Location:</b> Most Gemini 3.x models are only served from the <code>global</code> location (the default). Choose <code>Default Region</code> to use the region set in <code>Authenticate Google Cloud</code> when data must stay in one region; gemini-3.5-flash is available regionally (e.g. europe-west2).",
+            "<br><br>",
             "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.publishers.models/generateContent";
@@ -56,8 +58,10 @@ class AIAgent extends Operation {
                 "name": "Model",
                 "type": "editableOption",
                 "value": [
-                    { name: "gemini-2.5-flash", value: "gemini-2.5-flash" },
-                    { name: "gemini-2.5-pro", value: "gemini-2.5-pro" }
+                    { name: "gemini-3.8-flash", value: "gemini-3.8-flash" },
+                    { name: "gemini-3.1-pro-preview", value: "gemini-3.1-pro-preview" },
+                    { name: "gemini-3.5-flash", value: "gemini-3.5-flash" },
+                    { name: "gemini-3.5-flash-lite", value: "gemini-3.5-flash-lite" }
                 ]
             },
             {
@@ -121,6 +125,14 @@ class AIAgent extends Operation {
                 "name": "Output Mode",
                 "type": "option",
                 "value": ["Agent Answer", "Final Ingredient", "AI Agent Flow & Output"]
+            },
+            {
+                "name": "Location",
+                "type": "editableOption",
+                "value": [
+                    { name: "global", value: "global" },
+                    { name: "Default Region", value: "Default Region" }
+                ]
             }
         ];
     }
@@ -301,7 +313,7 @@ class AIAgent extends Operation {
      * @returns {string}
      */
     async run(input, args) {
-        const [systemPrompt, modelName, mimeTypeArg, , toolsArg, maxTokens, temperature, maxIterations, outputMode] = args;
+        const [systemPrompt, modelName, mimeTypeArg, , toolsArg, maxTokens, temperature, maxIterations, outputMode, locationArg = "global"] = args;
         const mimeType = resolveMimeType(input, mimeTypeArg);
 
         let operations;
@@ -312,8 +324,9 @@ class AIAgent extends Operation {
         }
 
         const creds = getGcpCredentials();
-        if (!creds || !creds.quotaProject || !creds.defaultRegion) {
-            throw new OperationError("Please configure a Quota Project and Default Region in the 'Authenticate Google Cloud' operation before using this ingredient.");
+        const location = locationArg === "Default Region" ? creds?.defaultRegion : locationArg;
+        if (!creds || !creds.quotaProject || !location) {
+            throw new OperationError("Please configure a Quota Project (and a Default Region if Location is 'Default Region') in the 'Authenticate Google Cloud' operation before using this ingredient.");
         }
 
         let currentBuffer = input;
@@ -385,9 +398,7 @@ class AIAgent extends Operation {
             "When you have a final answer, respond with text only (no further tool calls)."
         ].join(" ");
 
-        const project = creds.quotaProject;
-        const region = creds.defaultRegion;
-        const url = `https://${region}-aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(region)}/publishers/google/models/${encodeURIComponent(modelName)}:generateContent`;
+        const url = vertexGeminiUrl(creds.quotaProject, location, modelName);
 
         const userMessageText = mimeType === "text/plain" ?
             currentText :
