@@ -186,13 +186,15 @@ module.exports = {
             browser.assert.deepStrictEqual(value.downEdge, ["#fd8d3c", 1], "Arrow from the subclass is light");
         });
 
-        // Clicking empty space clears the colouring
+        // Clicking empty space (the bottom-left corner, after fitting the graph) clears the colouring
         browser.execute(function () {
-            const network = document.getElementById("ontologyGraph").visNetwork;
-            network.fit();
-            return network.getBoundingBox(Object.keys(network.body.nodes)[0]);
+            const canvas = document.querySelector("#ontologyGraph canvas");
+            document.getElementById("ontologyGraph").visNetwork.fit();
+            return { width: canvas.clientWidth, height: canvas.clientHeight };
+        }, [], function ({ value }) {
+            // Nightwatch 3 measures the offsets from the element's centre
+            browser.moveToElement("#ontologyGraph canvas", 10 - value.width / 2, value.height / 2 - 10).mouseButtonClick();
         });
-        browser.moveToElement("#ontologyGraph canvas", 5, 5).mouseButtonClick();
         browser.pause(500);
         browser.execute(function (p) {
             const network = document.getElementById("ontologyGraph").visNetwork;
