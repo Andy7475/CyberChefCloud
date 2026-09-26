@@ -38,6 +38,7 @@ import {
 
 import {statusBar} from "../utils/statusBar.mjs";
 import {htmlPlugin} from "../utils/htmlWidget.mjs";
+import {htmlSearch} from "../utils/htmlSearch.mjs";
 import {copyOverride} from "../utils/copyOverride.mjs";
 import {eolCodeToSeq, eolCodeToName, renderSpecialChar} from "../utils/editorUtils.mjs";
 
@@ -117,6 +118,7 @@ class OutputWaiter {
                     htmlOutput: this.htmlOutput
                 }),
                 htmlPlugin(this.htmlOutput),
+                htmlSearch(this.htmlOutput),
                 copyOverride(),
 
                 // Mutable state

@@ -405,6 +405,15 @@
 
 /* Status bar */
 
+/* Search matches in rendered HTML output (see htmlSearch.mjs) */
+::highlight(ccc-search-match) {
+    background-color: #ffff0054;
+}
+
+::highlight(ccc-search-current) {
+    background-color: #ff6a0054;
+}
+
 .cm-panel input::placeholder {
     font-size: 12px !important;
 }
