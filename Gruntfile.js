@@ -247,8 +247,12 @@ module.exports = function (grunt) {
                     "build/prod/**/*",
                     "!build/prod/index.html",
                     "!build/prod/BundleAnalyzerReport.html",
+                    // Pre-compressed copies are only used by web servers, not the standalone download
+                    "!build/prod/**/*.{gz,br}",
                 ],
-                dest: `build/prod/CyberChef_v${pkg.version}.zip`
+                dest: `build/prod/CyberChef_v${pkg.version}.zip`,
+                // Without DEFLATE the zip is stored uncompressed and exceeds GitHub's 100 MB file limit
+                compression: "DEFLATE"
             }
         },
         connect: {
