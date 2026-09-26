@@ -92,6 +92,31 @@ module.exports = {
         browser.saveScreenshot("tests/browser/output/ontology-graph.png");
     },
 
+    "Ontology Graph: search highlights matches and tooltips show annotations": function (browser) {
+        const annotated = PIZZA_TTL + ":Margherita rdfs:comment \"Tomato and mozzarella only.\"@en .\n";
+        browserUtils.loadRecipeConfig(browser, [
+            { op: "Ontology Graph", args: ["Auto", "Class hierarchy", 200, "Label, else prefixed name", "Force-directed", "", "en"] }
+        ], annotated);
+        browserUtils.bake(browser);
+        browser.expect.element("#ontologyGraph canvas").to.be.present.before(15000);
+
+        // Matches on the description, not only the label
+        browser.setValue("#ontologyGraphSearch", "mozzarella");
+        browser.expect.element("#ontologyGraphCount").text.to.equal("1 match").before(2000);
+
+        // Enter centres the match, so hovering the middle of the canvas shows its tooltip
+        browser.sendKeys("#ontologyGraphSearch", browser.Keys.ENTER);
+        browser.expect.element("#ontologyGraphCount").text.to.equal("1 of 1").before(2000);
+        browser.pause(1000);
+        browser.moveToElement("#ontologyGraph canvas", undefined, undefined);
+        browser.expect.element("#ontologyGraph div.vis-tooltip").text.to.contain("Tomato and mozzarella only.").before(3000);
+        browser.saveScreenshot("tests/browser/output/ontology-graph-search.png");
+
+        browser.clearValue("#ontologyGraphSearch");
+        browser.setValue("#ontologyGraphSearch", "no such node");
+        browser.expect.element("#ontologyGraphCount").text.to.equal("0 matches").before(2000);
+    },
+
     after: browser => {
         browser.end();
     }

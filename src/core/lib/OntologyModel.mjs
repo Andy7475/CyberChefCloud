@@ -25,7 +25,7 @@ const PROPERTY_KINDS = [
     [RDF + "Property", "property"],
 ];
 /** Predicates read as descriptions, in display order. */
-const DESCRIPTION_PREDICATES = [
+export const DESCRIPTION_PREDICATES = [
     WELL_KNOWN_PREFIXES.skos + "definition",
     "http://purl.obolibrary.org/obo/IAO_0000115", // OBO "definition"
     RDFS + "comment",

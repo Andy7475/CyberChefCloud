@@ -23,6 +23,22 @@ const PIZZA_TTL = `@prefix : <http://example.org/pizza#> .
 :hasTopping a owl:ObjectProperty ; rdfs:domain :Pizza ; rdfs:range :Food .
 `;
 
+const ANNOTATED_TTL = `@prefix : <http://example.org/a#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+:Food a owl:Class .
+:Cheese a owl:Class ; rdfs:subClassOf :Food ;
+    rdfs:comment "A dairy product."@en , "Un produit laitier."@fr ;
+    skos:altLabel "Fromage-free" ;
+    skos:example "Cheddar" ;
+    rdfs:seeAlso <https://en.wikipedia.org/wiki/Cheese> ;
+    owl:deprecated true .
+:madeFrom a owl:ObjectProperty ; rdfs:domain :Cheese ; rdfs:range :Food ;
+    rdfs:comment "What the food is made from." .
+`;
+
 const PIZZA_RDFXML = `<?xml version="1.0" encoding="utf-8"?>
 <rdf:RDF
     xmlns="http://example.org/pizza#"
@@ -322,6 +338,48 @@ TestRegister.addTests([
         input: "<http://example.org/x> <http://www.w3.org/2000/01/rdf-schema#label> \"</script><img src=x onerror=alert(1)>\" ; a <http://www.w3.org/2002/07/owl#Class> .",
         unexpectedMatch: /<img src=x/,
         recipeConfig: [{ op: "Ontology Graph", args: ["Auto", "Class hierarchy", 200, "Label, else prefixed name", "Force-directed", ""] }],
+    },
+    {
+        name: "Ontology Graph: tooltips show annotations in the chosen language",
+        input: ANNOTATED_TTL,
+        expectedMatch: /"id":"http:\/\/example\.org\/a#Cheese","label":":Cheese","title":"http:\/\/example\.org\/a#Cheese\\n\\nDeprecated\\n\\nA dairy product\.\\n\\nAlso known as: Fromage-free\\nExample: Cheddar\\nSee also: https:\/\/en\.wikipedia\.org\/wiki\/Cheese"/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en"] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: property edges have annotated tooltips",
+        input: ANNOTATED_TTL,
+        expectedMatch: /"label":":madeFrom","title":":madeFrom\\nhttp:\/\/example\.org\/a#madeFrom\\n\\nWhat the food is made from\."/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en"] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: language filter excludes other languages from tooltips",
+        input: ANNOTATED_TTL,
+        unexpectedMatch: /Un produit laitier/,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "All triples", 200, "Prefixed name", "Force-directed", "", "en"] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: empty language shows all descriptions",
+        input: ANNOTATED_TTL,
+        expectedMatch: /A dairy product\.\\n\\nUn produit laitier\./,
+        recipeConfig: [
+            { op: "Ontology Graph", args: ["Auto", "Class hierarchy", 200, "Prefixed name", "Force-directed", "", ""] },
+            { op: "JSON Minify", args: [] },
+        ],
+    },
+    {
+        name: "Ontology Graph: drawing includes the search box",
+        input: PIZZA_TTL,
+        expectedMatch: /id="ontologyGraphSearch"/,
+        recipeConfig: [{ op: "Ontology Graph", args: ["Auto", "Class hierarchy", 200, "Prefixed name", "Force-directed", "", "en"] }],
     },
     {
         name: "Ontology Graph: outputs graph JSON when not the last operation",

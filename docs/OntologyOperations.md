@@ -9,7 +9,7 @@ Each operation parses its input into an in-memory RDF store ([Oxigraph](https://
 | Convert RDF Format | Converts between RDF serialisations, e.g. Turtle → RDF/XML for a visualiser that only accepts RDF/XML. |
 | SPARQL Query | Runs a SPARQL 1.1 SELECT / ASK / CONSTRUCT / DESCRIBE query against the input. |
 | Ontology Summary | Reports the ontology IRI, version, title and imports; counts; namespaces; the class hierarchy; and a per-class reference of descriptions, applicable properties (own and inherited) and restrictions. |
-| Ontology Graph | Draws the ontology as an interactive graph (drag, zoom, hover for full IRIs), with a 'Max nodes' limit (default 200). |
+| Ontology Graph | Draws the ontology as an interactive graph (drag, zoom, hover for IRIs and annotations, search to highlight), with a 'Max nodes' limit (default 200). |
 
 All four are in the **Ontology / RDF** category. `Convert RDF Format` is also listed under **Data format**.
 
@@ -111,6 +111,17 @@ Other options:
 
 - **Node labels**: `rdfs:label`/`skos:prefLabel` (English or untagged preferred), or prefixed names only.
 - **Layout**: 'Force-directed' or 'Hierarchical'. Hierarchical draws a left-to-right tree with superclasses on the left.
+- **Language** (default `en`): filters the annotations shown in tooltips (e.g. `en`, or `en, fr`; empty for all). Untagged text is always included. Labels prefer this language.
+
+Tooltips: hovering over a node shows its IRI, its label (if the node shows the prefixed name), and its annotations:
+
+1. `Deprecated`, if `owl:deprecated true`;
+2. descriptions, one paragraph each: `skos:definition`, OBO definition (`IAO_0000115`), `rdfs:comment`, `dcterms:description`, `dc:description` (the same list as Ontology Summary, from `DESCRIPTION_PREDICATES` in `OntologyModel.mjs`), each cut to 600 characters;
+3. one line each for synonyms (`skos:altLabel`, `oboInOwl:hasExactSynonym`), `skos:example`, `skos:scopeNote`, `skos:note` and `rdfs:seeAlso`.
+
+Edges drawn for a property (object/datatype property edges, restrictions, and every edge in 'All triples') have the same tooltip for the property. In 'All triples', literal values of these annotation predicates are shown in the annotation block and not repeated as separate `predicate: value` lines. vis-network puts tooltips in a `white-space: nowrap` box; the op's CSS overrides this so long descriptions wrap at 420px.
+
+Search: the box at the top right matches nodes whose label, IRI or tooltip text (so also descriptions) contains the text, case-insensitively. Matching nodes are selected (thick orange border) and the others are dimmed. Enter focuses the next match, Shift+Enter the previous one, Esc clears the search. Search runs entirely in the drawn page and does not re-run the recipe.
 
 If the whole graph only fits at an unreadable size, it opens zoomed in on the most connected node; scroll to zoom out and drag to pan. Physics stops once the layout settles, so dragged nodes stay put.
 
