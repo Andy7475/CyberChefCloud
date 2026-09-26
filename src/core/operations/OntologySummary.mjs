@@ -9,6 +9,7 @@ import {
     getOxigraph, loadStore, inputPrefixes, allPrefixes, withPrefixes, shortenIRI, localName, preferredLabels, langMatches, INPUT_FORMATS
 } from "../lib/RDF.mjs";
 import { readClassHierarchy, readDescriptions, buildClassDetails } from "../lib/OntologyModel.mjs";
+import { HeadingSlugger } from "../lib/MarkdownAnchors.mjs";
 
 const MAX_TREE_LINES = 5000;
 
@@ -43,7 +44,9 @@ class OntologySummary extends Operation {
             "every property that applies to it through rdfs:domain on the class or an ancestor (with the range and the class it is inherited from), and its OWL restrictions (e.g. <code>hasTopping some Tomato</code>). " +
             "Properties with no domain apply to any class and are listed once at the end.<br><br>" +
             "<b>Language</b> filters descriptions (e.g. <code>en</code>, or <code>en, fr</code>; leave empty for all). Untagged text is always included. Labels prefer this language and fall back to others.<br><br>" +
-            "Choose 'Markdown' and follow this operation with <b>Render Markdown</b> to read the report as a formatted document, or 'Counts CSV' followed by <b>To Table</b> ('Make first row header' ticked) to show the counts as a table." +
+            "Choose 'Markdown' and follow this operation with <b>Render Markdown</b> to read the report as a formatted document. " +
+            "In the Markdown, class names (in the hierarchy, superclasses, paths, ranges, domains and restrictions) link to the class's entry in the class details, and a contents line links to each section. " +
+            "Choose 'Counts CSV' followed by <b>To Table</b> ('Make first row header' ticked) to show the counts as a table." +
             "<br><br><b>Additional prefixes</b>: prefix declarations to use as well as those in the input (Turtle <code>@prefix</code>, SPARQL <code>PREFIX</code>, RDF/XML <code>xmlns:</code> or a JSON-LD <code>@context</code>). " +
             "To reuse the prefixes of the original file after a step that loses them (e.g. N-Triples), put <b>Register</b> at the start of the recipe and enter <code>$R0</code> here.";
         this.infoURL = "https://www.w3.org/TR/owl2-primer/";
@@ -198,7 +201,7 @@ function nameWithLabel(name, label, iri) {
  * @param {function(string): string} short - IRI shortener
  * @param {function(string): string|null} labelOf
  * @param {number} maxDepth
- * @returns {{nodes: Object[], rows: {depth: number, text: string, more: number}[], truncated: boolean}}
+ * @returns {{nodes: Object[], rows: {depth: number, iri: string, name: string, label: string|null, text: string, more: number}[], truncated: boolean}}
  */
 function classTree(hierarchy, short, labelOf, maxDepth) {
     const { children, roots } = hierarchy;
@@ -210,7 +213,7 @@ function classTree(hierarchy, short, labelOf, maxDepth) {
             truncated = true;
             return node;
         }
-        rows.push({ depth, text: nameWithLabel(short(iri), labelOf(iri), iri) });
+        rows.push({ depth, iri, name: short(iri), label: labelOf(iri), text: nameWithLabel(short(iri), labelOf(iri), iri) });
         const kids = (children.get(iri) || []).filter(k => !path.has(k));
         if (kids.length && depth + 1 >= maxDepth) {
             rows.push({ depth: depth + 1, more: kids.length });
@@ -339,7 +342,7 @@ function textReport({ format, language, ontology, counts, namespaces, tree, deta
  * @returns {string}
  */
 function md(s) {
-    return String(s).replace(/\s+/g, " ").replace(/([\\`*_[\]<>#|~])/g, "\\$1");
+    return String(s).replace(/\s+/g, " ").replace(/([\\`*_[\]<>#|~&])/g, "\\$1");
 }
 
 /**
@@ -353,21 +356,123 @@ function code(s) {
     return text.includes("`") ? `\`\` ${text} \`\`` : `\`${text}\``;
 }
 
+/** Splits a class expression into quoted literals, names/keywords, and separators. */
+const EXPRESSION_TOKENS = /"(?:[^"\\]|\\.)*"(?:@[\w-]+|\^\^[^\s(){},]+)?|[^\s(){},]+|[\s(){},]+/g;
+
+/**
+ * Writes Markdown with links between sections. Headings are given GitHub-style
+ * anchors in document order; links to a class are written as placeholders and
+ * resolved to the class heading's anchor at the end, so a link can come before
+ * its heading.
+ */
+class LinkedMarkdown {
+
+    /**
+     * LinkedMarkdown constructor
+     *
+     * @param {Set<string>} linkedNames - names (prefixed) of the classes that get a heading
+     */
+    constructor(linkedNames) {
+        this.lines = [];
+        this.linkedNames = linkedNames;
+        this.slugger = new HeadingSlugger();
+        this.anchors = new Map();
+        this.keys = [];
+        this.keyIndex = new Map();
+    }
+
+    /**
+     * Adds lines.
+     *
+     * @param {...string} lines
+     */
+    push(...lines) {
+        this.lines.push(...lines);
+    }
+
+    /**
+     * Adds a heading and records its anchor under a key.
+     *
+     * @param {number} level
+     * @param {string} markdown - heading content
+     * @param {string} text - the same content as plain text, which the anchor is made from
+     * @param {string} [key]
+     */
+    heading(level, markdown, text, key) {
+        const slug = this.slugger.slug(text);
+        if (key) this.anchors.set(key, slug);
+        this.lines.push(`${"#".repeat(level)} ${markdown}`, "");
+    }
+
+    /**
+     * Returns a link to the heading recorded under a key.
+     *
+     * @param {string} key
+     * @param {string} markdown - link text
+     * @returns {string}
+     */
+    link(key, markdown) {
+        if (!this.keyIndex.has(key)) this.keyIndex.set(key, this.keys.push(key) - 1);
+        const i = this.keyIndex.get(key);
+        return `[${markdown}](#\u0000${i}\u0000)`;
+    }
+
+    /**
+     * Formats a class name as code, linked to its class details when it has them.
+     *
+     * @param {string} name
+     * @returns {string}
+     */
+    name(name) {
+        return this.linkedNames.has(name) ? this.link("class:" + name, code(name)) : code(name);
+    }
+
+    /**
+     * Formats a class expression such as "hasTopping some (Mozzarella or Tomato)":
+     * names and literals as code, class names linked, keywords as text.
+     *
+     * @param {string} expression
+     * @returns {string}
+     */
+    expression(expression) {
+        const tokens = String(expression).replace(/\s+/g, " ").match(EXPRESSION_TOKENS) || [];
+        return tokens.map(t => {
+            if (t.startsWith("\"")) return code(t);
+            if (/^[\s(){},]+$/.test(t)) return t;
+            if (t.includes(":") || this.linkedNames.has(t)) return this.name(t);
+            return md(t);
+        }).join("");
+    }
+
+    /**
+     * Returns the document with links resolved.
+     *
+     * @returns {string}
+     */
+    toString() {
+        return this.lines.join("\n")
+            .replace(/\u0000(\d+)\u0000/g, (_, i) => this.anchors.get(this.keys[i]) ?? "")
+            .replace(/\n{3,}/g, "\n\n").trim() + "\n";
+    }
+
+}
+
 /**
  * Formats one property as a Markdown list item: name, range and notes on one
  * line, the description on the next. (A table would be squeezed unreadably in
  * the narrow output pane once descriptions are long.)
  *
  * @param {Object} p
+ * @param {LinkedMarkdown} doc
  * @returns {string}
  */
-function propertyItem(p) {
+function propertyItem(p, doc) {
     const name = code(p.name) + (p.label && p.label !== localName(p.iri) ? ` ${md(p.label)}` : "");
-    const range = (p.range ? code(p.range) : "(any)") + (p.rangeVia ? ` via ${code(p.rangeVia)}` : "");
+    const range = (p.range ? doc.expression(p.range) : "(any)") + (p.rangeVia ? ` via ${code(p.rangeVia)}` : "");
     const notes = [
         p.kind,
-        p.from ? `from ${code(p.from)}` : null,
-        p.domain ? `domain ${code(p.domain)}` : null,
+        p.from ? `from ${doc.name(p.from)}` : null,
+        p.domain ? `domain ${doc.expression(p.domain)}` : null,
         p.domainVia ? `domain via ${code(p.domainVia)}` : null,
     ].filter(Boolean).join(", ");
     return `- ${name} → ${range} — ${notes}` + (p.description ? `  \n  ${md(p.description)}` : "");
@@ -380,77 +485,96 @@ function propertyItem(p) {
  * @returns {string}
  */
 function markdownReport({ format, language, ontology, counts, namespaces, tree, details }) {
-    const out = [];
-    out.push(`# ${md(ontology.title[0] || "Ontology summary")}`, "");
+    const doc = new LinkedMarkdown(new Set(details ? details.classes.map(c => c.name) : []));
+    const title = ontology.title[0] || "Ontology summary";
+    doc.heading(1, md(title), title.replace(/\s+/g, " "));
     const field = (name, vals, asCode) => {
-        if (vals.length) out.push(`- **${name}:** ${vals.map(v => asCode ? code(v) : md(v)).join(", ")}`);
+        if (vals.length) doc.push(`- **${name}:** ${vals.map(v => asCode ? code(v) : md(v)).join(", ")}`);
     };
     field("IRI", ontology.iri.length ? ontology.iri : ["(no owl:Ontology declared)"], ontology.iri.length > 0);
     field("Version IRI", ontology.versionIRI, true);
     field("Imports", ontology.imports, true);
     field("Input format", [format]);
-    if (ontology.description.length) out.push("", ...ontology.description.map(d => md(d) + "\n"));
+    if (ontology.description.length) doc.push("", ...ontology.description.map(d => md(d) + "\n"));
 
-    out.push("", "## Counts", "", "| Metric | Count |", "| --- | ---: |");
+    const sections = [["Counts"], ["Namespaces"]];
+    if (tree) sections.push(["Class hierarchy"]);
+    if (details) {
+        sections.push(["Classes"]);
+        if (details.anyClass.length) sections.push(["Properties that apply to any class", "Properties for any class"]);
+        if (details.unmatched.length) sections.push(["Properties whose domain matches no class", "Properties matching no class"]);
+    }
+    doc.push("", "**Contents:** " + sections.map(([heading, short]) => doc.link("section:" + heading, short || heading)).join(" · "), "");
+
+    doc.heading(2, "Counts", "Counts", "section:Counts");
+    doc.push("| Metric | Count |", "| --- | ---: |");
     for (const [k, v] of Object.entries(counts)) {
-        if (v || k === "Triples" || k === "Classes") out.push(`| ${k} | ${v} |`);
+        if (v || k === "Triples" || k === "Classes") doc.push(`| ${k} | ${v} |`);
     }
 
-    out.push("", "## Namespaces", "", "| Prefix | Namespace | Uses |", "| --- | --- | ---: |");
+    doc.push("");
+    doc.heading(2, "Namespaces", "Namespaces", "section:Namespaces");
+    doc.push("| Prefix | Namespace | Uses |", "| --- | --- | ---: |");
     for (const n of namespaces.slice(0, 30)) {
-        out.push(`| ${n.prefix !== null ? code(n.prefix + ":") : ""} | ${code(n.namespace)} | ${n.count} |`);
+        doc.push(`| ${n.prefix !== null ? code(n.prefix + ":") : ""} | ${code(n.namespace)} | ${n.count} |`);
     }
-    if (namespaces.length > 30) out.push(`| | … ${namespaces.length - 30} more | |`);
+    if (namespaces.length > 30) doc.push(`| | … ${namespaces.length - 30} more | |`);
 
     if (tree) {
-        out.push("", "## Class hierarchy", "");
-        if (!tree.rows.length) out.push("(no classes)");
+        doc.push("");
+        doc.heading(2, "Class hierarchy", "Class hierarchy", "section:Class hierarchy");
+        if (!tree.rows.length) doc.push("(no classes)");
         for (const row of tree.rows) {
             const pad = "  ".repeat(row.depth);
             if (row.more) {
-                out.push(`${pad}- ${md(moreText(row.more))}`);
+                doc.push(`${pad}- ${md(moreText(row.more))}`);
             } else {
-                const m = /^(\S+)(?: "(.*)")?$/.exec(row.text);
-                out.push(`${pad}- ${code(m ? m[1] : row.text)}${m && m[2] ? " " + md(m[2]) : ""}`);
+                const label = row.label && row.label !== localName(row.iri) ? " " + md(row.label) : "";
+                doc.push(`${pad}- ${doc.name(row.name)}${label}`);
             }
         }
-        if (tree.truncated) out.push("", `… truncated at ${MAX_TREE_LINES} lines`);
+        if (tree.truncated) doc.push("", `… truncated at ${MAX_TREE_LINES} lines`);
     }
 
     if (details) {
-        out.push("", "## Classes", "");
-        if (language) out.push(`Descriptions in: ${md(language)} (and untagged).`, "");
-        if (!details.classes.length) out.push("(no classes)");
+        doc.push("");
+        doc.heading(2, "Classes", "Classes", "section:Classes");
+        if (language) doc.push(`Descriptions in: ${md(language)} (and untagged).`, "");
+        if (!details.classes.length) doc.push("(no classes)");
         for (const c of details.classes) {
-            out.push(`### ${code(c.name)}${c.label && c.label !== localName(c.iri) ? " " + md(c.label) : ""}`, "");
+            const hasLabel = c.label && c.label !== localName(c.iri);
+            doc.heading(3,
+                code(c.name) + (hasLabel ? " " + md(c.label) : ""),
+                c.name.replace(/\s+/g, " ") + (hasLabel ? " " + c.label.replace(/\s+/g, " ") : ""),
+                "class:" + c.name);
             const lines = [];
-            if (c.path.length > 1) lines.push(`**Path:** ${c.path.map(code).join(" › ")}`);
-            if (c.subClassOf.length) lines.push(`**Subclass of:** ${c.subClassOf.map(code).join(", ")}`);
-            if (c.equivalentTo.length) lines.push(`**Equivalent to:** ${c.equivalentTo.map(code).join(", ")}`);
+            if (c.path.length > 1) lines.push(`**Path:** ${[...c.path.slice(0, -1).map(n => doc.name(n)), code(c.name)].join(" › ")}`);
+            if (c.subClassOf.length) lines.push(`**Subclass of:** ${c.subClassOf.map(e => doc.expression(e)).join(", ")}`);
+            if (c.equivalentTo.length) lines.push(`**Equivalent to:** ${c.equivalentTo.map(e => doc.expression(e)).join(", ")}`);
             lines.push(`**IRI:** ${code(c.iri)}`);
-            out.push(lines.join("  \n"), "");
-            for (const d of c.descriptions) out.push(`> ${md(d)}`, "");
+            doc.push(lines.join("  \n"), "");
+            for (const d of c.descriptions) doc.push(`> ${md(d)}`, "");
             if (c.properties.length) {
-                out.push("**Properties**", "");
-                for (const p of c.properties) out.push(propertyItem(p));
-                out.push("");
+                doc.push("**Properties**", "");
+                for (const p of c.properties) doc.push(propertyItem(p, doc));
+                doc.push("");
             }
             if (c.restrictions.length) {
-                out.push("**Restrictions**", "");
-                for (const r of c.restrictions) out.push(`- ${code(r.text)}${r.from ? ` *(from ${code(r.from)})*` : ""}`);
-                out.push("");
+                doc.push("**Restrictions**", "");
+                for (const r of c.restrictions) doc.push(`- ${doc.expression(r.text)}${r.from ? ` *(from ${doc.name(r.from)})*` : ""}`);
+                doc.push("");
             }
         }
-        const globalList = (title, list) => {
+        const globalList = (heading, list) => {
             if (!list.length) return;
-            out.push(`## ${title}`, "");
-            for (const p of list) out.push(propertyItem(p));
-            out.push("");
+            doc.heading(2, heading, heading, "section:" + heading);
+            for (const p of list) doc.push(propertyItem(p, doc));
+            doc.push("");
         };
         globalList("Properties that apply to any class", details.anyClass);
         globalList("Properties whose domain matches no class", details.unmatched);
     }
-    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+    return doc.toString();
 }
 
 export default OntologySummary;

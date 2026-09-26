@@ -184,6 +184,7 @@ import "./tests/ParseCSR.mjs";
 import "./tests/XXTEA.mjs";
 import "./tests/GoogleTranslate.mjs";
 import "./tests/Ontology.mjs";
+import "./tests/RenderMarkdown.mjs";
 import "./tests/ToTable.mjs";
 
 const testStatus = {
