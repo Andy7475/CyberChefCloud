@@ -8,6 +8,7 @@ import {WidgetType, Decoration, ViewPlugin} from "@codemirror/view";
 import {escapeControlChars} from "./editorUtils.mjs";
 import {htmlCopyOverride} from "./copyOverride.mjs";
 import Utils from "../../core/Utils.mjs";
+import {HEADING_ID_PREFIX} from "../../core/lib/MarkdownAnchors.mjs";
 
 
 /**
@@ -38,6 +39,10 @@ class HTMLWidget extends WidgetType {
 
         // Add a handler for copy events to ensure the control codes are copied correctly
         wrap.addEventListener("copy", htmlCopyOverride);
+
+        // Scroll to in-page link targets instead of changing the URL hash,
+        // which holds the recipe and input
+        wrap.addEventListener("click", followInternalLink);
         return wrap;
     }
 
@@ -77,6 +82,31 @@ class HTMLWidget extends WidgetType {
         }
     }
 
+}
+
+/**
+ * Click handler for the HTML output: a link to "#id" scrolls to the element in
+ * the output with that id (or with the heading prefix used by Render Markdown).
+ * Links whose target is not in the output (e.g. "#recipe=..." links from Magic)
+ * are left to the browser.
+ *
+ * @param {MouseEvent} e
+ */
+function followInternalLink(e) {
+    const link = e.target.closest ? e.target.closest("a[href^='#']") : null;
+    if (!link || !e.currentTarget.contains(link)) return;
+    let id;
+    try {
+        id = decodeURIComponent(link.getAttribute("href").slice(1));
+    } catch (err) {
+        return;
+    }
+    if (!id) return;
+    const target = [...e.currentTarget.querySelectorAll("[id]")]
+        .find(el => el.id === id || el.id === HEADING_ID_PREFIX + id);
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({block: "start"});
 }
 
 /**

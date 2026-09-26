@@ -423,17 +423,43 @@ TestRegister.addTests([
     {
         name: "Ontology Summary: Markdown class section",
         input: VEHICLES_TTL,
-        expectedMatch: /### `:Boat`\n\n\*\*Path:\*\* `:Vehicle` › `:Boat` {2}\n\*\*Subclass of:\*\* `:Vehicle` {2}\n\*\*IRI:\*\* `http:\/\/example\.org\/v#Boat`\n\n\*\*Properties\*\*\n\n- `:hullLength` → `xsd:decimal` — datatype\n- `:hasOwner` → `:Person` — object, from `:Vehicle` {2}\n {2}Who owns the vehicle\.\n- `:hasPrimaryOwner` → `:Person` via `:hasOwner` — object, from `:Vehicle`, domain via `:hasOwner`\n/,
+        expectedMatch: /### `:Boat`\n\n\*\*Path:\*\* \[`:Vehicle`\]\(#vehicle\) › `:Boat` {2}\n\*\*Subclass of:\*\* \[`:Vehicle`\]\(#vehicle\) {2}\n\*\*IRI:\*\* `http:\/\/example\.org\/v#Boat`\n\n\*\*Properties\*\*\n\n- `:hullLength` → `xsd:decimal` — datatype\n- `:hasOwner` → \[`:Person`\]\(#person\) — object, from \[`:Vehicle`\]\(#vehicle\) {2}\n {2}Who owns the vehicle\.\n- `:hasPrimaryOwner` → \[`:Person`\]\(#person\) via `:hasOwner` — object, from \[`:Vehicle`\]\(#vehicle\), domain via `:hasOwner`\n/,
         recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] }],
     },
     {
         name: "Ontology Summary: Markdown rendered with Render Markdown",
         input: VEHICLES_TTL,
-        expectedMatch: /<h3><code>:ElectricCar<\/code><\/h3>[\s\S]*<li><code>:hasWheel<\/code> → <code>:Wheel<\/code> — object, from <code>:Car<\/code><\/li>/,
+        expectedMatch: /<h3 id="user-content-electriccar"><code>:ElectricCar<\/code><\/h3>[\s\S]*<li><code>:hasWheel<\/code> → <a href="#user-content-wheel"><code>:Wheel<\/code><\/a> — object, from <a href="#user-content-car"><code>:Car<\/code><\/a><\/li>/,
         recipeConfig: [
             { op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] },
             { op: "Render Markdown", args: [false, true] },
         ],
+    },
+    {
+        name: "Ontology Summary: Markdown contents and hierarchy link to sections",
+        input: VEHICLES_TTL,
+        expectedMatch: /\*\*Contents:\*\* \[Counts\]\(#counts\) · \[Namespaces\]\(#namespaces\) · \[Class hierarchy\]\(#class-hierarchy\) · \[Classes\]\(#classes\) · \[Properties for any class\]\(#properties-that-apply-to-any-class\) · \[Properties matching no class\]\(#properties-whose-domain-matches-no-class\)\n[\s\S]*## Class hierarchy\n\n- \[`:Battery`\]\(#battery\)\n- \[`:Person`\]\(#person\)\n- \[`:Vehicle`\]\(#vehicle\)\n {2}- \[`:Boat`\]\(#boat\)\n {2}- \[`:Car`\]\(#car\)\n {4}- \[`:ElectricCar`\]\(#electriccar\)\n/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] }],
+    },
+    {
+        name: "Ontology Summary: Markdown links class names inside expressions",
+        input: VEHICLES_TTL,
+        expectedMatch: /\*\*Equivalent to:\*\* \[`:Car`\]\(#car\) and \(`:poweredBy` some \[`:Battery`\]\(#battery\)\)[\s\S]*- `:hasWheel` min 4 \[`:Wheel`\]\(#wheel\) \*\(from \[`:Car`\]\(#car\)\)\*/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] }],
+    },
+    {
+        name: "Ontology Summary: Markdown class anchors follow heading order and labels",
+        input: `@prefix : <http://ex.org/#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+:Car a owl:Class ; rdfs:label "Fish & Chips" .
+:Classes a owl:Class ; rdfs:subClassOf :Car .`,
+        expectedMatch: /- \[`:Car`\]\(#car-fish--chips\) Fish \\& Chips\n {2}- \[`:Classes`\]\(#classes-1\)\n[\s\S]*### `:Car` Fish \\& Chips\n/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] }],
+    },
+    {
+        name: "Ontology Summary: Markdown without class details has no class links",
+        input: VEHICLES_TTL,
+        expectedMatch: /## Class hierarchy\n\n- `:Battery`\n- `:Person`\n- `:Vehicle`\n {2}- `:Boat`\n {2}- `:Car`\n {4}- `:ElectricCar`\n- `:Wheel`\n?$/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, false, "en", ""] }],
     },
     {
         name: "Ontology Summary: JSON includes class details",

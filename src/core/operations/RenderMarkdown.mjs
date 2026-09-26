@@ -7,6 +7,7 @@
 import Operation from "../Operation.mjs";
 import MarkdownIt from "markdown-it";
 import hljs from "highlight.js";
+import { HeadingSlugger, HEADING_ID_PREFIX } from "../lib/MarkdownAnchors.mjs";
 
 /**
  * Render Markdown operation
@@ -21,7 +22,8 @@ class RenderMarkdown extends Operation {
 
         this.name = "Render Markdown";
         this.module = "Code";
-        this.description = "Renders input Markdown as HTML. HTML rendering is disabled to avoid XSS.";
+        this.description = "Renders input Markdown as HTML. HTML rendering is disabled to avoid XSS.<br><br>" +
+            "Headings get anchors with GitHub-style names, so a link such as <code>[see below](#class-hierarchy)</code> jumps to the heading 'Class hierarchy' in the output.";
         this.infoURL = "https://wikipedia.org/wiki/Markdown";
         this.inputType = "string";
         this.outputType = "html";
@@ -58,12 +60,50 @@ class RenderMarkdown extends Operation {
 
                     return "";
                 }
-            }),
-            rendered = md.render(input);
+            });
+        md.core.ruler.push("heading_anchors", addHeadingAnchors);
+        const rendered = md.render(input);
 
         return `<div style="font-family: var(--primary-font-family)">${rendered}</div>`;
     }
 
+}
+
+/**
+ * markdown-it core rule: gives each heading an id from its text (GitHub-style
+ * slug, prefixed with HEADING_ID_PREFIX) and points links to "#slug" at it.
+ * Links to fragments that match no heading are left unchanged.
+ *
+ * @param {Object} state - markdown-it core state
+ */
+function addHeadingAnchors(state) {
+    const slugger = new HeadingSlugger();
+    const slugs = new Set();
+    state.tokens.forEach((token, i) => {
+        if (token.type !== "heading_open") return;
+        const text = (state.tokens[i + 1].children || [])
+            .filter(t => t.type === "text" || t.type === "code_inline")
+            .map(t => t.content)
+            .join("");
+        const slug = slugger.slug(text);
+        if (!slug) return;
+        slugs.add(slug);
+        token.attrSet("id", HEADING_ID_PREFIX + slug);
+    });
+    for (const token of state.tokens) {
+        for (const child of token.children || []) {
+            if (child.type !== "link_open") continue;
+            const href = child.attrGet("href") || "";
+            if (!href.startsWith("#")) continue;
+            let fragment;
+            try {
+                fragment = decodeURIComponent(href.slice(1));
+            } catch (err) {
+                continue;
+            }
+            if (slugs.has(fragment)) child.attrSet("href", "#" + HEADING_ID_PREFIX + href.slice(1));
+        }
+    }
 }
 
 export default RenderMarkdown;

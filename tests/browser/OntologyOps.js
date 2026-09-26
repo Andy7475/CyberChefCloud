@@ -80,6 +80,37 @@ module.exports = {
         });
     },
 
+    "Ontology Summary: Markdown links scroll the output, not the page URL": function (browser) {
+        // Enough classes that the linked class's details are below the fold
+        const classes = Array.from({ length: 40 }, (_, i) => `:C${i} a owl:Class ; rdfs:subClassOf :Pizza .`).join("\n");
+        browserUtils.loadRecipeConfig(browser, [
+            { op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] },
+            { op: "Render Markdown", args: [false, true] }
+        ], PIZZA_TTL + classes);
+        browserUtils.bake(browser);
+
+        browser.expect.element("#output-html h3#user-content-c9").to.be.present.before(10000);
+        browser.execute(function () {
+            return window.location.href;
+        }, [], function ({ value: urlBefore }) {
+            browser.click("#output-html a[href='#user-content-c9']");
+            browser.pause(500);
+            browser.execute(function () {
+                const heading = document.getElementById("output-html").querySelector("#user-content-c9");
+                const scroller = heading.closest(".cm-scroller");
+                return {
+                    url: window.location.href,
+                    offset: heading.getBoundingClientRect().top - scroller.getBoundingClientRect().top,
+                    scrollTop: scroller.scrollTop
+                };
+            }, [], function ({ value }) {
+                browser.assert.strictEqual(value.url, urlBefore, "Clicking an in-page link leaves the page URL unchanged");
+                browser.assert.ok(value.scrollTop > 0, `Expected the output to scroll, scrollTop=${value.scrollTop}`);
+                browser.assert.ok(Math.abs(value.offset) < 5, `Expected :C9 heading at the top of the output, offset=${value.offset}`);
+            });
+        });
+    },
+
     "Ontology Graph: draws with vis-network": function (browser) {
         browserUtils.loadRecipeConfig(browser, [
             { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Label, else prefixed name", "Force-directed", ""] }
