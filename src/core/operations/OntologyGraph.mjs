@@ -44,6 +44,17 @@ const GROUPS = {
 };
 
 /**
+ * Colours for a selected node and its neighbours in the class hierarchy, from
+ * the ColorBrewer "Oranges" sequential scale: superclasses (parents) darkest
+ * and thickest, subclasses (children) lightest.
+ */
+const SELECTED_COLOUR = "#d94801";
+const RELATIVES = {
+    parent: { label: "superclass", color: "#7f2704", borderWidth: 3, selectionWidth: 2 },
+    child: { label: "subclass", color: "#fd8d3c", borderWidth: 2, selectionWidth: 1 },
+};
+
+/**
  * Ontology Graph operation
  */
 class OntologyGraph extends Operation {
@@ -64,6 +75,7 @@ class OntologyGraph extends Operation {
             "Hovering over a node or property edge shows its IRI and annotations: descriptions (rdfs:comment, skos:definition, dcterms:description, OBO definition), " +
             "synonyms (skos:altLabel, oboInOwl:hasExactSynonym), skos:example, skos:scopeNote, skos:note, rdfs:seeAlso and owl:deprecated. " +
             "<b>Language</b> filters these (e.g. <code>en</code>, or <code>en, fr</code>; leave empty for all); untagged text is always included. Labels prefer this language.<br><br>" +
+            "Clicking a class highlights its subclass arrows and the borders of the classes they lead to: superclasses in dark orange, subclasses in light orange.<br><br>" +
             "The search box highlights nodes whose label, IRI or annotations contain the text; press Enter to move between matches.<br><br>" +
             "<b>Max nodes</b> limits the size of the drawing. When the graph is larger, the most connected nodes and their neighbours are kept, so the part shown stays connected.<br><br>" +
             "As the last operation, the graph is drawn; otherwise the output is the graph as JSON (nodes and edges). " +
@@ -157,7 +169,7 @@ class OntologyGraph extends Operation {
         for (const [name, g] of Object.entries(GROUPS)) {
             groups[name] = {
                 shape: g.shape,
-                color: { background: g.background, border: g.border, highlight: { background: g.background, border: "#d9480f" } },
+                color: { background: g.background, border: g.border, highlight: { background: g.background, border: SELECTED_COLOUR } },
                 ...(g.shape === "dot" ? { size: 7 } : {}),
             };
         }
@@ -166,7 +178,7 @@ class OntologyGraph extends Operation {
             nodes: { margin: 8, borderWidth: 1, borderWidthSelected: 3, font: { size: 14, color: "#1b1b1b" } },
             edges: {
                 arrows: { to: { enabled: true, scaleFactor: 0.6 } },
-                color: { color: "#8a8a8a", highlight: "#d9480f", inherit: false },
+                color: { color: "#8a8a8a", highlight: SELECTED_COLOUR, inherit: false },
                 font: { size: 11, color: "#555555", strokeWidth: 3, strokeColor: "#ffffff", align: "middle" },
                 smooth: hierarchical ? { type: "cubicBezier", forceDirection: "horizontal" } : { type: "dynamic" },
             },
@@ -188,7 +200,12 @@ class OntologyGraph extends Operation {
         const legend = Object.entries(GROUPS)
             .filter(([name]) => usedGroups.has(name))
             .map(([, g]) => `<span style="display:inline-block;width:10px;height:10px;margin:0 4px 0 10px;border:1px solid ${g.border};background:${g.background};border-radius:${g.shape === "dot" ? "50%" : "2px"}"></span>${g.label}`)
-            .join("") + (graph.edges.some(e => e.dashes) ? "<span style=\"margin-left:10px\">- - restriction</span>" : "");
+            .join("") + (graph.edges.some(e => e.dashes) ? "<span style=\"margin-left:10px\">- - restriction</span>" : "") +
+            (graph.edges.some(e => e.subClassOf) ?
+                "<span style=\"margin-left:10px\">Selected class:</span>" + Object.values(RELATIVES)
+                    .map(r => `<span style="display:inline-block;width:14px;height:0;margin:0 4px 3px 8px;border-top:${r.borderWidth}px solid ${r.color}"></span>${r.label}`)
+                    .join("") :
+                "");
 
         return `<style>
     #output-text .cm-content,
@@ -221,6 +238,7 @@ class OntologyGraph extends Operation {
 (function () {
     var data = ${safeJSON({ ...graph, focus: mostConnected(graph) })};
     var options = ${safeJSON(options)};
+    var relatives = ${safeJSON(RELATIVES)};
     var container = document.getElementById("ontologyGraph");
     var wrap = document.getElementById("ontologyGraphWrap");
     var pane = document.getElementById("output-text");
@@ -234,7 +252,11 @@ class OntologyGraph extends Operation {
         if (!container) return;
         var nodes = new vis.DataSet(data.nodes), edges = new vis.DataSet(data.edges);
         var network = new vis.Network(container, { nodes: nodes, edges: edges }, options);
-        setupSearch(network, nodes, edges);
+        container.visNetwork = network; // for the browser tests
+        var markRelatives = setupRelatives(network, nodes, edges);
+        network.on("select", markRelatives);
+        network.on("dragStart", markRelatives);
+        setupSearch(network, nodes, edges, markRelatives);
         // Stop the simulation once laid out so nodes stay where the user drags them.
         // If the whole graph only fits at an unreadable size, zoom in on the most
         // connected node instead; the user can pan or zoom out from there.
@@ -252,9 +274,38 @@ class OntologyGraph extends Operation {
             observer.observe(pane);
         }
     }
+    // Returns a function that colours the subclass edges of the selected nodes,
+    // and the borders of the classes at their other ends: superclasses in the
+    // "parent" colour, subclasses in the "child" colour. vis-network draws an
+    // edge touching a selected node in its highlight colour, so setting that is
+    // enough for edges; node borders are set here and reset on the next call.
+    function setupRelatives(network, nodes, edges) {
+        var marked = [];
+        return function () {
+            var selected = {}, roles = {}, edgeUpdates = [];
+            network.getSelectedNodes().forEach(function (id) { selected[id] = true; });
+            edges.get({ filter: function (e) { return e.subClassOf && (selected[e.from] || selected[e.to]); } }).forEach(function (e) {
+                // Subclass edges point from the subclass to the superclass
+                var role = selected[e.from] ? "parent" : "child", other = role === "parent" ? e.to : e.from;
+                var colour = Object.assign({}, e.color, { highlight: relatives[role].color });
+                edgeUpdates.push({ id: e.id, color: colour, selectionWidth: relatives[role].selectionWidth });
+                if (!selected[other] && roles[other] !== "parent") roles[other] = role;
+            });
+            if (edgeUpdates.length) edges.update(edgeUpdates);
+            var nodeUpdates = marked.filter(function (id) { return !roles[id]; }).map(function (id) {
+                return { id: id, color: options.groups[nodes.get(id).group].color, borderWidth: 1 };
+            });
+            marked = Object.keys(roles);
+            marked.forEach(function (id) {
+                var group = options.groups[nodes.get(id).group].color, r = relatives[roles[id]];
+                nodeUpdates.push({ id: id, color: { background: group.background, border: r.color, highlight: group.highlight }, borderWidth: r.borderWidth });
+            });
+            if (nodeUpdates.length) nodes.update(nodeUpdates);
+        };
+    }
     // Dims nodes that do not match the search text, selects the ones that do,
     // and steps through the matches with Enter / Shift+Enter.
-    function setupSearch(network, nodes, edges) {
+    function setupSearch(network, nodes, edges, markRelatives) {
         var box = document.getElementById("ontologyGraphSearch");
         var count = document.getElementById("ontologyGraphCount");
         if (!box) return;
@@ -270,8 +321,9 @@ class OntologyGraph extends Operation {
             matches.forEach(function (id) { hit[id] = true; });
             current = -1;
             nodes.update(data.nodes.map(function (n) { return { id: n.id, opacity: !q || hit[n.id] ? 1 : 0.2 }; }));
-            edges.update(edges.get().map(function (e) { return { id: e.id, color: { opacity: !q || (hit[e.from] && hit[e.to]) ? 1 : 0.15 } }; }));
+            edges.update(edges.get().map(function (e) { return { id: e.id, color: Object.assign({}, e.color, { opacity: !q || (hit[e.from] && hit[e.to]) ? 1 : 0.15 }) }; }));
             network.selectNodes(matches, false);
+            markRelatives();
             count.textContent = q ? matches.length + (matches.length === 1 ? " match" : " matches") : "";
         }
         function step(by) {
@@ -447,11 +499,14 @@ class GraphBuilder {
      * @param {string} label
      * @param {boolean} [dashes]
      * @param {string} [title] - tooltip text
+     * @param {boolean} [subClassOf] - true for an rdfs:subClassOf edge (subclass → superclass)
      */
-    addEdge(from, to, label, dashes = false, title = "") {
+    addEdge(from, to, label, dashes = false, title = "", subClassOf = false) {
         const key = `${from}\u0000${to}\u0000${label}`;
         if (!this.edges.has(key)) {
-            this.edges.set(key, { from, to, ...(label ? { label } : {}), ...(dashes ? { dashes: true } : {}), ...(title ? { title } : {}) });
+            this.edges.set(key, {
+                from, to, ...(label ? { label } : {}), ...(dashes ? { dashes: true } : {}), ...(title ? { title } : {}), ...(subClassOf ? { subClassOf: true } : {})
+            });
         }
     }
 
@@ -573,7 +628,7 @@ function buildClassGraph(select, graph, withProperties) {
     }
     for (const r of select("SELECT DISTINCT ?c ?p WHERE { ?c rdfs:subClassOf ?p FILTER(isIRI(?c) && isIRI(?p) && ?c != ?p) }")) {
         const c = addClass(r.get("c").value);
-        if (r.get("p").value !== OWL_THING) graph.addEdge(c, addClass(r.get("p").value), "");
+        if (r.get("p").value !== OWL_THING) graph.addEdge(c, addClass(r.get("p").value), "", false, "", true);
     }
     if (!withProperties) return;
 
@@ -634,7 +689,8 @@ function buildTripleGraph(ox, store, graph) {
             graph.addInfo(s, `a ${graph.short(q.object.value)}`);
         } else {
             const group = q.predicate.value === RDF + "type" ? "class" : groupOf(q.object);
-            graph.addEdge(s, graph.addNode(q.object, group), q.predicate.value === RDF + "type" ? "a" : predicate, false, graph.edgeTooltip(q.predicate.value));
+            const subClassOf = q.predicate.value === RDFS + "subClassOf" && q.object.termType === "NamedNode";
+            graph.addEdge(s, graph.addNode(q.object, group), q.predicate.value === RDF + "type" ? "a" : predicate, false, graph.edgeTooltip(q.predicate.value), subClassOf);
         }
     }
 }
