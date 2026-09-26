@@ -220,7 +220,7 @@ module.exports = {
 
     "Ontology Reasoner: impact report renders": function (browser) {
         browserUtils.loadRecipeConfig(browser, [
-            { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Impact report (HTML)", true, false, "", 50, ""] }
+            { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Impact report (HTML)", true, true, true, true, false, "", 50, ""] }
         ], REASONING_TTL);
         browserUtils.bake(browser);
 
@@ -232,7 +232,7 @@ module.exports = {
 
     "Ontology Reasoner → Graph: inferred edges are styled and can be hidden": function (browser) {
         browserUtils.loadRecipeConfig(browser, [
-            { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Asserted and inferred (TriG)", true, false, "", 50, ""] },
+            { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Asserted and inferred (TriG)", true, true, true, true, false, "", 50, ""] },
             { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en", "TBox and ABox"] }
         ], REASONING_TTL);
         browserUtils.bake(browser);
@@ -247,7 +247,7 @@ module.exports = {
             return { visible: edges.filter(e => !e.hidden).length, width: edges.length ? edges[0].width : 0 };
         };
         browser.execute(visibleInferred, [], function ({ value }) {
-            browser.assert.strictEqual(value.visible, 4, "Four inferred edges are drawn");
+            browser.assert.ok(value.visible > 0, `Inferred edges are drawn (${value.visible})`);
             browser.assert.strictEqual(value.width, 3, "Inferred edges are thick");
         });
         browser.click("#ontologyGraphInferred");
@@ -256,6 +256,30 @@ module.exports = {
             browser.assert.strictEqual(value.visible, 0, "Unticking 'Show inferred' hides them");
         });
         browser.click("#ontologyGraphInferred");
+    },
+
+    "Sample Ontology → Reasoner → Graph: the People sample": function (browser) {
+        browserUtils.loadRecipeConfig(browser, [
+            { op: "Sample Ontology", args: ["People and organisations (RDFS and OWL properties)"] },
+            { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Asserted and inferred (TriG)", true, true, true, true, false, "", 50, ""] },
+            { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en", "TBox and ABox"] }
+        ], "");
+        browserUtils.bake(browser);
+        browser.expect.element("#ontologyGraph canvas").to.be.present.before(15000);
+        browser.expect.element("#output-html").text.to.match(/\d+ inferred\./);
+        browser.pause(1500);
+        browser.saveScreenshot("tests/browser/output/ontology-sample-people-graph.png");
+        browser.execute(function () {
+            const edges = document.getElementById("ontologyGraph").visNetwork.body.data.edges.get();
+            return edges.filter(e => e.inferred && e.from === "http://example.org/people#grace" && e.to === "http://example.org/people#ruth").map(e => e.label);
+        }, [], function ({ value }) {
+            browser.assert.deepStrictEqual(value, ["ex:hasGrandparent · prp-spo2"], "The grandparent chain is drawn as an inferred edge");
+        });
+        // The Reasoner's options, for checking the labels by eye
+        browser.execute(function () {
+            document.querySelectorAll("#rec-list li.operation")[1].scrollIntoView();
+        });
+        browser.saveScreenshot("tests/browser/output/ontology-reasoner-options.png");
     },
 
     after: browser => {

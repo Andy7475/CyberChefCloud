@@ -272,7 +272,7 @@ class OntologyGraph extends Operation {
 </style>
 <div id="ontologyGraphWrap" style="position: relative; width: 100%; height: 400px;">
     <div id="ontologyGraph" style="width: 100%; height: 100%;"></div>
-    <div style="position: absolute; top: 6px; left: 8px; max-width: calc(100% - 270px); font-size: 12px; background: rgba(255,255,255,0.85); color: #333; padding: 3px 8px; border-radius: 4px; pointer-events: none;">
+    <div style="position: absolute; top: 6px; left: 8px; max-width: calc(100% - ${inferredCount ? 400 : 270}px); font-size: 12px; background: rgba(255,255,255,0.85); color: #333; padding: 3px 8px; border-radius: 4px; pointer-events: none;">
         ${Utils.escapeHtml(summary)}${legend}<span style="margin-left:10px;color:#666">Scroll to zoom, drag to pan, hover for details.</span>
     </div>
     <div style="position: absolute; top: 6px; right: 8px; font-size: 12px; background: rgba(255,255,255,0.85); color: #333; padding: 3px 6px; border-radius: 4px;">

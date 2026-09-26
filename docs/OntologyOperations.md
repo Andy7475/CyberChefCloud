@@ -10,10 +10,11 @@ Each operation parses its input into an in-memory RDF store ([Oxigraph](https://
 | SPARQL Query | Runs a SPARQL 1.1 SELECT / ASK / CONSTRUCT / DESCRIBE query against the input. |
 | Ontology Summary | Reports the ontology IRI, version, title and imports; counts; namespaces; the class hierarchy; and a per-class reference of descriptions, applicable properties (own and inherited) and restrictions. |
 | Ontology Graph | Draws the ontology as an interactive graph (drag, zoom, hover for IRIs and annotations, search to highlight), with a 'Max nodes' limit (default 200). |
+| Sample Ontology | Outputs one of four small example ontologies (Turtle) that show the kinds of inference the Reasoner makes. The input is ignored. |
 | Ontology Reasoner | Applies the RDFS and OWL 2 RL rules (as SPARQL CONSTRUCT queries) and shows the triples they add, in a report or as TriG for the other operations. |
 | Ontology Quality Checks | Lists missing labels and descriptions, classes and properties used but not declared, duplicate labels, orphan classes and other common problems. |
 
-All six are in the **Ontology / RDF** category. `Convert RDF Format` is also listed under **Data format**.
+All seven are in the **Ontology / RDF** category. `Convert RDF Format` is also listed under **Data format**.
 
 ## Formats
 
@@ -179,7 +180,9 @@ WHERE { ?x :hasParent ?y . ?y :hasParent ?z }
 
 **Consistency.** The OWL RL rules whose conclusion is "false" are run as checks: an individual in two disjoint classes (`cax-dw`, including `owl:AllDisjointClasses`), in `owl:Nothing` (`cls-nothing2`), or in a class and its complement (`cls-com`); `owl:sameAs` together with `owl:differentFrom` (`eq-diff1`); violations of irreflexive, asymmetric and disjoint properties (`prp-irp`, `prp-asyp`, `prp-pdw`); and `maxCardinality 0` (`cls-maxc1`). The report also lists classes that are subclasses of two disjoint classes, so can have no instances (e.g. pizza.owl's `CheeseyVegetableTopping`). This is found from the subclass links only, so it is incomplete.
 
-**Where inferred triples go.** Each rule's new triples are put in the named graph `urn:ccc:inferred:<rule id>`, and a triple already in the input (in any graph) is never added again. The rule id is therefore carried along when the output is TriG or N-Quads, with no reification. Each triple is credited to the rule that produced it in the final step.
+**Where inferred triples go.** Each rule's new triples are put in the named graph `urn:ccc:inferred:<rule id>`, and a triple already in the input (in any graph) is never added again. The rule id is therefore carried along when the output is TriG or N-Quads, with no reification.
+
+A new triple is credited to every rule that produces it in the round in which it first appears, so it can be in more than one rule's graph. For example, in the People sample `ex:carol a ex:Person` is produced in round 1 by rdfs9 (Carol is an Employee, a subclass of Person), rdfs2 (the domain of `ex:worksFor`) and rdfs3 (the range of `ex:knows`). The report lists all three rules in the triple's row, and the Turtle output lists the triple under each rule. A rule that would produce the triple only in a later round is not credited. Only the final step of a chain is credited: the intermediate triples are credited to the rules that made them, and are often about blank nodes.
 
 **Outputs**:
 
@@ -190,17 +193,44 @@ WHERE { ?x :hasParent ?y . ?y :hasParent ?z }
 - **Asserted and inferred (TriG)**: the input in the default graph, plus the inferred graphs. Ontology Summary, Ontology Graph, Ontology Quality Checks and SPARQL Query read all graphs as one, so they can follow directly; Summary and Graph mark the inferred parts. `Convert RDF Format` → Turtle merges everything into one graph, for exporting to Protégé or elsewhere.
 - **Inferred triples only (Turtle)**: only the new triples, grouped by rule with a comment before each group.
 
-**Show only direct inferences** (on by default) hides inferred triples that add nothing new to read:
+**Hide options.** Four options, all ticked by default, remove kinds of inferred triple that are numerous and rarely informative. The triples are still inferred and used by the other rules; the options only change what is written to the output. A triple that matches more than one option is counted under the first one in this table. The report's first paragraph gives the number of triples each option removed.
 
-- triples implied by a more specific one through transitivity: an inferred `x a :Food` when x is also a `:Pizza` and `:Pizza` is a subclass of `:Food`, and likewise for `rdfs:subClassOf`, `rdfs:subPropertyOf`, `rdfs:domain` and `rdfs:range`;
-- trivial triples: `x a owl:Thing`, `C rdfs:subClassOf C`, `x owl:sameAs x`;
-- triples involving blank nodes (restrictions and class expressions), which the rules use as intermediate steps. For example, a pizza with a cheese topping is first put in the restriction `hasTopping some Cheese` (`cls-svf1`), then in the intersection (`cls-int1`), and only then in `CheeseyPizza`.
+| Option | Triples it removes | Example |
+| :--- | :--- | :--- |
+| Hide owl:Thing and rdfs:Resource | `x a owl:Thing`, `x a rdfs:Resource`, and `rdfs:subClassOf`, `rdfs:domain` or `rdfs:range` of `owl:Thing` / `rdfs:Resource` | `:x a owl:Thing`, from a property whose domain is `owl:Thing` |
+| Hide implied subClassOf, subPropertyOf, domain, range | `rdfs:subClassOf`, `rdfs:subPropertyOf`, `rdfs:domain` and `rdfs:range` triples that follow from two or more triples of the same kind | `ex:Manager rdfs:subClassOf ex:Person`, when Manager → Employee and Employee → Person are in the data; `ex:manages rdfs:domain ex:Person`, when the data has `ex:manages rdfs:domain ex:Manager` and Manager is a subclass of Person |
+| Hide triples about blank nodes | triples whose subject or object is a blank node: restrictions, class expressions and list items | `:p1 a _:b1`, where `_:b1` is the restriction "hasTopping some Cheese" |
+| Hide restated equivalences | the reverse of an `owl:equivalentClass`, `owl:equivalentProperty` or `owl:sameAs` triple that is present (the asserted direction is kept, or else the one whose subject sorts first), and `rdfs:subClassOf` / `rdfs:subPropertyOf` between two equivalent terms | `ex:hr_456 owl:sameAs ex:crm_123`, when `ex:crm_123 owl:sameAs ex:hr_456` is shown |
 
-The full closure is still computed, and the report says how many triples are hidden. Untick the option to see them all.
+Inferred `rdf:type` triples of individuals are never removed by the hierarchy option: `ex:carol a ex:Person` is shown although Carol is an Employee and Employee is a subclass of Person. A domain or range that a sub-property gets from its super-property is also shown, because it is new information (e.g. `ex:hasMother rdfs:domain ex:Person`).
+
+For pizza.owl, OWL RL infers 917 triples. The hierarchy option removes 275 and the blank node option 623, leaving 19.
 
 **Limits.** OWL RL is designed to be computed by rules like these, but it is less complete than a DL reasoner (HermiT, Pellet or ELK in Protégé). It places *individuals* in defined classes, and finds some subclass links between *classes* (for example, pizza.owl's `CheeseyPizza`, `SpicyPizza` and `VegetarianPizza` are placed under `Pizza`, from their definitions as intersections). It does not find subclass links that need reasoning about hypothetical individuals: for example, `MargheritaPizza` is not placed under `CheeseyPizza`, which Protégé's reasoner does. It also ignores cardinalities above 1 and does not use `complementOf` or unions in superclasses. For full DL reasoning, load the ontology into a triple store with a reasoner (e.g. GraphDB) or use Protégé.
 
 **Limits on the loop.** 'Max rounds' (default 50) and a cap of 200,000 inferred triples stop runaway rules (usually `owl:sameAs` substitution, or custom rules that create new terms); the error names the rule that added the most triples. Each round runs every rule over the whole store, which takes about 0.2 s for pizza.owl (2,300 triples, 4 rounds).
+
+## Sample Ontology
+
+Outputs a small ontology in Turtle; the input is ignored. It is meant as the first operation of a recipe, for example:
+
+```
+Sample Ontology  →  Ontology Reasoner (Output: Asserted and inferred (TriG))  →  Ontology Graph
+Sample Ontology  →  Ontology Reasoner (Output: Impact report (HTML))
+```
+
+Each sample starts with a comment block that lists the inferences to expect, the rule that makes each one, and what to try. Comments in the body mark the lines each inference comes from. The samples have about 10–40 nodes, so each inference can be followed by hand.
+
+| Sample | What it shows |
+| :--- | :--- |
+| People and organisations | RDFS: subclass (`ex:carol a ex:Person`), domain (`ex:grace a ex:Person`), range (`ex:ruth a ex:Person`) and sub-property (`ex:grace ex:hasParent ex:alice`, from `ex:hasMother`). OWL RL: inverse (`ex:bob ex:reportsTo ex:alice`), symmetric (`ex:dave ex:knows ex:alice`) and transitive (`ex:London ex:locatedIn ex:UK`) properties, and a property chain (`ex:grace ex:hasGrandparent ex:ruth`, which needs the sub-property inference first). A commented-out line makes the data inconsistent. |
+| Pizzas | Defined classes: `:tonightsPizza` and `:myMargherita` are classified as `:CheeseyPizza`, `:CheeseyPizza` is placed under `:Pizza`, and an "only" restriction types a topping. The comments state one inference OWL RL does not make: `:Margherita rdfs:subClassOf :CheeseyPizza`. |
+| Same individuals | `owl:sameAs` from an inverse-functional property (two records with the same mailbox) and a functional property (two birth mothers), and the facts copied between records with 'Apply owl:sameAs substitution'. |
+| Bad data | Four errors in people data. A wrong `ex:manages` statement makes Bob a Manager with no warning. A shared mailbox makes Alice and Bob the same person (warning: eq-diff1, because they are declared different). A company used as the subject of `ex:worksFor` becomes a Person (warning: cax-dw). A class under two disjoint classes is reported as unsatisfiable. |
+
+The People sample is the test ontology used while developing the Reasoner, with a few additions, each marked with a comment: `ex:hasMother`, `ex:hasGrandparent`, `ex:ruth`, and the removed type of `ex:grace` (the original line is kept as a comment).
+
+The samples are in `src/core/lib/SampleOntologies.mjs`. The operation does not use Oxigraph, so it is in the `Default` module.
 
 ## Ontology Quality Checks
 
@@ -228,7 +258,7 @@ Outputs: HTML (a table of checks with ✓ or a count, then the items of each fai
 ## Implementation
 
 - `src/core/lib/OntologyModel.mjs`: class hierarchy, class expressions, restrictions, descriptions, and property-to-class matching for Ontology Summary.
-- `src/core/lib/Reasoning.mjs`: the rule table (`RULES`, `CHECKS`), `runRules` (the loop), `directInferences` (the display filter), `inferredIndex` (which triples are only inferred, used by Graph and Summary) and `withoutInferred`.
+- `src/core/lib/Reasoning.mjs`: the rule table (`RULES`, `CHECKS`), `runRules` (the loop), `filterInferences` (the Hide options), `inferredIndex` (which triples are only inferred, and by which rules, used by Graph and Summary) and `withoutInferred`.
 - `src/core/lib/OntologyQuality.mjs`: the quality checks and their Text, Markdown and CSV formatters, shared by Ontology Quality Checks and Ontology Summary.
 - `src/core/lib/OntologyMarkdown.mjs`: Markdown escaping, and rendering through Render Markdown for the ops' HTML outputs. Each op sets `presentType` to `html` inside `present()` only for its HTML option, so the other outputs stay plain text.
 - `src/core/lib/RDF.mjs`: shared helpers.

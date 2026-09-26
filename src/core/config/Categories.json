@@ -580,6 +580,7 @@
     {
         "name": "Ontology / RDF",
         "ops": [
+            "Sample Ontology",
             "Convert RDF Format",
             "SPARQL Query",
             "Ontology Summary",

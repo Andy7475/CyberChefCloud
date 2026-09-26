@@ -9,8 +9,8 @@ import {
     getOxigraph, loadStore, inputPrefixes, allPrefixes, withPrefixes, shortenIRI, serialise, usedPrefixes, WELL_KNOWN_PREFIXES, INPUT_FORMATS
 } from "../lib/RDF.mjs";
 import {
-    builtInRules, parseCustomRules, formatRules, runRules, runChecks, directInferences,
-    INFERRED_GRAPH_PREFIX, RDFS_SPEC, OWL_RL_SPEC, RULES, CHECKS
+    builtInRules, parseCustomRules, formatRules, runRules, runChecks, filterInferences, describeHidden,
+    INFERRED_GRAPH_PREFIX, RDFS_SPEC, OWL_RL_SPEC, RULES, CHECKS, tripleKey
 } from "../lib/Reasoning.mjs";
 import { md, code, renderMarkdown } from "../lib/OntologyMarkdown.mjs";
 
@@ -46,10 +46,17 @@ class OntologyReasoner extends Operation {
             "<b>Outputs</b>:<ul>" +
             "<li><b>Impact report</b>: consistency problems, the triples added by each rule, then the new superclasses, types, property values and equivalences, each with the rule that produced it.</li>" +
             "<li><b>Asserted and inferred (TriG)</b>: the input plus the inferred triples, which are put in named graphs <code>urn:ccc:inferred:&lt;rule&gt;</code>. " +
-            "Follow with <b>Ontology Graph</b> (inferred edges are drawn as thick purple dashed lines), <b>Ontology Summary</b> (inferred superclasses are marked), <b>Ontology Quality Checks</b> or <b>SPARQL Query</b>.</li>" +
+            "Follow with <b>Ontology Graph</b> (inferred edges are drawn as thick magenta dashed lines), <b>Ontology Summary</b> (inferred superclasses are marked), <b>Ontology Quality Checks</b> or <b>SPARQL Query</b>.</li>" +
             "<li><b>Inferred triples only (Turtle)</b>: just the new triples, grouped by rule.</li></ul>" +
-            "<b>Show only direct inferences</b> hides inferred triples that follow from another triple by transitivity (e.g. 'x a Food' when x is also inferred to be a Pizza, a subclass of Food), " +
-            "trivial ones (x a owl:Thing) and ones about blank nodes (restrictions, which the rules use internally).<br><br>" +
+            "Four options remove kinds of inferred triple that are numerous and rarely informative. The triples are still inferred; they are left out of the output:<ul>" +
+            "<li><b>Hide owl:Thing and rdfs:Resource</b>: e.g. <code>ex:carol a owl:Thing</code>, and subClassOf, domain or range of owl:Thing.</li>" +
+            "<li><b>Hide implied subClassOf, subPropertyOf, domain, range</b>: such triples that follow from two or more triples of the same kind, " +
+            "e.g. <code>ex:Manager rdfs:subClassOf ex:Person</code> when Manager → Employee and Employee → Person are present. Types of individuals (rdf:type) are never removed.</li>" +
+            "<li><b>Hide triples about blank nodes</b>: triples about restrictions, class expressions and list items, which the rules use as intermediate steps.</li>" +
+            "<li><b>Hide restated equivalences</b>: the reverse of an owl:equivalentClass, owl:equivalentProperty or owl:sameAs triple, " +
+            "and subClassOf / subPropertyOf links between two equivalent terms.</li></ul>" +
+            "The report lists how many triples each option removed.<br><br>" +
+            "Choose <b>Sample Ontology</b> as the first operation for small example ontologies that show each kind of inference.<br><br>" +
             "OWL RL does not do everything a DL reasoner (HermiT, Pellet, ELK in Protégé) does: for example it places individuals in defined classes but finds only some subclass relationships between defined classes, " +
             "and it ignores cardinality above 1, complementOf reasoning and anything needing 'or' in a superclass.";
         this.infoURL = "https://www.w3.org/TR/owl2-profiles/#OWL_2_RL";
@@ -72,7 +79,22 @@ class OntologyReasoner extends Operation {
                 value: ["Impact report (HTML)", "Impact report (Markdown)", "Asserted and inferred (TriG)", "Inferred triples only (Turtle)", "Rules (SPARQL)"]
             },
             {
-                name: "Show only direct inferences",
+                name: "Hide owl:Thing and rdfs:Resource",
+                type: "boolean",
+                value: true
+            },
+            {
+                name: "Hide implied subClassOf, subPropertyOf, domain, range",
+                type: "boolean",
+                value: true
+            },
+            {
+                name: "Hide triples about blank nodes",
+                type: "boolean",
+                value: true
+            },
+            {
+                name: "Hide restated equivalences",
                 type: "boolean",
                 value: true
             },
@@ -106,7 +128,7 @@ class OntologyReasoner extends Operation {
      * @returns {Promise<string>}
      */
     async run(input, args) {
-        const [inputFormat, ruleSet, output, directOnly, sameAs, customRules, maxRounds, additionalPrefixes] = args;
+        const [inputFormat, ruleSet, output, top, hierarchy, blankNodes, equivalences, sameAs, customRules, maxRounds, additionalPrefixes] = args;
         const rules = [
             ...(ruleSet === "Custom rules only" ? [] : builtInRules(ruleSet === "RDFS" ? "RDFS" : "OWL RL", { sameAs })),
             ...parseCustomRules(customRules),
@@ -118,7 +140,7 @@ class OntologyReasoner extends Operation {
         const declared = inputPrefixes(input, additionalPrefixes);
         const prefixes = allPrefixes(declared);
         const result = runRules(ox, store, rules, { prefixes, maxRounds: Math.max(1, maxRounds || 1) });
-        const shown = directOnly ? directInferences(store) : inferredQuads(store);
+        const { shown, hidden } = filterInferences(store, { top, hierarchy, blankNodes, equivalences });
 
         if (output === "Asserted and inferred (TriG)") {
             const out = new ox.Store();
@@ -130,12 +152,12 @@ class OntologyReasoner extends Operation {
             return `# Inferred triples are in the named graphs ${INFERRED_GRAPH_PREFIX}<rule>.\n` +
                 (prefixLines.length ? prefixLines.join("\n") + "\n\n" : "") + serialise(ox, out, "TriG", declared);
         }
-        if (output === "Inferred triples only (Turtle)") return inferredTurtle(ox, shown, rules, declared, result.total);
+        if (output === "Inferred triples only (Turtle)") return inferredTurtle(ox, shown, rules, declared, result.total, hidden);
 
         const short = t => termText(t, prefixes);
         const select = query => store.query(withPrefixes(query, prefixes), { "use_default_graph_as_union": true });
         const problems = runChecks(select, short);
-        return impactReport({ rules, ruleSet, result, shown, problems, short, directOnly });
+        return impactReport({ rules, ruleSet, result, shown, hidden, problems, short });
     }
 
     /**
@@ -164,16 +186,6 @@ class OntologyReasoner extends Operation {
  */
 function isInferred(q) {
     return q.graph.termType === "NamedNode" && q.graph.value.startsWith(INFERRED_GRAPH_PREFIX);
-}
-
-/**
- * Returns all quads in inferred graphs.
- *
- * @param {Object} store
- * @returns {Object[]}
- */
-function inferredQuads(store) {
-    return [...store.match()].filter(isInferred);
 }
 
 /**
@@ -208,13 +220,13 @@ function termText(t, prefixes) {
  * @param {Object[]} rules
  * @param {Object<string, string>} declared - prefixes from the input
  * @param {number} total - number of triples inferred, including hidden ones
+ * @param {Object<string, number>} hidden - from filterInferences()
  * @returns {string}
  */
-function inferredTurtle(ox, quads, rules, declared, total) {
+function inferredTurtle(ox, quads, rules, declared, total, hidden) {
     if (!quads.length) {
         return total ?
-            `# ${total} triple${total === 1 ? " was" : "s were"} inferred, but none is direct: each follows from another triple by transitivity, is trivial, or is about blank nodes.\n` +
-            "# Untick 'Show only direct inferences' to see them.\n" :
+            `# ${total} triple${total === 1 ? " was" : "s were"} inferred, and the 'Hide' options removed all of them: ${describeHidden(hidden)}.\n` :
             "# No new triples were inferred.\n";
     }
     const descriptions = new Map(rules.map(r => [r.id, r.description]));
@@ -274,15 +286,16 @@ function table(header, rows) {
  * @param {Object} report
  * @returns {string}
  */
-function impactReport({ rules, ruleSet, result, shown, problems, short, directOnly }) {
+function impactReport({ rules, ruleSet, result, shown, hidden, problems, short }) {
     const out = ["# Reasoning impact", ""];
+    const shownCount = new Set(shown.map(q => tripleKey(q.subject, q.predicate, q.object))).size;
     const custom = rules.filter(r => !BUILT_IN_IDS.has(r.id)).length;
     const setName = ruleSet === "Custom rules only" ? "custom rules" : ruleSet === "RDFS" ? "RDFS rules" : "OWL 2 RL rules";
     const ruleCount = new Set(rules.map(r => r.id)).size;
     out.push(`Applied ${ruleCount} ${setName}${custom && ruleSet !== "Custom rules only" ? ` (including ${custom} custom)` : ""} ` +
         `in ${result.rounds} round${result.rounds === 1 ? "" : "s"}: **${result.total}** new triple${result.total === 1 ? "" : "s"} inferred` +
-        (directOnly && shown.length !== result.total ?
-            `, **${shown.length}** shown. The other ${result.total - shown.length} follow from these by transitivity, are trivial, or are about blank nodes (untick 'Show only direct inferences' to see them).` :
+        (shownCount !== result.total ?
+            `, **${shownCount}** shown. Removed by the 'Hide' options: ${describeHidden(hidden)}.` :
             "."), "");
 
     out.push("## Consistency", "");
@@ -308,8 +321,9 @@ function impactReport({ rules, ruleSet, result, shown, problems, short, directOn
             active.map(([id, n]) => [ruleLink(id), md(descriptions.get(id)), String(n), String(shownPerRule.get(id) || 0)])), "");
     }
     if (active.length) {
-        out.push("Each triple is credited to the rule that produced it in the final step. Earlier steps often involve blank nodes " +
-            "(restrictions and class expressions), which are hidden when only direct inferences are shown.", "");
+        out.push("A triple is credited to every rule that produced it in the round in which it first appeared, so a triple can be counted " +
+            "under more than one rule. Only the final step is credited: earlier steps often involve blank nodes (restrictions and class " +
+            "expressions); untick 'Hide triples about blank nodes' to see them.", "");
     }
     const idle = [...result.perRule].filter(([, n]) => !n).map(([id]) => id);
     if (idle.length) out.push(`Rules that added nothing: ${idle.map(code).join(", ")}.`, "");
@@ -321,24 +335,31 @@ function impactReport({ rules, ruleSet, result, shown, problems, short, directOn
         ["Equivalences and sameAs", ["Term", "Relation", "Term"], predicateIn([OWL + "equivalentClass", OWL + "equivalentProperty", OWL + "sameAs"])],
         ["Property schema (domains, ranges, sub-properties)", ["Property", "Relation", "Value"], predicateIn([RDFS + "domain", RDFS + "range", RDFS + "subPropertyOf"])],
     ];
-    const used = new Set();
+    // One row per triple, listing every rule that produced it
+    const triples = new Map();
+    for (const q of shown) {
+        const key = tripleKey(q.subject, q.predicate, q.object);
+        if (!triples.has(key)) triples.set(key, { q, rules: [] });
+        triples.get(key).rules.push(ruleOf(q));
+    }
+    const ruleLinks = t => t.rules.map(ruleLink).join(", ");
+    const remaining = new Set(triples.values());
     for (const [title, header, test] of sections) {
-        const quads = shown.filter(q => !used.has(q) && test(q));
-        quads.forEach(q => used.add(q));
-        if (!quads.length) continue;
-        const rows = quads.map(q => header.length === 2 ?
-            [code(short(q.subject)), code(short(q.object)), ruleLink(ruleOf(q))] :
-            [code(short(q.subject)), code(short(q.predicate)), code(short(q.object)), ruleLink(ruleOf(q))]);
+        const list = [...remaining].filter(t => test(t.q));
+        list.forEach(t => remaining.delete(t));
+        if (!list.length) continue;
+        const rows = list.map(({ q, ...t }) => header.length === 2 ?
+            [code(short(q.subject)), code(short(q.object)), ruleLinks(t)] :
+            [code(short(q.subject)), code(short(q.predicate)), code(short(q.object)), ruleLinks(t)]);
         rows.sort((a, b) => a.join().localeCompare(b.join()));
-        out.push(`## ${title} (${quads.length})`, "", ...table([...header, "Rule"], rows), "");
+        out.push(`## ${title} (${list.length})`, "", ...table([...header, "Rule"], rows), "");
     }
-    const values = shown.filter(q => !used.has(q));
-    if (values.length) {
-        const rows = values.map(q => [code(short(q.predicate)), code(short(q.subject)), code(short(q.object)), ruleLink(ruleOf(q))]);
+    if (remaining.size) {
+        const rows = [...remaining].map(({ q, ...t }) => [code(short(q.predicate)), code(short(q.subject)), code(short(q.object)), ruleLinks(t)]);
         rows.sort((a, b) => a.join().localeCompare(b.join()));
-        out.push(`## New property values (${values.length})`, "", ...table(["Property", "Subject", "Value", "Rule"], rows), "");
+        out.push(`## New property values (${remaining.size})`, "", ...table(["Property", "Subject", "Value", "Rule"], rows), "");
     }
-    if (!shown.length) out.push("No new triples to show.", "");
+    if (!triples.size) out.push("No new triples to show.", "");
     out.push(`[rdfs]: ${RDFS_SPEC}`, `[owl-rl]: ${OWL_RL_SPEC}`);
     return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }

@@ -50,11 +50,11 @@ export const RULES = [
     { id: "prp-spo1", rdfs: "rdfs7", description: "A statement with a sub-property also holds for the super-property.",
         where: "?p1 rdfs:subPropertyOf ?p2 . ?x ?p1 ?y FILTER(?p1 != ?p2)", construct: "?x ?p2 ?y" },
     // Property chains: one query per chain length (2 and 3), both reported as prp-spo2.
-    { id: "prp-spo2", description: "A property chain (p1 then p2) implies the chained property.",
+    { id: "prp-spo2", description: "A property chain (p1 then p2, or p1 then p2 then p3) implies the chained property.",
         where: `?p owl:propertyChainAxiom ?l . ?l rdf:first ?p1 ; rdf:rest ?l2 . ?l2 rdf:first ?p2 ; rdf:rest rdf:nil .
         ?u0 ?p1 ?u1 . ?u1 ?p2 ?u2`,
         construct: "?u0 ?p ?u2" },
-    { id: "prp-spo2", description: "A property chain (p1 then p2 then p3) implies the chained property.",
+    { id: "prp-spo2", description: "A property chain (p1 then p2, or p1 then p2 then p3) implies the chained property.",
         where: `?p owl:propertyChainAxiom ?l . ?l rdf:first ?p1 ; rdf:rest ?l2 . ?l2 rdf:first ?p2 ; rdf:rest ?l3 .
         ?l3 rdf:first ?p3 ; rdf:rest rdf:nil . ?u0 ?p1 ?u1 . ?u1 ?p2 ?u2 . ?u2 ?p3 ?u3`,
         construct: "?u0 ?p ?u3" },
@@ -178,7 +178,7 @@ export const CHECKS = [
         select: "SELECT DISTINCT ?x ?c1 ?c2 WHERE { ?c1 owl:complementOf ?c2 . ?x a ?c1 , ?c2 }",
         message: v => `${v("x")} is an instance of ${v("c2")} and of its complement ${v("c1")}` },
     { id: "eq-diff1", description: "Two individuals are both owl:sameAs and owl:differentFrom each other.",
-        select: "SELECT DISTINCT ?x ?y WHERE { ?x owl:sameAs ?y . { ?x owl:differentFrom ?y } UNION { ?y owl:differentFrom ?x } }",
+        select: "SELECT DISTINCT ?x ?y WHERE { ?x owl:sameAs ?y . { ?x owl:differentFrom ?y } UNION { ?y owl:differentFrom ?x } FILTER(STR(?x) < STR(?y)) }",
         message: v => `${v("x")} and ${v("y")} are both the same and different` },
     { id: "prp-irp", description: "An irreflexive property relates something to itself.",
         select: "SELECT DISTINCT ?x ?p WHERE { ?p a owl:IrreflexiveProperty . ?x ?p ?x }",
@@ -287,9 +287,11 @@ function termKey(t) {
 }
 
 /**
- * Applies rules to the store until a round adds nothing. New triples are
- * added to the named graph of the rule that first produced them; triples
- * already in the store (in any graph) are not added again.
+ * Applies rules to the store until a round adds nothing. A new triple is
+ * added to the named graph of every rule that produces it in the round in
+ * which it first appears (e.g. "carol a Person" from both the subclass rule
+ * and a domain rule). Triples already in the store from an earlier round, or
+ * asserted, are not added again.
  *
  * @param {Object} ox - Oxigraph module
  * @param {Object} store - modified in place
@@ -298,7 +300,7 @@ function termKey(t) {
  * @param {Object<string, string>} options.prefixes - added to custom rules
  * @param {number} [options.maxRounds=50]
  * @param {number} [options.maxTriples=200000] - limit on inferred triples
- * @returns {{perRule: Map<string, number>, rounds: number, total: number}}
+ * @returns {{perRule: Map<string, number>, rounds: number, total: number}} total counts distinct triples
  * @throws {OperationError} if a rule is invalid or a limit is reached
  */
 export function runRules(ox, store, rules, { prefixes = {}, maxRounds = 50, maxTriples = 200000 } = {}) {
@@ -313,6 +315,7 @@ export function runRules(ox, store, rules, { prefixes = {}, maxRounds = 50, maxT
         }
         rounds++;
         added = 0;
+        const newThisRound = new Set();
         for (const rule of rules) {
             let quads;
             try {
@@ -322,8 +325,19 @@ export function runRules(ox, store, rules, { prefixes = {}, maxRounds = 50, maxT
             }
             if (!Array.isArray(quads)) throw new OperationError(`Rule ${rule.id} must be a CONSTRUCT query.`);
             for (const q of quads) {
+                const key = tripleKey(q.subject, q.predicate, q.object);
+                const quad = ox.quad(q.subject, q.predicate, q.object, graphs.get(rule.id));
+                if (newThisRound.has(key)) {
+                    // Also produced by an earlier rule in this round: credit this rule too
+                    if (!store.has(quad)) {
+                        store.add(quad);
+                        perRule.set(rule.id, perRule.get(rule.id) + 1);
+                    }
+                    continue;
+                }
                 if (store.match(q.subject, q.predicate, q.object, null).length) continue;
-                store.add(ox.quad(q.subject, q.predicate, q.object, graphs.get(rule.id)));
+                store.add(quad);
+                newThisRound.add(key);
                 perRule.set(rule.id, perRule.get(rule.id) + 1);
                 added++;
                 if (++total > maxTriples) {
@@ -356,10 +370,10 @@ export function runChecks(select, display) {
 
 /**
  * Returns the triples that are only in inferred graphs (not asserted), with
- * the rule that produced each.
+ * the rules that produced each.
  *
  * @param {Object} store
- * @returns {Map<string, string>} tripleKey -> rule id
+ * @returns {Map<string, string>} tripleKey -> rule ids, comma-separated (e.g. "cax-sco, prp-dom")
  */
 export function inferredIndex(store) {
     const index = new Map();
@@ -368,13 +382,14 @@ export function inferredIndex(store) {
         const key = tripleKey(q.subject, q.predicate, q.object);
         const g = q.graph;
         if (g.termType === "NamedNode" && g.value.startsWith(INFERRED_GRAPH_PREFIX)) {
-            if (!index.has(key)) index.set(key, decodeURIComponent(g.value.slice(INFERRED_GRAPH_PREFIX.length)));
+            if (!index.has(key)) index.set(key, []);
+            index.get(key).push(decodeURIComponent(g.value.slice(INFERRED_GRAPH_PREFIX.length)));
         } else {
             asserted.add(key);
         }
     }
     for (const key of asserted) index.delete(key);
-    return index;
+    return new Map([...index].map(([key, rules]) => [key, rules.join(", ")]));
 }
 
 /**
@@ -392,49 +407,70 @@ export function withoutInferred(ox, store) {
     return copy;
 }
 
-/** Predicates whose inferred objects are reduced to the most specific ones, with the predicate that orders them. */
+/** Schema predicates whose implied triples option 'hierarchy' removes, with the predicate that orders their objects. */
 const ORDERED = new Map([
-    [RDF_TYPE, SUB_CLASS_OF],
     [SUB_CLASS_OF, SUB_CLASS_OF],
     [RDFS + "domain", SUB_CLASS_OF],
     [RDFS + "range", SUB_CLASS_OF],
     [SUB_PROPERTY_OF, SUB_PROPERTY_OF],
 ]);
-/** Objects that say nothing: everything is an owl:Thing / rdfs:Resource. */
-const TRIVIAL_OBJECTS = new Set([OWL + "Thing", RDFS + "Resource"]);
-/** Predicates for which a triple relating a term to itself is trivial. */
-const REFLEXIVE = new Set([SUB_CLASS_OF, SUB_PROPERTY_OF, OWL + "equivalentClass", OWL + "equivalentProperty", OWL + "sameAs"]);
+/** Classes that every resource belongs to. */
+const TOP_CLASSES = new Set([OWL + "Thing", RDFS + "Resource"]);
+const TOP_PREDICATES = new Set([RDF_TYPE, SUB_CLASS_OF, RDFS + "domain", RDFS + "range"]);
+/** Symmetric relations whose reverse triple repeats the same fact. */
+const SYMMETRIC = new Set([OWL + "equivalentClass", OWL + "equivalentProperty", OWL + "sameAs"]);
+/** For subClassOf / subPropertyOf, the equivalence that makes it a restatement. */
+const EQUIVALENCE_OF = new Map([[SUB_CLASS_OF, OWL + "equivalentClass"], [SUB_PROPERTY_OF, OWL + "equivalentProperty"]]);
+
+/** The filter options, in the order a removed triple is counted. */
+export const FILTERS = [
+    { key: "top", one: "triple about owl:Thing or rdfs:Resource", many: "triples about owl:Thing or rdfs:Resource" },
+    { key: "hierarchy", one: "implied subClassOf, subPropertyOf, domain or range link", many: "implied subClassOf, subPropertyOf, domain and range links" },
+    { key: "blankNodes", one: "triple about blank nodes", many: "triples about blank nodes" },
+    { key: "equivalences", one: "restated equivalence", many: "restated equivalences" },
+];
 
 /**
- * Picks out the inferred triples worth showing. Hidden are:
- * - triples involving blank nodes (restrictions and class expressions, which
- *   the rules use internally);
- * - trivial triples (x a owl:Thing, C subClassOf C, x sameAs x);
- * - triples that follow from a more specific one by transitivity: an inferred
- *   "x a C" when x is also an instance of a subclass of C, and likewise for
- *   rdfs:subClassOf, rdfs:subPropertyOf, rdfs:domain and rdfs:range.
+ * Chooses which inferred triples to show. Each option removes one kind of triple:
+ * - top: "x a owl:Thing" / "x a rdfs:Resource", and subClassOf, domain or range
+ *   of owl:Thing / rdfs:Resource;
+ * - hierarchy: rdfs:subClassOf, rdfs:subPropertyOf, rdfs:domain and rdfs:range
+ *   triples that follow from two or more triples of the same kind, e.g.
+ *   "Manager subClassOf Person" when "Manager subClassOf Employee" and
+ *   "Employee subClassOf Person" are present (rdf:type triples are never removed);
+ * - blankNodes: triples whose subject or object is a blank node (restrictions,
+ *   class expressions, list items);
+ * - equivalences: the reverse of an owl:equivalentClass / owl:equivalentProperty /
+ *   owl:sameAs triple that is already present, and subClassOf / subPropertyOf
+ *   between two terms that are equivalent.
+ * A triple matching several options is counted under the first in FILTERS.
  *
  * @param {Object} store - after runRules()
- * @returns {Object[]} inferred quads to show
+ * @param {Object<string, boolean>} options - keyed by FILTERS[].key
+ * @returns {{shown: Object[], hidden: Object<string, number>}} inferred quads to show (one per rule that
+ *     produced the triple), and the number of distinct triples removed by each option
  */
-export function directInferences(store) {
+export function filterInferences(store, options) {
     const all = [...store.match()];
-    const isInferred = q => q.graph.termType === "NamedNode" && q.graph.value.startsWith(INFERRED_GRAPH_PREFIX);
+    const inferredGraph = q => q.graph.termType === "NamedNode" && q.graph.value.startsWith(INFERRED_GRAPH_PREFIX);
 
-    // Superclass/super-property reachability over all triples
+    // Superclass/super-property reachability, the objects of each schema
+    // subject, and all triples between named terms (for equivalence tests)
     const up = new Map([[SUB_CLASS_OF, new Map()], [SUB_PROPERTY_OF, new Map()]]);
-    const objects = new Map(); // "s|p" -> Set of object values (named objects only)
+    const objects = new Map(); // "s|p" -> Set of object IRIs
+    const present = new Map(); // "s|p|o" -> asserted?
     for (const q of all) {
         if (q.subject.termType !== "NamedNode" || q.object.termType !== "NamedNode") continue;
-        if (up.has(q.predicate.value)) {
-            const m = up.get(q.predicate.value);
-            if (!m.has(q.subject.value)) m.set(q.subject.value, new Set());
-            m.get(q.subject.value).add(q.object.value);
+        const s = q.subject.value, p = q.predicate.value, o = q.object.value;
+        const key = s + "|" + p + "|" + o;
+        present.set(key, present.get(key) || !inferredGraph(q));
+        if (up.has(p)) {
+            if (!up.get(p).has(s)) up.get(p).set(s, new Set());
+            up.get(p).get(s).add(o);
         }
-        if (ORDERED.has(q.predicate.value)) {
-            const k = q.subject.value + "|" + q.predicate.value;
-            if (!objects.has(k)) objects.set(k, new Set());
-            objects.get(k).add(q.object.value);
+        if (ORDERED.has(p)) {
+            if (!objects.has(s + "|" + p)) objects.set(s + "|" + p, new Set());
+            objects.get(s + "|" + p).add(o);
         }
     }
     const reachCache = new Map();
@@ -456,19 +492,57 @@ export function directInferences(store) {
         return seen;
     };
 
-    return all.filter(q => {
-        if (!isInferred(q)) return false;
-        if (q.subject.termType === "BlankNode" || q.object.termType === "BlankNode") return false;
-        const p = q.predicate.value, o = q.object.value;
-        if (REFLEXIVE.has(p) && q.subject.value === o) return false;
-        if ((p === RDF_TYPE || p === SUB_CLASS_OF) && TRIVIAL_OBJECTS.has(o)) return false;
-        const order = ORDERED.get(p);
-        if (!order || q.object.termType !== "NamedNode") return true;
-        // Hide if another object D of the same subject is strictly below this one.
-        for (const d of objects.get(q.subject.value + "|" + p) || []) {
-            if (d === o || d === q.subject.value) continue;
-            if (reaches(order, d).has(o) && !reaches(order, o).has(d)) return false;
+    const tests = {
+        top: q => TOP_PREDICATES.has(q.predicate.value) && TOP_CLASSES.has(q.object.value),
+        hierarchy: q => {
+            const order = ORDERED.get(q.predicate.value);
+            if (!order || q.object.termType !== "NamedNode") return false;
+            const s = q.subject.value, o = q.object.value;
+            // Removed if another object D of the same subject is strictly below this one
+            for (const d of objects.get(s + "|" + q.predicate.value) || []) {
+                if (d === o || d === s) continue;
+                if (reaches(order, d).has(o) && !reaches(order, o).has(d)) return true;
+            }
+            return false;
+        },
+        blankNodes: q => q.subject.termType === "BlankNode" || q.object.termType === "BlankNode",
+        equivalences: q => {
+            const s = q.subject.value, p = q.predicate.value, o = q.object.value;
+            if (SYMMETRIC.has(p)) {
+                // Keep one direction: the asserted one, else the one whose subject sorts first
+                return present.has(o + "|" + p + "|" + s) && s !== o && (present.get(o + "|" + p + "|" + s) || s > o);
+            }
+            const eq = EQUIVALENCE_OF.get(p);
+            return Boolean(eq) && (present.has(s + "|" + eq + "|" + o) || present.has(o + "|" + eq + "|" + s));
+        },
+    };
+
+    // A triple credited to several rules is in several graphs: decide once, count once
+    const hidden = Object.fromEntries(FILTERS.map(f => [f.key, 0]));
+    const decided = new Map();
+    const shown = [];
+    for (const q of all) {
+        if (!inferredGraph(q)) continue;
+        const key = tripleKey(q.subject, q.predicate, q.object);
+        if (!decided.has(key)) {
+            const match = FILTERS.find(f => options[f.key] && tests[f.key](q));
+            decided.set(key, match ? match.key : null);
+            if (match) hidden[match.key]++;
         }
-        return true;
-    });
+        if (decided.get(key) === null) shown.push(q);
+    }
+    return { shown, hidden };
+}
+
+/**
+ * Describes the triples removed by the filter options, e.g.
+ * "540 implied subClassOf, subPropertyOf, domain and range links; 318 triples about blank nodes".
+ *
+ * @param {Object<string, number>} hidden - from filterInferences()
+ * @returns {string} "" if nothing was removed
+ */
+export function describeHidden(hidden) {
+    return FILTERS.filter(f => hidden[f.key])
+        .map(f => `${hidden[f.key]} ${hidden[f.key] === 1 ? f.one : f.many}`)
+        .join("; ");
 }

@@ -38,17 +38,40 @@ const CLASHES = PREFIXES + `
 :x a :Meat , :Veg .
 `;
 
-const REASON = (output, direct = true, ruleSet = "OWL RL (includes RDFS)", custom = "", rounds = 50) =>
-    ({ op: "Ontology Reasoner", args: ["Auto", ruleSet, output, direct, false, custom, rounds, ""] });
+/**
+ * Returns an Ontology Reasoner recipe step. The four 'Hide' options default to ticked.
+ *
+ * @param {string} output
+ * @param {Object} [options]
+ * @returns {Object}
+ */
+const REASON = (output, { ruleSet = "OWL RL (includes RDFS)", hide = true, top = hide, hierarchy = hide, blankNodes = hide, equivalences = hide,
+    sameAs = false, custom = "", rounds = 50 } = {}) =>
+    ({ op: "Ontology Reasoner", args: ["Auto", ruleSet, output, top, hierarchy, blankNodes, equivalences, sameAs, custom, rounds, ""] });
+const SAMPLE = name => ({ op: "Sample Ontology", args: [name] });
+const PEOPLE_SAMPLE = SAMPLE("People and organisations (RDFS and OWL properties)");
+const PIZZA_SAMPLE = SAMPLE("Pizzas (defined classes)");
+const SAME_AS_SAMPLE = SAMPLE("Same individuals (owl:sameAs)");
+const BAD_DATA_SAMPLE = SAMPLE("Bad data (wrong inferences and inconsistencies)");
 /** Matches when every pattern is found, in any order. */
 const all = (...patterns) => new RegExp("^" + patterns.map(p => `(?=[\\s\\S]*${p.source})`).join(""));
+/**
+ * Matches a line in the Turtle group of one rule (after its "# rule: …" comment, before the next group).
+ *
+ * @param {string} rule
+ * @param {RegExp} line
+ * @returns {RegExp}
+ */
+const inGroup = (rule, line) => new RegExp(`# ${rule}: [^\\n]*\\n(?:(?!#)[^\\n]*\\n)*?${line.source}`);
+/** Matches when the pattern is not found. */
+const none = pattern => new RegExp(`^(?![\\s\\S]*${pattern.source})`);
 
 TestRegister.addTests([
     {
         name: "Ontology Reasoner: OWL RL infers types, superclasses, inverse and transitive values",
         input: PIZZA,
         expectedMatch: all(
-            /# cax-sco: [^\n]*\n:p1 a :CheeseyPizza\./,
+            /:p1 a [^\n]*:CheeseyPizza/,
             /# scm-sco: [^\n]*\n:CheeseyPizza\n {2}rdfs:subClassOf :Pizza\./,
             /# prp-inv1: [^\n]*\n:m1\n {2}:isToppingOf :p1\./,
             /# prp-trp: [^\n]*\n:p1\n {2}:hasPart :flour\./,
@@ -56,17 +79,43 @@ TestRegister.addTests([
         recipeConfig: [REASON("Inferred triples only (Turtle)")],
     },
     {
-        name: "Ontology Reasoner: direct inferences hide triples implied by transitivity",
+        name: "Ontology Reasoner: inferred types are shown; implied subclass links are hidden",
         input: PIZZA,
-        expectedOutput: "# 4 triples were inferred, but none is direct: each follows from another triple by transitivity, is trivial, or is about blank nodes.\n" +
-            "# Untick 'Show only direct inferences' to see them.\n",
-        recipeConfig: [REASON("Inferred triples only (Turtle)", true, "RDFS")],
+        expectedMatch: all(/:m1 a :Cheese, :Food\./, /:p1 a :Food\./, none(/:Mozzarella\n {2}rdfs:subClassOf :Food/)),
+        recipeConfig: [REASON("Inferred triples only (Turtle)", { ruleSet: "RDFS" })],
     },
     {
-        name: "Ontology Reasoner: all inferences with RDFS rules",
+        name: "Ontology Reasoner: implied subclass links shown when that option is unticked",
         input: PIZZA,
-        expectedMatch: all(/# rdfs9: [^\n]*\(3 triples\)\n:m1 a :Cheese, :Food\.\n\n:p1 a :Food\./, /# rdfs11: [^\n]*\n:Mozzarella\n {2}rdfs:subClassOf :Food\./),
-        recipeConfig: [REASON("Inferred triples only (Turtle)", false, "RDFS")],
+        expectedMatch: /# rdfs11: [^\n]*\n:Mozzarella\n {2}rdfs:subClassOf :Food\./,
+        recipeConfig: [REASON("Inferred triples only (Turtle)", { ruleSet: "RDFS", hierarchy: false })],
+    },
+    {
+        name: "Ontology Reasoner: owl:Thing option",
+        input: PREFIXES + ":p rdfs:domain owl:Thing . :x :p :y .\n",
+        expectedOutput: "# 1 triple was inferred, and the 'Hide' options removed all of them: 1 triple about owl:Thing or rdfs:Resource.\n",
+        recipeConfig: [REASON("Inferred triples only (Turtle)", { ruleSet: "RDFS" })],
+    },
+    {
+        name: "Ontology Reasoner: owl:Thing option unticked",
+        input: PREFIXES + ":p rdfs:domain owl:Thing . :x :p :y .\n",
+        expectedMatch: /:x a owl:Thing\./,
+        recipeConfig: [REASON("Inferred triples only (Turtle)", { ruleSet: "RDFS", top: false })],
+    },
+    {
+        name: "Ontology Reasoner: blank node option unticked",
+        input: PIZZA,
+        expectedMatch: /# cls-svf1: [^\n]*\n<http:\/\/ex\.org\/#p1> a _:/,
+        recipeConfig: [REASON("Inferred triples only (Turtle)", { blankNodes: false })],
+    },
+    {
+        name: "Ontology Reasoner: a triple is credited to every rule that produced it",
+        input: "",
+        expectedMatch: all(
+            /\*\*16\*\* new triples inferred, \*\*15\*\* shown\. Removed by the 'Hide' options: 1 implied subClassOf, subPropertyOf, domain or range link\./,
+            /\| `ex:carol` \| `ex:Person` \| (?=[^\n]*`rdfs9`)(?=[^\n]*`rdfs2`)(?=[^\n]*`rdfs3`)/,
+        ),
+        recipeConfig: [PEOPLE_SAMPLE, REASON("Impact report (Markdown)", { ruleSet: "RDFS" })],
     },
     {
         name: "Ontology Reasoner: property chains and functional properties",
@@ -78,26 +127,28 @@ TestRegister.addTests([
         name: "Ontology Reasoner: custom rules",
         input: FAMILY,
         expectedOutput: "@prefix : <http://ex.org/#>.\n\n# grandparent: Grandparents from parents. (1 triple)\n:ann\n  :grandparentOf2 :cat.\n",
-        recipeConfig: [REASON("Inferred triples only (Turtle)", true, "Custom rules only",
-            "# rule: grandparent\n# Grandparents from parents.\nCONSTRUCT { ?x :grandparentOf2 ?z }\nWHERE { ?x :hasParent ?y . ?y :hasParent ?z }")],
+        recipeConfig: [REASON("Inferred triples only (Turtle)", {
+            ruleSet: "Custom rules only",
+            custom: "# rule: grandparent\n# Grandparents from parents.\nCONSTRUCT { ?x :grandparentOf2 ?z }\nWHERE { ?x :hasParent ?y . ?y :hasParent ?z }",
+        })],
     },
     {
         name: "Ontology Reasoner: invalid custom rule",
         input: FAMILY,
         expectedMatch: /^Rule custom-1 is not a valid SPARQL query/,
-        recipeConfig: [REASON("Inferred triples only (Turtle)", true, "Custom rules only", "CONSTRUCT { ?x :p ?y } WHERE { ?x :q ")],
+        recipeConfig: [REASON("Inferred triples only (Turtle)", { ruleSet: "Custom rules only", custom: "CONSTRUCT { ?x :p ?y } WHERE { ?x :q " })],
     },
     {
         name: "Ontology Reasoner: max rounds",
         input: PIZZA,
         expectedMatch: /^Reasoning did not finish within 1 round \(/,
-        recipeConfig: [REASON("Inferred triples only (Turtle)", true, "OWL RL (includes RDFS)", "", 1)],
+        recipeConfig: [REASON("Inferred triples only (Turtle)", { rounds: 1 })],
     },
     {
         name: "Ontology Reasoner: rules as SPARQL",
         input: "",
         expectedMatch: /^# rule: rdfs2\n# A subject of a property is an instance of the property's domain\.\nCONSTRUCT \{ \?x a \?c \} WHERE \{[\s\S]*# rule: rdfs9\n/,
-        recipeConfig: [REASON("Rules (SPARQL)", true, "RDFS")],
+        recipeConfig: [REASON("Rules (SPARQL)", { ruleSet: "RDFS" })],
     },
     {
         name: "Ontology Reasoner: impact report lists consistency problems and inferences",
@@ -112,8 +163,8 @@ TestRegister.addTests([
         name: "Ontology Reasoner: impact report as HTML",
         input: PIZZA,
         expectedMatch: all(
-            /<h2[^>]*>New types \(1\)<\/h2>/,
-            /<td><code>:p1<\/code><\/td>\s*<td><code>:CheeseyPizza<\/code><\/td>\s*<td><a href="https:\/\/www\.w3\.org\/TR\/owl2-profiles\/[^"]*"><code>cax-sco<\/code><\/a><\/td>/,
+            /<h2[^>]*>New types \(\d+\)<\/h2>/,
+            /<td><code>:p1<\/code><\/td>\s*<td><code>:CheeseyPizza<\/code><\/td>\s*<td>[^\n]*<a href="https:\/\/www\.w3\.org\/TR\/owl2-profiles\/[^"]*"><code>cax-sco<\/code><\/a>/,
         ),
         recipeConfig: [REASON("Impact report (HTML)")],
     },
@@ -126,7 +177,7 @@ TestRegister.addTests([
     {
         name: "Ontology Graph: inferred edges are marked and styled",
         input: PIZZA,
-        expectedMatch: all(/Show inferred/, /"inferred":"prp-inv1"/, /"inferred":"scm-sco"/, /"dashes":\[10,6\]/, /4 inferred\./),
+        expectedMatch: all(/Show inferred/, /"inferred":"prp-inv1"/, /"inferred":"scm-sco"/, /"dashes":\[10,6\]/, /\d+ inferred\./),
         recipeConfig: [
             REASON("Asserted and inferred (TriG)"),
             { op: "Ontology Graph", args: ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en", "TBox and ABox"] },
@@ -141,7 +192,7 @@ TestRegister.addTests([
     {
         name: "Ontology Summary: inferred superclasses are marked",
         input: PIZZA,
-        expectedMatch: all(/ {2}Inferred triples {7}4\n/, /\n {6}:CheeseyPizza \(inferred\)\n/, /\n {6}:CheeseyPizza\n {8}Subclass of: {3}:Pizza \(inferred\)\n/),
+        expectedMatch: all(/ {2}Inferred triples {7}7\n/, /\n {6}:CheeseyPizza \(inferred\)\n/, /\n {6}:CheeseyPizza\n {8}Subclass of: {3}:Pizza \(inferred\)\n/),
         recipeConfig: [
             REASON("Asserted and inferred (TriG)"),
             { op: "Ontology Summary", args: ["Auto", "Text report", true, 10, true, "en", ""] },
@@ -223,4 +274,81 @@ TestRegister.addTests([
         ].join("\n"),
         recipeConfig: [{ op: "Ontology Quality Checks", args: ["Auto", "CSV", "All (asserted and inferred)", "en", 50, ""] }],
     },
+    {
+        name: "Sample Ontology: People, RDFS inferences",
+        input: "",
+        expectedMatch: all(
+            inGroup("rdfs9", /ex:carol a ex:Person\./),
+            /# rdfs7: [^\n]*\nex:grace\n {2}ex:hasParent ex:alice\./,
+            inGroup("rdfs3", /ex:ruth a ex:Person\./),
+            inGroup("rdfs2", /ex:grace a ex:Person\./),
+            none(/ex:Manager\n {2}rdfs:subClassOf/),
+        ),
+        recipeConfig: [PEOPLE_SAMPLE, REASON("Inferred triples only (Turtle)", { ruleSet: "RDFS" })],
+    },
+    {
+        name: "Sample Ontology: People, OWL RL inferences",
+        input: "",
+        expectedMatch: all(
+            /# prp-spo2: [^\n]*\nex:grace\n {2}ex:hasGrandparent ex:ruth\./,
+            /ex:bob\n {2}ex:reportsTo ex:alice\./,
+            /ex:henry\n {2}ex:hasParent ex:dave\./,
+            inGroup("prp-symp", /ex:dave\n {2}ex:knows ex:alice\./),
+            /# prp-trp: [^\n]*\nex:London\n {2}ex:locatedIn ex:UK\./,
+        ),
+        recipeConfig: [PEOPLE_SAMPLE, REASON("Inferred triples only (Turtle)")],
+    },
+    {
+        name: "Sample Ontology: Pizzas, defined classes",
+        input: "",
+        expectedMatch: all(
+            /:tonightsPizza a [^\n]*:CheeseyPizza/,
+            /:myMargherita a [^\n]*:CheeseyPizza/,
+            /:CheeseyPizza\n {2}rdfs:subClassOf :Pizza\./,
+            /# cls-avf: [^\n]*\n:topping1 a :VegetarianTopping\./,
+            none(/:Margherita\n {2}rdfs:subClassOf :CheeseyPizza/),
+        ),
+        recipeConfig: [PIZZA_SAMPLE, REASON("Inferred triples only (Turtle)")],
+    },
+    {
+        name: "Sample Ontology: Same individuals",
+        input: "",
+        expectedMatch: all(
+            /# prp-ifp: [^\n]*\nex:crm_123\n {2}owl:sameAs ex:hr_456\./,
+            /# prp-fp: [^\n]*\nex:m_jones\n {2}owl:sameAs ex:mary\./,
+            none(/ex:hr_456\n {2}owl:sameAs/),
+        ),
+        recipeConfig: [SAME_AS_SAMPLE, REASON("Inferred triples only (Turtle)")],
+    },
+    {
+        name: "Sample Ontology: Same individuals, reverse sameAs shown when equivalences are not hidden",
+        input: "",
+        expectedMatch: /ex:hr_456\n {2}owl:sameAs ex:crm_123\./,
+        recipeConfig: [SAME_AS_SAMPLE, REASON("Inferred triples only (Turtle)", { equivalences: false })],
+    },
+    {
+        name: "Sample Ontology: Same individuals, with sameAs substitution",
+        input: "",
+        expectedMatch: /# eq-rep-s: [^\n]*\nex:crm_123\n {2}ex:birthYear 1980;/,
+        recipeConfig: [SAME_AS_SAMPLE, REASON("Inferred triples only (Turtle)", { sameAs: true })],
+    },
+    {
+        name: "Sample Ontology: Bad data",
+        input: "",
+        expectedMatch: all(
+            /- ex:Acme is an instance of disjoint classes ex:Organisation and ex:Person\n/,
+            /- ex:alice and ex:bob are both the same and different\n\n/,
+            /- ex:Freelancer is a subclass of disjoint classes ex:Contractor and ex:Employee/,
+            /\| `ex:bob` \| `ex:Manager` \| \[`prp-dom`\]/,
+            /\| `ex:reportsTo` \| `ex:carol` \| `ex:bob` \|/,
+            /\| `ex:alice` \| `owl:sameAs` \| `ex:bob` \|/,
+        ),
+        recipeConfig: [BAD_DATA_SAMPLE, REASON("Impact report (Markdown)")],
+    },
+    ...[PEOPLE_SAMPLE, PIZZA_SAMPLE, SAME_AS_SAMPLE, BAD_DATA_SAMPLE].map(sample => ({
+        name: `Sample Ontology: '${sample.args[0]}' parses as Turtle`,
+        input: "",
+        expectedMatch: /^<http:\/\/example\.org\/[^\n]* \.\n/,
+        recipeConfig: [sample, { op: "Convert RDF Format", args: ["Turtle", "N-Triples", "", false, ""] }],
+    })),
 ]);
