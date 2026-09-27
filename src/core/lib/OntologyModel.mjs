@@ -412,6 +412,7 @@ export function buildClassDetails({ select, hierarchy, short, labelOf, descripti
                 ...[...(parents.get(iri) || [])].sort(byName).map(short),
                 ...[...(otherSupers.get(iri) || [])].sort(),
             ],
+            subClasses: (children.get(iri) || []).map(short),
             equivalentTo: [...(equivalents.get(iri) || [])].sort(),
             descriptions: descriptions.get(iri) || [],
             properties: properties.map(p => {

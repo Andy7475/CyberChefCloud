@@ -15,6 +15,7 @@ import { inferredIndex, tripleKey } from "../lib/Reasoning.mjs";
 import { readQualityChecks, qualityTextLines, qualityMarkdownLines } from "../lib/OntologyQuality.mjs";
 
 const MAX_TREE_LINES = 5000;
+const MAX_SUBCLASS_LINES = 100;
 
 /** Counted metrics: label -> SPARQL pattern binding ?x. */
 const COUNTS = [
@@ -43,7 +44,7 @@ class OntologySummary extends Operation {
         this.name = "Ontology Summary";
         this.module = "Ontology";
         this.description = "Summarises an ontology or other RDF data: the ontology IRI, version, title and imports; counts of triples, classes, properties, individuals and restrictions; the namespaces in use; and the class hierarchy (rdfs:subClassOf between named classes) as an indented tree.<br><br>" +
-            "<b>Include class details</b> adds a reference section with one entry per class, in hierarchy order: its superclasses and definitions, its descriptions (rdfs:comment, skos:definition, dcterms:description, OBO definition) in the chosen language, " +
+            "<b>Include class details</b> adds a reference section with one entry per class, in hierarchy order: its superclasses and definitions, its descriptions (rdfs:comment, skos:definition, dcterms:description, OBO definition) in the chosen language, its subclasses as a tree (including subclasses of subclasses), " +
             "every property that applies to it through rdfs:domain on the class or an ancestor (with the range and the class it is inherited from), and its OWL restrictions (e.g. <code>hasTopping some Tomato</code>). " +
             "Properties with no domain apply to any class and are listed once at the end.<br><br>" +
             "<b>Language</b> filters descriptions (e.g. <code>en</code>, or <code>en, fr</code>; leave empty for all). Untagged text is always included. Labels prefer this language and fall back to others.<br><br>" +
@@ -277,14 +278,93 @@ function moreText(n) {
 }
 
 /**
- * Formats a property's range, noting when it comes from a super-property.
+ * Lists a class's subclasses as a tree: direct subclasses, their subclasses,
+ * and so on. A class with several superclasses in the tree appears under each.
  *
- * @param {Object} p
+ * @param {Object} c - class from buildClassDetails()
+ * @param {Map<string, Object>} byName - classes by prefixed name
+ * @returns {{rows: {depth: number, name: string, label: string|null, iri: string, inferred: boolean}[], direct: number, total: number, omitted: number}}
+ */
+function subclassTree(c, byName) {
+    const rows = [];
+    const all = new Set();
+    let omitted = 0;
+    const walk = (parent, depth, path) => {
+        for (const name of parent.subClasses || []) {
+            const child = byName.get(name);
+            if (!child || path.has(name)) continue;
+            all.add(name);
+            if (rows.length >= MAX_SUBCLASS_LINES) {
+                omitted++;
+            } else {
+                rows.push({ depth, name, label: child.label, iri: child.iri, inferred: (child.inferredSubClassOf || []).includes(parent.name) });
+            }
+            path.add(name);
+            walk(child, depth + 1, path);
+            path.delete(name);
+        }
+    };
+    walk(c, 0, new Set([c.name]));
+    return { rows, direct: (c.subClasses || []).length, total: all.size, omitted };
+}
+
+/**
+ * Heading text for a subclass tree, e.g. "3 direct, 7 in total".
+ *
+ * @param {Object} subs - from subclassTree()
  * @returns {string}
  */
-function rangeText(p) {
-    if (!p.range) return "(any)";
-    return p.range + (p.rangeVia ? ` (via ${p.rangeVia})` : "");
+function subclassCounts(subs) {
+    return subs.total > subs.direct ? `${subs.direct} direct, ${subs.total} in total` : `${subs.direct}`;
+}
+
+/** Subject of the example statement for a property with no domain. */
+const ANY_CLASS = "(any class)";
+
+/**
+ * The label of a property, or null if it only repeats the name.
+ *
+ * @param {Object} p
+ * @returns {string|null}
+ */
+function propertyLabel(p) {
+    return p.label && p.label !== localName(p.iri) ? p.label : null;
+}
+
+/**
+ * The notes shown under a property's example statement, as [name, value] pairs.
+ *
+ * @param {Object} p
+ * @returns {string[][]}
+ */
+function propertyNotes(p) {
+    return [
+        ["Property type", p.kind === "property" ? "rdf:Property" : p.kind],
+        ["Inherited from", p.from],
+        ["Domain", p.domain],
+        ["Domain via", p.domainVia],
+    ].filter(([, value]) => value);
+}
+
+/**
+ * Formats one property for the text report: its name and label, its
+ * description, then an example statement (subject — property → range) and
+ * notes, indented below.
+ *
+ * @param {Object} p
+ * @param {string} subject - the class the property is used on
+ * @param {string} pad - indentation
+ * @returns {string[]}
+ */
+function propertyTextLines(p, subject, pad) {
+    const label = propertyLabel(p);
+    const range = (p.range || "(any)") + (p.rangeVia ? ` (via ${p.rangeVia})` : "");
+    return [
+        pad + p.name + (label ? ` "${label}"` : ""),
+        ...(p.description ? [`${pad}  ${p.description.replace(/\s+/g, " ")}`] : []),
+        `${pad}  - ${subject} — ${p.name}${label ? ` ("${label}")` : ""} → ${range}`,
+        ...propertyNotes(p).map(([name, value]) => `${pad}  - ${name}: ${value}`),
+    ];
 }
 
 /**
@@ -330,6 +410,7 @@ function textReport({ format, language, ontology, counts, namespaces, tree, deta
         const flat = s => s.replace(/\s+/g, " ");
         out.push("", `Class details${language ? ` (descriptions: ${language})` : ""}`);
         if (!details.classes.length) out.push("  (no classes)");
+        const byName = new Map(details.classes.map(c => [c.name, c]));
         for (const c of details.classes) {
             const pad = "  " + "  ".repeat(c.depth);
             const sub = (label, vals) => {
@@ -340,19 +421,17 @@ function textReport({ format, language, ontology, counts, namespaces, tree, deta
             sub("Subclass of", c.subClassOf.map(s => (inferredSupers.has(s) ? s + " (inferred)" : s)));
             sub("Equivalent to", c.equivalentTo);
             sub("Description", c.descriptions);
+            const subs = subclassTree(c, byName);
+            if (subs.rows.length) {
+                out.push(`${pad}  Subclasses (${subclassCounts(subs)}):`);
+                for (const row of subs.rows) {
+                    out.push(`${pad}    ${"  ".repeat(row.depth)}${nameWithLabel(row.name, row.label, row.iri)}${row.inferred ? " (inferred)" : ""}`);
+                }
+                if (subs.omitted) out.push(`${pad}    … ${subs.omitted} more`);
+            }
             if (c.properties.length) {
                 out.push(`${pad}  Properties:`);
-                const nameWidth = Math.max(...c.properties.map(p => p.name.length));
-                for (const p of c.properties) {
-                    const notes = [
-                        p.kind,
-                        p.from ? `from ${p.from}` : null,
-                        p.domain ? `domain ${p.domain}` : null,
-                        p.domainVia ? `domain via ${p.domainVia}` : null,
-                    ].filter(Boolean).join(", ");
-                    out.push(`${pad}    ${p.name.padEnd(nameWidth)}  → ${rangeText(p)}  (${notes})`);
-                    if (p.description) out.push(`${pad}    ${" ".repeat(nameWidth)}    ${flat(p.description)}`);
-                }
+                for (const p of c.properties) out.push(...propertyTextLines(p, c.name, pad + "    "));
             }
             if (c.restrictions.length) {
                 out.push(`${pad}  Restrictions:`);
@@ -362,11 +441,7 @@ function textReport({ format, language, ontology, counts, namespaces, tree, deta
         const globalList = (title, list) => {
             if (!list.length) return;
             out.push("", title);
-            const nameWidth = Math.max(...list.map(p => p.name.length));
-            for (const p of list) {
-                out.push(`  ${p.name.padEnd(nameWidth)}  → ${p.range || "(any)"}  (${p.kind}${p.domain ? `, domain ${p.domain}` : ""})`);
-                if (p.description) out.push(`  ${" ".repeat(nameWidth)}    ${flat(p.description)}`);
-            }
+            for (const p of list) out.push(...propertyTextLines({ ...p, domain: null }, p.domain || ANY_CLASS, "  "));
         };
         globalList("Properties that apply to any class (no domain, or owl:Thing)", details.anyClass);
         globalList("Properties whose domain matches no class", details.unmatched);
@@ -477,24 +552,29 @@ class LinkedMarkdown {
 }
 
 /**
- * Formats one property as a Markdown list item: name, range and notes on one
- * line, the description on the next. (A table would be squeezed unreadably in
- * the narrow output pane once descriptions are long.)
+ * Formats one property as a Markdown list item: its name and label, its
+ * description, then a nested list with an example statement
+ * (subject — property → range) and notes. (A table would be squeezed
+ * unreadably in the narrow output pane once descriptions are long.)
  *
  * @param {Object} p
  * @param {LinkedMarkdown} doc
+ * @param {string} subject - Markdown for the class the property is used on
  * @returns {string}
  */
-function propertyItem(p, doc) {
-    const name = code(p.name) + (p.label && p.label !== localName(p.iri) ? ` ${md(p.label)}` : "");
-    const range = (p.range ? doc.expression(p.range) : "(any)") + (p.rangeVia ? ` via ${code(p.rangeVia)}` : "");
-    const notes = [
-        p.kind,
-        p.from ? `from ${doc.name(p.from)}` : null,
-        p.domain ? `domain ${doc.expression(p.domain)}` : null,
-        p.domainVia ? `domain via ${code(p.domainVia)}` : null,
-    ].filter(Boolean).join(", ");
-    return `- ${name} → ${range} — ${notes}` + (p.description ? `  \n  ${md(p.description)}` : "");
+function propertyItem(p, doc, subject) {
+    const label = propertyLabel(p);
+    const range = (p.range ? doc.expression(p.range) : "(any)") + (p.rangeVia ? ` (via ${code(p.rangeVia)})` : "");
+    const noteValue = {
+        "Inherited from": v => doc.name(v),
+        "Domain": v => doc.expression(v),
+        "Domain via": v => code(v),
+    };
+    return [
+        `- ${code(p.name)}${label ? " " + md(label) : ""}` + (p.description ? `  \n  ${md(p.description)}` : ""),
+        `  - ${subject} — ${code(p.name)}${label ? ` ("${md(label)}")` : ""} → ${range}`,
+        ...propertyNotes(p).map(([name, value]) => `  - ${name}: ${(noteValue[name] || md)(value)}`),
+    ].join("\n");
 }
 
 /**
@@ -559,8 +639,13 @@ function markdownReport({ format, language, ontology, counts, namespaces, tree, 
     if (details) {
         doc.push("");
         doc.heading(2, "Classes", "Classes", "section:Classes");
+        doc.push("Each class lists its **Properties**: those whose `rdfs:domain` is the class or one of its ancestors. " +
+            "Under each property's name and description is an example statement, *this class — property → range*, where the range is what the value must be. " +
+            "**Property type** is *object* (the value is another resource), *datatype* (the value is a literal such as a string or number) or *annotation*. " +
+            "**Inherited from** is the ancestor whose domain gives this class the property.", "");
         if (language) doc.push(`Descriptions in: ${md(language)} (and untagged).`, "");
         if (!details.classes.length) doc.push("(no classes)");
+        const byName = new Map(details.classes.map(c => [c.name, c]));
         for (const c of details.classes) {
             const hasLabel = c.label && c.label !== localName(c.iri);
             doc.heading(3,
@@ -577,9 +662,19 @@ function markdownReport({ format, language, ontology, counts, namespaces, tree, 
             lines.push(`**IRI:** ${code(c.iri)}`);
             doc.push(lines.join("  \n"), "");
             for (const d of c.descriptions) doc.push(`> ${md(d)}`, "");
+            const subs = subclassTree(c, byName);
+            if (subs.rows.length) {
+                doc.push(`**Subclasses** (${subclassCounts(subs)})`, "");
+                for (const row of subs.rows) {
+                    const label = row.label && row.label !== localName(row.iri) ? " " + md(row.label) : "";
+                    doc.push(`${"  ".repeat(row.depth)}- ${doc.name(row.name)}${label}${row.inferred ? " *(inferred)*" : ""}`);
+                }
+                if (subs.omitted) doc.push(`- … ${subs.omitted} more`);
+                doc.push("");
+            }
             if (c.properties.length) {
                 doc.push("**Properties**", "");
-                for (const p of c.properties) doc.push(propertyItem(p, doc));
+                for (const p of c.properties) doc.push(propertyItem(p, doc, code(c.name)));
                 doc.push("");
             }
             if (c.restrictions.length) {
@@ -591,7 +686,7 @@ function markdownReport({ format, language, ontology, counts, namespaces, tree, 
         const globalList = (heading, list) => {
             if (!list.length) return;
             doc.heading(2, heading, heading, "section:" + heading);
-            for (const p of list) doc.push(propertyItem(p, doc));
+            for (const p of list) doc.push(propertyItem({ ...p, domain: null }, doc, p.domain ? doc.expression(p.domain) : md(ANY_CLASS)));
             doc.push("");
         };
         globalList("Properties that apply to any class", details.anyClass);

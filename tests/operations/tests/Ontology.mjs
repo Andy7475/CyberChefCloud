@@ -465,19 +465,39 @@ TestRegister.addTests([
     {
         name: "Ontology Summary: class details list own and inherited properties in hierarchy order",
         input: VEHICLES_TTL,
-        expectedMatch: /\n {6}:ElectricCar\n {8}Subclass of: {3}:Car\n {8}Equivalent to: :Car and \(:poweredBy some :Battery\)\n {8}Properties:\n {10}:poweredBy {8}→ :Battery or :Person {2}\(object\)\n {10}:hasWheel {9}→ :Wheel {2}\(object, from :Car\)\n {10}:hasOwner {9}→ :Person {2}\(object, from :Vehicle\)\n {30}Who owns the vehicle\.\n {10}:hasPrimaryOwner {2}→ :Person \(via :hasOwner\) {2}\(object, from :Vehicle, domain via :hasOwner\)\n {8}Restrictions:\n {10}:hasWheel min 4 :Wheel {2}\(from :Car\)\n/,
+        expectedMatch: /\n {6}:ElectricCar\n {8}Subclass of: {3}:Car\n {8}Equivalent to: :Car and \(:poweredBy some :Battery\)\n {8}Properties:\n {10}:poweredBy\n {12}- :ElectricCar — :poweredBy → :Battery or :Person\n {12}- Property type: object\n {10}:hasWheel\n {12}- :ElectricCar — :hasWheel → :Wheel\n {12}- Property type: object\n {12}- Inherited from: :Car\n {10}:hasOwner\n {12}Who owns the vehicle\.\n {12}- :ElectricCar — :hasOwner → :Person\n {12}- Property type: object\n {12}- Inherited from: :Vehicle\n {10}:hasPrimaryOwner\n {12}- :ElectricCar — :hasPrimaryOwner → :Person \(via :hasOwner\)\n {12}- Property type: object\n {12}- Inherited from: :Vehicle\n {12}- Domain via: :hasOwner\n {8}Restrictions:\n {10}:hasWheel min 4 :Wheel {2}\(from :Car\)\n/,
         recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Text report", false, 10, true, "en", ""] }],
+    },
+    {
+        name: "Ontology Summary: class details list subclasses as a tree",
+        input: VEHICLES_TTL,
+        expectedMatch: /\n {2}:Vehicle\n {4}Description: {3}Anything that transports people or goods\.\n {4}Subclasses \(2 direct, 3 in total\):\n {6}:Boat\n {6}:Car\n {8}:ElectricCar\n/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Text report", false, 10, true, "en", ""] }],
+    },
+    {
+        name: "Ontology Summary: Markdown subclass tree links to class sections",
+        input: VEHICLES_TTL,
+        expectedMatch: /\*\*Subclasses\*\* \(2 direct, 3 in total\)\n\n- \[`:Boat`\]\(#boat\)\n- \[`:Car`\]\(#car\)\n {2}- \[`:ElectricCar`\]\(#electriccar\)\n/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] }],
+    },
+    {
+        name: "Ontology Summary: Markdown property label appears after the name and in the example statement",
+        input: "@prefix : <http://example.org/l#> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n" +
+            ":Thing a owl:Class .\n:State a owl:Class ; rdfs:subClassOf :Thing .\n:Group a owl:Class .\n" +
+            ":inGroup a owl:ObjectProperty ; rdfs:label \"in Group\" ; rdfs:domain :Thing ; rdfs:range :Group ; rdfs:comment \"Links a Thing to its group.\" .\n",
+        expectedMatch: /### `:State`[\s\S]*?\*\*Properties\*\*\n\n- `:inGroup` in Group {2}\n {2}Links a Thing to its group\.\n {2}- `:State` — `:inGroup` \("in Group"\) → \[`:Group`\]\(#group\)\n {2}- Property type: object\n {2}- Inherited from: \[`:Thing`\]\(#thing\)\n/,
+        recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", false, 10, true, "en", ""] }],
     },
     {
         name: "Ontology Summary: union domain applies to each member class",
         input: VEHICLES_TTL,
-        expectedMatch: /\n {4}:Boat\n[\s\S]*?:hullLength {7}→ xsd:decimal {2}\(datatype\)[\s\S]*\n {2}:Wheel\n {4}Properties:\n {6}:hullLength {2}→ xsd:decimal {2}\(datatype\)/,
+        expectedMatch: /\n {4}:Boat\n[\s\S]*?\n {8}:hullLength\n {10}- :Boat — :hullLength → xsd:decimal\n[\s\S]*\n {2}:Wheel\n {4}Properties:\n {6}:hullLength\n {8}- :Wheel — :hullLength → xsd:decimal\n/,
         recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Text report", false, 10, true, "en", ""] }],
     },
     {
         name: "Ontology Summary: global and unmatched properties are listed once",
         input: VEHICLES_TTL,
-        expectedMatch: /Properties that apply to any class \(no domain, or owl:Thing\)\n {2}:colour {2}→ xsd:string {2}\(datatype, domain owl:Thing\)\n {2}:note {4}→ \(any\) {2}\(annotation\)\n {13}Free-text note\.\n\nProperties whose domain matches no class\n {2}:chargeLevel {2}→ xsd:decimal {2}\(datatype, domain :Battery and :Car\)$/,
+        expectedMatch: /Properties that apply to any class \(no domain, or owl:Thing\)\n {2}:colour\n {4}- owl:Thing — :colour → xsd:string\n {4}- Property type: datatype\n {2}:note\n {4}Free-text note\.\n {4}- \(any class\) — :note → \(any\)\n {4}- Property type: annotation\n\nProperties whose domain matches no class\n {2}:chargeLevel\n {4}- :Battery and :Car — :chargeLevel → xsd:decimal\n {4}- Property type: datatype$/,
         recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Text report", false, 10, true, "en", ""] }],
     },
     {
@@ -495,13 +515,13 @@ TestRegister.addTests([
     {
         name: "Ontology Summary: Markdown class section",
         input: VEHICLES_TTL,
-        expectedMatch: /### `:Boat`\n\n\*\*Path:\*\* \[`:Vehicle`\]\(#vehicle\) › `:Boat` {2}\n\*\*Subclass of:\*\* \[`:Vehicle`\]\(#vehicle\) {2}\n\*\*IRI:\*\* `http:\/\/example\.org\/v#Boat`\n\n\*\*Properties\*\*\n\n- `:hullLength` → `xsd:decimal` — datatype\n- `:hasOwner` → \[`:Person`\]\(#person\) — object, from \[`:Vehicle`\]\(#vehicle\) {2}\n {2}Who owns the vehicle\.\n- `:hasPrimaryOwner` → \[`:Person`\]\(#person\) via `:hasOwner` — object, from \[`:Vehicle`\]\(#vehicle\), domain via `:hasOwner`\n/,
+        expectedMatch: /### `:Boat`\n\n\*\*Path:\*\* \[`:Vehicle`\]\(#vehicle\) › `:Boat` {2}\n\*\*Subclass of:\*\* \[`:Vehicle`\]\(#vehicle\) {2}\n\*\*IRI:\*\* `http:\/\/example\.org\/v#Boat`\n\n\*\*Properties\*\*\n\n- `:hullLength`\n {2}- `:Boat` — `:hullLength` → `xsd:decimal`\n {2}- Property type: datatype\n- `:hasOwner` {2}\n {2}Who owns the vehicle\.\n {2}- `:Boat` — `:hasOwner` → \[`:Person`\]\(#person\)\n {2}- Property type: object\n {2}- Inherited from: \[`:Vehicle`\]\(#vehicle\)\n- `:hasPrimaryOwner`\n {2}- `:Boat` — `:hasPrimaryOwner` → \[`:Person`\]\(#person\) \(via `:hasOwner`\)\n {2}- Property type: object\n {2}- Inherited from: \[`:Vehicle`\]\(#vehicle\)\n {2}- Domain via: `:hasOwner`\n/,
         recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] }],
     },
     {
         name: "Ontology Summary: Markdown rendered with Render Markdown",
         input: VEHICLES_TTL,
-        expectedMatch: /<h3 id="user-content-electriccar"><code>:ElectricCar<\/code><\/h3>[\s\S]*<li><code>:hasWheel<\/code> → <a href="#user-content-wheel"><code>:Wheel<\/code><\/a> — object, from <a href="#user-content-car"><code>:Car<\/code><\/a><\/li>/,
+        expectedMatch: /<h3 id="user-content-electriccar"><code>:ElectricCar<\/code><\/h3>[\s\S]*<li><code>:hasWheel<\/code>\n<ul>\n<li><code>:ElectricCar<\/code> — <code>:hasWheel<\/code> → <a href="#user-content-wheel"><code>:Wheel<\/code><\/a><\/li>\n<li>Property type: object<\/li>\n<li>Inherited from: <a href="#user-content-car"><code>:Car<\/code><\/a><\/li>\n<\/ul>/,
         recipeConfig: [
             { op: "Ontology Summary", args: ["Auto", "Markdown", true, 10, true, "en", ""] },
             { op: "Render Markdown", args: [false, true] },
@@ -510,7 +530,7 @@ TestRegister.addTests([
     {
         name: "Ontology Summary: HTML output renders the Markdown report",
         input: VEHICLES_TTL,
-        expectedMatch: /^<div style="font-family: var\(--primary-font-family\); white-space: normal"><h1[\s\S]*<h3 id="user-content-electriccar"><code>:ElectricCar<\/code><\/h3>[\s\S]*<li><code>:hasWheel<\/code> → <a href="#user-content-wheel"><code>:Wheel<\/code><\/a> — object, from <a href="#user-content-car"><code>:Car<\/code><\/a><\/li>/,
+        expectedMatch: /^<div style="font-family: var\(--primary-font-family\); white-space: normal"><h1[\s\S]*<h3 id="user-content-electriccar"><code>:ElectricCar<\/code><\/h3>[\s\S]*<li><code>:hasWheel<\/code>\n<ul>\n<li><code>:ElectricCar<\/code> — <code>:hasWheel<\/code> → <a href="#user-content-wheel"><code>:Wheel<\/code><\/a><\/li>\n<li>Property type: object<\/li>\n<li>Inherited from: <a href="#user-content-car"><code>:Car<\/code><\/a><\/li>\n<\/ul>/,
         recipeConfig: [{ op: "Ontology Summary", args: ["Auto", "HTML", true, 10, true, "en", ""] }],
     },
     {
