@@ -200,14 +200,20 @@ module.exports = {
             browser.assert.deepStrictEqual(value.downEdge, ["#fd8d3c", 1], "Arrow from the subclass is light");
         });
 
-        // Clicking empty space (the bottom-left corner, after fitting the graph) clears the colouring
+        // Clicking empty space (a corner with no node, after fitting the graph) clears the colouring
         browser.execute(function () {
             const canvas = document.querySelector("#ontologyGraph canvas");
-            document.getElementById("ontologyGraph").visNetwork.fit();
-            return { width: canvas.clientWidth, height: canvas.clientHeight };
+            const network = document.getElementById("ontologyGraph").visNetwork;
+            network.fit();
+            const w = canvas.clientWidth, h = canvas.clientHeight, rect = canvas.getBoundingClientRect();
+            const corner = [[10, h - 10], [w - 10, h - 10], [10, 40], [w - 10, 40]]
+                .find(([x, y]) => network.getNodeAt({ x, y }) === undefined);
+            return { x: Math.round(rect.left + corner[0]), y: Math.round(rect.top + corner[1]) };
         }, [], function ({ value }) {
-            // Nightwatch 3 measures the offsets from the element's centre
-            browser.moveToElement("#ontologyGraph canvas", 10 - value.width / 2, value.height / 2 - 10).mouseButtonClick();
+            // moveToElement ignores its offsets here, so click at page coordinates with the actions API
+            browser.perform(function () {
+                return this.actions({ async: true }).move({ origin: "viewport", x: value.x, y: value.y }).click();
+            });
         });
         browser.pause(500);
         browser.execute(function (p) {
@@ -256,6 +262,36 @@ module.exports = {
             browser.assert.strictEqual(value.visible, 0, "Unticking 'Show inferred' hides them");
         });
         browser.click("#ontologyGraphInferred");
+    },
+
+    "Ontology Graph: Freeze layout keeps nodes in place when the reasoner is added": function (browser) {
+        const graphArgs = ["Auto", "Classes and properties", 200, "Prefixed name", "Force-directed", "", "en", "TBox and ABox", true];
+        const positions = function () {
+            const network = document.getElementById("ontologyGraph").visNetwork;
+            return { positions: network.getPositions(), inferred: network.body.data.edges.get({ filter: e => e.inferred }).length };
+        };
+        browserUtils.loadRecipeConfig(browser, [{ op: "Ontology Graph", args: graphArgs }], REASONING_TTL);
+        browserUtils.bake(browser);
+        browser.expect.element("#ontologyGraph canvas").to.be.present.before(15000);
+        browser.pause(1500);
+        browser.execute(positions, [], function ({ value: before }) {
+            browserUtils.loadRecipeConfig(browser, [
+                { op: "Ontology Reasoner", args: ["Auto", "OWL RL (includes RDFS)", "Asserted and inferred (TriG)", true, true, true, true, false, "", 50, ""] },
+                { op: "Ontology Graph", args: graphArgs }
+            ], REASONING_TTL);
+            browserUtils.bake(browser);
+            browser.expect.element("#ontologyGraphInferred").to.be.present.before(15000);
+            browser.pause(1500);
+            browser.saveScreenshot("tests/browser/output/ontology-graph-frozen.png");
+            browser.execute(positions, [], function ({ value: after }) {
+                const ids = Object.keys(before.positions);
+                const moved = ids.filter(id => after.positions[id] &&
+                    Math.hypot(after.positions[id].x - before.positions[id].x, after.positions[id].y - before.positions[id].y) > 1);
+                browser.assert.ok(after.inferred > 0, `The second drawing has inferred edges (${after.inferred})`);
+                browser.assert.ok(ids.length > 3, `The first drawing has nodes (${ids.length})`);
+                browser.assert.deepStrictEqual(moved, [], "No node from the first drawing moved");
+            });
+        });
     },
 
     "Sample Ontology → Reasoner → Graph: the People sample": function (browser) {

@@ -43,6 +43,8 @@ const ANNOTATION_PREDICATES = new Set([...DESCRIPTION_PREDICATES, ...EXTRA_ANNOT
 
 const VIS_NETWORK_URL = "https://unpkg.com/vis-network@10.1.2/standalone/umd/vis-network.min.js";
 const VIS_NETWORK_SRI = "sha384-RDdG1CLOxjNlTHh4JYx/rnAueaMHbkBHmeHwrEyljMQw3LF0it4SkuNotIY/FPxD";
+/** Seed for vis-network's random start positions, so the same graph is laid out the same way each time. */
+const LAYOUT_SEED = 7;
 
 /** Node colours per group; chosen to be readable on both light and dark themes. */
 const GROUPS = {
@@ -103,6 +105,8 @@ class OntologyGraph extends Operation {
             "<b>Language</b> filters these (e.g. <code>en</code>, or <code>en, fr</code>; leave empty for all); untagged text is always included. Labels prefer this language.<br><br>" +
             "Clicking a class highlights its subclass arrows and the borders of the classes they lead to: superclasses in dark orange, subclasses in light orange.<br><br>" +
             "The search box highlights nodes whose label, IRI or annotations contain the text; press Enter to move between matches.<br><br>" +
+            "<b>Freeze layout</b> keeps each node where it was in the previous drawing of the same view and layout, so the graph does not rearrange when you bake again " +
+            "(for example with Ontology Reasoner turned on and off). New nodes are placed beside their neighbours. Nodes you drag also stay where you left them.<br><br>" +
             "<b>Max nodes</b> limits the size of the drawing. When the graph is larger, the most connected nodes and their neighbours are kept, so the part shown stays connected.<br><br>" +
             "As the last operation, the graph is drawn; otherwise the output is the graph as JSON (nodes and edges). " +
             "Drawing uses the vis-network library loaded from unpkg.com, so this operation needs internet access to display the graph.";
@@ -151,6 +155,11 @@ class OntologyGraph extends Operation {
                 name: "Show",
                 type: "option",
                 value: ["TBox and ABox", "TBox only", "ABox only"]
+            },
+            {
+                name: "Freeze layout",
+                type: "boolean",
+                value: false
             }
         ];
     }
@@ -200,7 +209,8 @@ class OntologyGraph extends Operation {
         if (!graph || !Array.isArray(graph.nodes)) return `<pre>${Utils.escapeHtml(data)}</pre>`;
         if (!graph.nodes.length) return "<p>No nodes to draw for this view. Try the 'All triples' view, or a different 'Show' setting.</p>";
 
-        const hierarchical = args[4] === "Hierarchical";
+        const [, view, , , layoutMode, , , , freeze = false] = args;
+        const hierarchical = layoutMode === "Hierarchical";
         const groups = {};
         for (const [name, g] of Object.entries(GROUPS)) {
             groups[name] = {
@@ -223,10 +233,16 @@ class OntologyGraph extends Operation {
                 // Edges point from subclass to superclass; right-to-left puts superclasses on the
                 // left and stacks siblings vertically, which suits long lists of subclasses.
                 { hierarchical: { direction: "RL", sortMethod: "directed", shakeTowards: "roots", levelSeparation: 220, nodeSpacing: 60 } } :
-                { improvedLayout: graph.nodes.length <= 150 },
+                { improvedLayout: graph.nodes.length <= 150, randomSeed: LAYOUT_SEED },
             physics: hierarchical ?
                 { solver: "hierarchicalRepulsion", hierarchicalRepulsion: { nodeDistance: 140 }, stabilization: { iterations: 300 } } :
                 { solver: "forceAtlas2Based", forceAtlas2Based: { gravitationalConstant: -60, springLength: 120 }, stabilization: { iterations: 400 } },
+        };
+        // Used instead when the layout is frozen: remembered nodes are fixed in place
+        // and the physics only positions new ones.
+        const frozenOptions = {
+            layout: { improvedLayout: false, randomSeed: LAYOUT_SEED },
+            physics: { solver: "forceAtlas2Based", forceAtlas2Based: { gravitationalConstant: -60, springLength: 120 }, stabilization: { iterations: 200, fit: false } },
         };
 
         // Inferred edges: the rule in the label and tooltip, and a style that stands out
@@ -286,6 +302,12 @@ class OntologyGraph extends Operation {
     var data = ${safeJSON({ ...graph, focus: mostConnected(graph) })};
     var options = ${safeJSON(options)};
     var relatives = ${safeJSON(RELATIVES)};
+    var freeze = ${freeze ? "true" : "false"};
+    var frozenOptions = ${safeJSON(frozenOptions)};
+    // Node positions and the view from earlier drawings, per view and layout, kept
+    // on the page so that they survive a re-bake.
+    var layouts = window.ontologyGraphLayouts = window.ontologyGraphLayouts || {};
+    var memory = layouts[${safeJSON(view + "|" + layoutMode)}] = layouts[${safeJSON(view + "|" + layoutMode)}] || { positions: {} };
     var container = document.getElementById("ontologyGraph");
     var wrap = document.getElementById("ontologyGraphWrap");
     var pane = document.getElementById("output-text");
@@ -297,6 +319,8 @@ class OntologyGraph extends Operation {
     fitToPane();
     function draw() {
         if (!container) return;
+        var frozen = freeze && placeFromMemory();
+        if (frozen) Object.assign(options, frozenOptions);
         var nodes = new vis.DataSet(data.nodes), edges = new vis.DataSet(data.edges);
         var network = new vis.Network(container, { nodes: nodes, edges: edges }, options);
         container.visNetwork = network; // for the browser tests
@@ -308,19 +332,66 @@ class OntologyGraph extends Operation {
         // Stop the simulation once laid out so nodes stay where the user drags them.
         // If the whole graph only fits at an unreadable size, zoom in on the most
         // connected node instead; the user can pan or zoom out from there.
+        // A frozen layout keeps the previous view instead.
         network.once("stabilizationIterationsDone", function () {
             network.setOptions({ physics: false });
-            network.fit();
-            if (network.getScale() < 0.45 && data.focus) network.focus(data.focus, { scale: 0.8 });
+            if (frozen) {
+                nodes.update(data.nodes.filter(function (n) { return n.fixed; }).map(function (n) { return { id: n.id, fixed: false }; }));
+            }
+            if (frozen && memory.view) {
+                network.moveTo(memory.view);
+            } else {
+                network.fit();
+                if (network.getScale() < 0.45 && data.focus) network.focus(data.focus, { scale: 0.8 });
+            }
+            remember();
+            network.on("dragEnd", remember);
+            network.on("zoom", remember);
         });
+        function remember() {
+            Object.assign(memory.positions, network.getPositions());
+            memory.view = { position: network.getViewPosition(), scale: network.getScale() };
+        }
         if (window.ResizeObserver && pane) {
+            // Observers also fire once when they start; only refit on a real resize.
+            var paneSize = pane.clientWidth + "x" + pane.clientHeight;
             var observer = new ResizeObserver(function () {
                 if (!document.body.contains(container)) { observer.disconnect(); return; }
+                var size = pane.clientWidth + "x" + pane.clientHeight;
+                if (size === paneSize) return;
+                paneSize = size;
                 fitToPane();
                 network.fit();
             });
             observer.observe(pane);
         }
+    }
+    // Puts the nodes remembered from an earlier drawing back where they were, fixed
+    // in place, and starts each new node beside its remembered neighbours.
+    // Returns false when no node is remembered.
+    function placeFromMemory() {
+        var positions = memory.positions, placed = 0;
+        data.nodes.forEach(function (n) {
+            var p = positions[n.id];
+            if (p) { n.x = p.x; n.y = p.y; n.fixed = true; placed++; }
+        });
+        if (!placed) return false;
+        var near = {};
+        data.edges.forEach(function (e) {
+            [[e.from, e.to], [e.to, e.from]].forEach(function (pair) {
+                var p = positions[pair[1]];
+                if (positions[pair[0]] || !p) return;
+                (near[pair[0]] = near[pair[0]] || []).push(p);
+            });
+        });
+        data.nodes.forEach(function (n, i) {
+            var ps = near[n.id];
+            if (n.fixed || !ps) return;
+            var angle = i * 2.4;
+            n.x = ps.reduce(function (sum, p) { return sum + p.x; }, 0) / ps.length + 80 * Math.cos(angle);
+            n.y = ps.reduce(function (sum, p) { return sum + p.y; }, 0) / ps.length + 80 * Math.sin(angle);
+        });
+        return true;
     }
     // Returns a function that colours the subclass edges of the selected nodes,
     // and the borders of the classes at their other ends: superclasses in the

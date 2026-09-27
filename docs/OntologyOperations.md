@@ -131,6 +131,7 @@ Other options:
 
 - **Node labels**: `rdfs:label`/`skos:prefLabel` (English or untagged preferred), or prefixed names only.
 - **Layout**: 'Force-directed' or 'Hierarchical'. Hierarchical draws a left-to-right tree with superclasses on the left.
+- **Freeze layout** (default off): see [Freezing the layout](#freezing-the-layout).
 - **Language** (default `en`): filters the annotations shown in tooltips (e.g. `en`, or `en, fr`; empty for all). Untagged text is always included. Labels prefer this language.
 
 Tooltips: hovering over a node shows its IRI, its label (if the node shows the prefixed name), and its annotations:
@@ -144,6 +145,19 @@ Edges drawn for a property (object/datatype property edges, restrictions, and ev
 Search: the box at the top right matches nodes whose label, IRI or tooltip text (so also descriptions) contains the text, case-insensitively. Matching nodes are selected (thick orange border) and the others are dimmed. Enter focuses the next match, Shift+Enter the previous one, Esc clears the search. Search runs entirely in the drawn page and does not re-run the recipe.
 
 If the whole graph only fits at an unreadable size, it opens zoomed in on the most connected node; scroll to zoom out and drag to pan. Physics stops once the layout settles, so dragged nodes stay put.
+
+### Freezing the layout
+
+Every bake redraws the graph from scratch. vis-network's random start positions use a fixed seed (`LAYOUT_SEED`), so the same graph is laid out the same way each time. A different graph, for example the same ontology with Ontology Reasoner turned on, has different edges and settles into a different layout, even with the same seed. A fixed seed is therefore not enough to compare two bakes.
+
+**Freeze layout** handles this. After each drawing, the drawing script stores every node's position and the view (pan and zoom) in `window.ontologyGraphLayouts`, keyed by View and Layout. It also stores them after the user drags a node, pans or zooms. When Freeze layout is ticked, the next drawing:
+
+1. places each node that has a stored position at that position, fixed;
+2. places each new node beside the average position of its stored neighbours (nodes with no stored neighbour start at a random position);
+3. runs the force-directed physics briefly so that only the new nodes move (in the Hierarchical layout too, whose tree layout would otherwise reposition everything);
+4. unfixes all nodes, so they can be dragged, and restores the stored view instead of fitting the graph to the pane.
+
+Positions are recorded even while Freeze layout is off, so ticking it keeps the layout that is on screen. The stored positions are lost when the page is reloaded.
 
 The graph is drawn only when this is the last operation. Otherwise it outputs the graph as JSON (`nodes`, `edges`, `totalNodes`, `truncated`), which can be saved or processed further.
 
