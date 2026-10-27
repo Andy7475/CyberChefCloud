@@ -80,15 +80,18 @@ class LocalLLMModels extends Operation {
                 return this.statusText();
             case "Download from URL":
                 return this.download(url.trim(), fileName.trim());
-            case "Import input as model":
+            case "Import input as model": {
                 if (!input || !input.byteLength) throw new OperationError("The input is empty. Drop a model file into the input pane first.");
                 if (!fileName.trim()) throw new OperationError("Set 'File Name' (e.g. my-model-Q4_K_M.gguf); the extension decides which backend can load it.");
                 await saveModelFile(fileName.trim(), input);
-                return `Saved ${fileName.trim()} (${formatBytes(input.byteLength)}).\n\n${await this.listText()}`;
+                const list = await this.listText();
+                return `Saved ${fileName.trim()} (${formatBytes(input.byteLength)}).\n\n${list}`;
+            }
             case "Delete model": {
                 if (!fileName.trim()) throw new OperationError("Set 'File Name' to the model name to delete.");
                 const n = await deleteModel(fileName.trim());
-                return `Deleted ${fileName.trim()} (${n} file${n > 1 ? "s" : ""}).\n\n${await this.listText()}`;
+                const list = await this.listText();
+                return `Deleted ${fileName.trim()} (${n} file${n > 1 ? "s" : ""}).\n\n${list}`;
             }
             default:
                 throw new OperationError(`Unknown action '${action}'.`);
@@ -118,7 +121,8 @@ class LocalLLMModels extends Operation {
     async statusText() {
         const lines = [];
         for (const p of PROVIDERS) {
-            lines.push(`${p.label}: ${await p.status()}`);
+            const status = await p.status();
+            lines.push(`${p.label}: ${status}`);
         }
         return lines.join("\n");
     }
@@ -148,9 +152,11 @@ class LocalLLMModels extends Operation {
             if (formatForFile(name) === "unknown") {
                 throw new OperationError(`'${name}' has no recognised model extension (.gguf, .task, .litertlm, .onnx). Set 'File Name' to name it.`);
             }
-            saved.push(`${name} (${formatBytes(await this.fetchToStore(u, name))})`);
+            const bytes = await this.fetchToStore(u, name);
+            saved.push(`${name} (${formatBytes(bytes)})`);
         }
-        return `Downloaded ${saved.join(", ")}.\n\n${await this.listText()}`;
+        const list = await this.listText();
+        return `Downloaded ${saved.join(", ")}.\n\n${list}`;
     }
 
     /**
