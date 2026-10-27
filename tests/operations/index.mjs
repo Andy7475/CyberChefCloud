@@ -183,6 +183,7 @@ import "./tests/YARA.mjs";
 import "./tests/ParseCSR.mjs";
 import "./tests/XXTEA.mjs";
 import "./tests/GoogleTranslate.mjs";
+import "./tests/LocalLLM.mjs";
 import "./tests/Ontology.mjs";
 import "./tests/OntologyReasoning.mjs";
 import "./tests/RenderMarkdown.mjs";

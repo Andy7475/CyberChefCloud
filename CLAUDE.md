@@ -30,6 +30,7 @@ After adding or renaming an operation, the generated config must be rebuilt (`np
   - `applyGCPAuth(url, headers)`: low-level auth injection (API key → `?key=`, OAuth/PAT → `Authorization: Bearer` + `x-goog-user-project`). Maps/Places APIs get special handling.
   - `getGcpCredentials()`: `{authType, authString, quotaProject, defaultRegion, apiKey}` set by the `Authenticate Google Cloud` op.
   - `generateGCSDestinationUri`, `writeGCSText`, `writeGCSBytes`: GCS output helpers.
+- `src/core/lib/LocalLLM.mjs` + `src/core/lib/localllm/`: providers for browser-local models (no GCP auth; module `LocalAI`, category `Local AI`). Window-only browser APIs are reached from the worker via `MainThreadBridge.mjs` → `src/web/MainThreadHost.mjs`.
 - `src/core/config/Categories.json`: ops must be listed here (in the `"Cloud"` category) to appear in the UI.
 - `src/web/html/index.html`: holds the **CSP `connect-src`** allow-list. A new Google endpoint that isn't covered there is blocked by the browser.
 - `tests/browser/GCloud*.js`: Nightwatch E2E tests against live APIs, one file per op. Helpers are in `tests/browser/browserUtils.js`.
@@ -67,5 +68,6 @@ To add a new cloud operation end to end (op, CSP, category, tests), use the **`a
 - `GCloudAuthenticationArchitecture.md`: why auth works the way it does (quota project header, toggleString).
 - `GCloudServiceAccountLessonsLearned.md`: service agents, cross-project GCS access, LRO polling URL format.
 - `Troubleshooting.md`: 401/403 IAM problems.
+- `LocalLLM.md`: browser-local LLMs (`Prompt Local LLM`, `Local LLM Models`): Chrome built-in Gemini Nano, GGUF via wllama, OPFS model store, model format compatibility, adding a provider.
 - `OntologyOperations.md`: ontology/RDF ops (Oxigraph WASM store, supported formats, SPARQL, To Table chaining, vis-network graph).
 - `*_ResearchReport.md`, `GCS_SpeechToText_*`: background research and past plans.

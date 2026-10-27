@@ -102,6 +102,7 @@
     "@blu3r4y/lzma": "^2.3.3",
     "@rdfjs/serializer-turtle": "^1.1.5",
     "@wavesenterprise/crypto-gost-js": "^2.1.0-RC1",
+    "@wllama/wllama": "^3.8.1",
     "@xmldom/xmldom": "^0.8.11",
     "argon2-browser": "^1.18.0",
     "arrive": "^2.5.2",

@@ -578,6 +578,13 @@
         ]
     },
     {
+        "name": "Local AI",
+        "ops": [
+            "Prompt Local LLM",
+            "Local LLM Models"
+        ]
+    },
+    {
         "name": "Ontology / RDF",
         "ops": [
             "Sample Ontology",

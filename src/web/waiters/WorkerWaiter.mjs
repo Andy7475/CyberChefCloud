@@ -8,6 +8,7 @@
 import ChefWorker from "worker-loader?inline=no-fallback!../../core/ChefWorker.js";
 import DishWorker from "worker-loader?inline=no-fallback!../workers/DishWorker.mjs";
 import { debounce } from "../../core/Utils.mjs";
+import { handleMainThreadRequest } from "../MainThreadHost.mjs";
 
 /**
  * Waiter to handle conversations with the ChefWorker
@@ -286,6 +287,9 @@ class WorkerWaiter {
                         data: { error: `Failed to initialize Google Auth popup: ${e.message}` }
                     });
                 }
+                break;
+            case "mainThreadRequest":
+                handleMainThreadRequest(r.data, currentWorker.worker);
                 break;
             default:
                 log.error("Unrecognised message from ChefWorker", e);
