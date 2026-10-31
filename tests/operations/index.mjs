@@ -131,6 +131,7 @@ import "./tests/PEMtoHex.mjs";
 import "./tests/PGP.mjs";
 import "./tests/PHP.mjs";
 import "./tests/PHPSerialize.mjs";
+import "./tests/PhoneNumber.mjs";
 import "./tests/PowerSet.mjs";
 import "./tests/Protobuf.mjs";
 import "./tests/PubKeyFromCert.mjs";

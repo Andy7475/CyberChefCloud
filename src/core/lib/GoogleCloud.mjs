@@ -34,7 +34,7 @@ export function setGcpCredentials(credObj) {
  * Returns the active GCP credentials, or throws if none have been set.
  * @returns {Object} { authType, authString, quotaProject, defaultRegion }
  */
-function requireGcpCredentials() {
+export function requireGcpCredentials() {
     const creds = getGcpCredentials();
     if (!creds || !creds.authString) {
         throw new OperationError("No Google Cloud credentials found. Please add the 'Authenticate Google Cloud' operation before this one.");
