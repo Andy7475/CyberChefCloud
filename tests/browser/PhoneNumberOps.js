@@ -51,11 +51,18 @@ module.exports = {
     "Extract Phone Numbers chained into Parse Phone Number": function (browser) {
         bakeAndCheck(browser,
             [
-                { op: "Extract Phone Numbers", args: ["GB", true, "E.164", false, false, true] },
+                { op: "Extract Phone Numbers", args: ["GB, FR", true, true, "E.164", false, false, true] },
                 { op: "Parse Phone Number", args: ["GB", true, false, "CSV"] }
             ],
             "Ring 07400 123456 or 0033 6 12 34 56 78",
             ["+447400123456,+447400123456,true", "+33612345678,+33612345678,true,true,FR,France"]);
+    },
+
+    "Extract Phone Numbers: blank Regions searches every region": function (browser) {
+        bakeAndCheck(browser,
+            [{ op: "Extract Phone Numbers", args: ["", true, true, "JSON", false, false, false] }],
+            "UK embassy Bangkok 2 305 8333",
+            ["\"TH\"", "\"e164\": \"+6623058333\""]);
     },
 
     after: browser => browser.end()
