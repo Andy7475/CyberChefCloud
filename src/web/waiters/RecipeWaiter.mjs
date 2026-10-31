@@ -6,6 +6,9 @@
 
 import HTMLOperation from "../HTMLOperation.mjs";
 import Sortable from "sortablejs";
+
+// Drag data type set on operations dragged from the operations list.
+const OPERATION_MIME = "application/x-cyberchef-operation";
 import Utils from "../../core/Utils.mjs";
 import {escapeControlChars} from "../utils/editorUtils.mjs";
 import DOMPurify from "dompurify";
@@ -68,6 +71,10 @@ class RecipeWaiter {
             this.app.progress = 0;
         }.bind(this));
 
+        // Capture phase, so these run before Sortable moves the operation into the recipe.
+        recList.addEventListener("dragover", this.opNameDragover.bind(this), true);
+        recList.addEventListener("drop", this.opNameDrop.bind(this), true);
+
         Sortable.utils.on(recList, "touchend", function(e) {
             const loc = e.changedTouches[0];
             const target = document.elementFromPoint(loc.clientX, loc.clientY);
@@ -97,6 +104,7 @@ class RecipeWaiter {
             sort: false,
             setData: function(dataTransfer, dragEl) {
                 dataTransfer.setData("Text", dragEl.textContent);
+                dataTransfer.setData(OPERATION_MIME, dragEl.textContent);
             },
             onStart: function(evt) {
                 // Removes popover element and event bindings from the dragged operation but not the
@@ -522,6 +530,61 @@ class RecipeWaiter {
      */
     opRemove(e) {
         log.debug("Operation removed from recipe");
+        window.dispatchEvent(this.manager.statechange);
+    }
+
+
+    /**
+     * Returns the argument textarea an operation is being dragged over, if
+     * that argument accepts operation names (e.g. the AI Agent's tool list).
+     *
+     * @param {DragEvent} e
+     * @returns {HTMLTextAreaElement|null}
+     */
+    opNameTarget(e) {
+        if (!e.dataTransfer.types.includes(OPERATION_MIME)) return null;
+        return e.target.closest?.("textarea.arg[data-accepts-operations]") || null;
+    }
+
+
+    /**
+     * Handler for dragover events on the recipe list. Lets an operation from
+     * the operations list be dropped onto an argument that accepts operation
+     * names, instead of being added to the recipe.
+     *
+     * @param {DragEvent} e
+     */
+    opNameDragover(e) {
+        const targ = this.opNameTarget(e);
+        if (!targ) return;
+        e.stopPropagation();
+        // Leave dropEffect alone: Sortable only allows "move", and any other effect cancels the drop.
+        e.preventDefault();
+        targ.classList.add("dropping-file");
+    }
+
+
+    /**
+     * Handler for drop events on the recipe list. Appends the dropped
+     * operation's name to the argument's comma-separated list.
+     *
+     * @param {DragEvent} e
+     */
+    opNameDrop(e) {
+        const targ = this.opNameTarget(e);
+        if (!targ) return;
+        e.stopPropagation();
+        e.preventDefault();
+        targ.classList.remove("dropping-file");
+
+        const name = e.dataTransfer.getData(OPERATION_MIME).trim();
+        const names = targ.value.split(",").map(n => n.trim()).filter(Boolean);
+        if (!names.includes(name)) names.push(name);
+        targ.value = names.join(", ");
+
+        // Discard the dragged operation rather than adding it to the recipe (see opSortEnd).
+        this.removeIntent = true;
+        targ.dispatchEvent(new Event("change"));
         window.dispatchEvent(this.manager.statechange);
     }
 

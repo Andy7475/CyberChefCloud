@@ -46,7 +46,7 @@ const ChromeBuiltinProvider = {
      * @returns {Promise<string>}
      */
     async prompt(req) {
-        const payload = { systemPrompt: req.systemPrompt, text: req.text, media: req.media };
+        const payload = { systemPrompt: req.systemPrompt, text: req.text, media: req.media, responseConstraint: req.responseConstraint };
         const availability = await requestMainThread("chromeLLM.availability", payload);
 
         if (availability === "unsupported" || availability === "unavailable") {

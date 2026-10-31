@@ -6,9 +6,21 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
+import Dish from "../Dish.mjs";
 import { gcpFetch, getGcpCredentials, vertexGeminiUrl } from "../lib/GoogleCloud.mjs";
 import { resolveMimeType } from "../lib/FileType.mjs";
+import { fuzzyMatch } from "../lib/FuzzyMatch.mjs";
 import { isWorkerEnvironment } from "../Utils.mjs";
+
+// A Model value of "local:chrome" or "local:<stored GGUF model>" runs the agent in the browser.
+const LOCAL_PREFIX = "local:";
+const LOCAL_CONTEXT_SIZE = 8192;
+const LOCAL_TOOL_PROTOCOL = [
+    "You cannot call tools directly. To call a tool, reply with ONLY a JSON object, with no other text:",
+    "{\"tool\": \"<tool name>\", \"args\": {\"<arg name>\": <value>}}",
+    "Call one tool per reply. You will then be shown the tool result.",
+    "When you have the final answer, reply with ONLY: {\"answer\": \"<your answer>\"}"
+].join("\n");
 
 /**
  * AI Agent operation
@@ -24,7 +36,7 @@ class AIAgent extends Operation {
         this.name = "AI Agent";
         this.module = "Cloud";
         this.description = [
-            "Instantiates an autonomous AI Agent powered by Vertex AI that can intelligently chain Operations.",
+            "Instantiates an autonomous AI Agent powered by Vertex AI Gemini, or by a model running in your browser, that can intelligently chain Operations.",
             "<br><br>",
             "<b>Inputs:</b> The initial context or payload you want the Agent to process.",
             "<br>",
@@ -37,12 +49,15 @@ class AIAgent extends Operation {
             "<ul>",
             "<li><b>Agent Answer:</b> The final text explanation or answer provided by the LLM itself.</li>",
             "<li><b>Final Ingredient:</b> The exact raw bytes/text returned by the last tool the Agent used.</li>",
-            "<li><b>AI Agent Flow & Output:</b> A JSON payload containing the full trace of tool calls, the LLM answer, and the final ingredient result.</li>",
+            "<li><b>AI Agent Flow & Output:</b> A JSON payload containing the full trace of tool calls, the LLM answer, the recipe and the final ingredient result.</li>",
+            "<li><b>Recipe:</b> The tool calls that produced the final ingredient, as CyberChef recipe JSON. Undone, reset and failed steps are left out. Paste it into <i>Load recipe</i> to rerun the same steps without the LLM.</li>",
             "</ul>",
             "<br>",
             "<b>Location:</b> Most Gemini 3.x models are only served from the <code>global</code> location (the default). Choose <code>Default Region</code> to use the region set in <code>Authenticate Google Cloud</code> when data must stay in one region; gemini-3.5-flash is available regionally (e.g. europe-west2).",
             "<br><br>",
-            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
+            "<b>Local models:</b> Set <code>Model</code> to <code>local:chrome</code> for Chrome's built-in Gemini Nano, or <code>local:&lt;name&gt;</code> for a GGUF model stored with <code>Local LLM Models</code>. Nothing is sent to Vertex AI and no authentication is needed (cloud tools still need it). Small models follow tool instructions less reliably than Gemini.",
+            "<br><br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation, unless a local model is used."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/vertex-ai/docs/reference/rest/v1/projects.locations.publishers.models/generateContent";
         this.inputType = "ArrayBuffer";
@@ -61,7 +76,8 @@ class AIAgent extends Operation {
                     { name: "gemini-3.8-flash", value: "gemini-3.8-flash" },
                     { name: "gemini-3.1-pro-preview", value: "gemini-3.1-pro-preview" },
                     { name: "gemini-3.5-flash", value: "gemini-3.5-flash" },
-                    { name: "gemini-3.5-flash-lite", value: "gemini-3.5-flash-lite" }
+                    { name: "gemini-3.5-flash-lite", value: "gemini-3.5-flash-lite" },
+                    { name: "Local: Chrome built-in (Gemini Nano)", value: "local:chrome" }
                 ]
             },
             {
@@ -87,6 +103,18 @@ class AIAgent extends Operation {
                         value: "From Base64, To Base64, From Hex, To Hex, Extract email addresses"
                     },
                     {
+                        name: "Text Manipulation",
+                        value: "Regular expression, Find / Replace, Remove whitespace, To Upper case, To Lower case, Reverse, Count occurrences, To Base64, From Base64, URL Encode, URL Decode, Escape string, Unescape string"
+                    },
+                    {
+                        name: "List Manipulation",
+                        value: "Split, Find / Replace, Sort, Unique, Filter, Head, Tail, Add line numbers, Remove line numbers, Set Difference, Set Intersection, Set Union, Symmetric Difference, Cartesian Product"
+                    },
+                    {
+                        name: "JSON Manipulation",
+                        value: "Jsonata Query, Jq, JPath expression, JSON Beautify, JSON Minify, JSON to CSV, CSV to JSON, JSON to YAML, YAML to JSON, Regular expression, Find / Replace"
+                    },
+                    {
                         name: "Image Analysis",
                         value: "GCloud Vision Analyze, Prompt LLM, Extract EXIF, Extract LSB, Extract RGBA, Extract ID3, Randomize Colour Palette, Split Colour Channels, View Bit Plane, GCloud Vision OCR, Detect File Type"
                     },
@@ -104,6 +132,7 @@ class AIAgent extends Operation {
             {
                 "name": "Tools (comma-separated operation names)",
                 "type": "text",
+                "acceptsOperations": true,
                 "value": "From Base64, To Base64, From Hex, To Hex, Regular expression, URL Decode, GCloud Vision Analyze"
             },
             {
@@ -124,7 +153,7 @@ class AIAgent extends Operation {
             {
                 "name": "Output Mode",
                 "type": "option",
-                "value": ["Agent Answer", "Final Ingredient", "AI Agent Flow & Output"]
+                "value": ["Agent Answer", "Final Ingredient", "AI Agent Flow & Output", "Recipe"]
             },
             {
                 "name": "Location",
@@ -162,6 +191,16 @@ class AIAgent extends Operation {
     }
 
     /**
+     * Returns the value an argument takes when the LLM leaves it out: the
+     * first choice for list arguments, otherwise the configured value.
+     * @param {Object} arg - CyberChef argument definition
+     * @returns {*}
+     */
+    _defaultArgValue(arg) {
+        return Array.isArray(arg.value) ? (arg.value[0]?.value ?? arg.value[0] ?? "") : arg.value;
+    }
+
+    /**
      * Builds a Vertex AI FunctionDeclaration from a CyberChef operation instance.
      * @param {Operation} op - An instantiated CyberChef operation
      * @returns {Object|null} A Vertex AI FunctionDeclaration, or null if not usable
@@ -182,7 +221,8 @@ class AIAgent extends Operation {
 
             const propDef = {
                 type: vertexType,
-                description: `${arg.name} (default: ${JSON.stringify(arg.value)})`
+                description: `${arg.name} (default: ${JSON.stringify(this._defaultArgValue(arg))})` +
+                    (arg.type === "toggleString" ? ` [interpreted as ${arg.toggleValues[0]}]` : "")
             };
 
             if ((arg.type === "option" || arg.type === "editableOption") && Array.isArray(arg.value)) {
@@ -217,7 +257,7 @@ class AIAgent extends Operation {
      * @param {ArrayBuffer} currentBuffer - The current binary pipeline data
      * @param {string} currentText - The current text pipeline data
      * @param {Object} operations - The dynamically-loaded operations index module
-     * @returns {Promise<{result: string, updatedText: string, updatedBuffer: ArrayBuffer}>}
+     * @returns {Promise<{result: string, updatedText: string, updatedBuffer: ArrayBuffer, step: {op: string, args: Array}}>}
      */
     async _executeTool(opName, llmArgs, currentBuffer, currentText, operations) {
         let OpClass = null;
@@ -247,48 +287,37 @@ class AIAgent extends Operation {
         }
 
         const ingValues = op.args.map(arg => {
-            const val = llmArgs[arg.name];
-            if (val !== undefined && val !== null) {
-                if (arg.type === "number") return Number(val);
-                if (arg.type === "boolean") return Boolean(val);
-                return val;
+            let val = llmArgs[arg.name];
+            if (val === undefined || val === null) {
+                val = this._defaultArgValue(arg);
+            } else if (arg.type === "number") {
+                val = Number(val);
+            } else if (arg.type === "boolean") {
+                val = Boolean(val);
+            } else if (arg.type === "option") {
+                // Accept any capitalisation, otherwise tell the model the valid values.
+                const allowed = arg.value.map(v => (typeof v === "object" ? v.value ?? v.name : v));
+                const match = allowed.find(v => String(v).toLowerCase() === String(val).toLowerCase());
+                if (match === undefined) {
+                    throw new OperationError(`'${arg.name}' must be one of: ${allowed.join(", ")}.`);
+                }
+                val = match;
             }
-            return Array.isArray(arg.value) ? (arg.value[0]?.value ?? arg.value[0] ?? "") : arg.value;
+            // Ops (and saved recipes) expect toggleString values as {option, string}.
+            if (arg.type === "toggleString" && typeof val !== "object") {
+                val = { option: arg.toggleValues[0], string: String(val) };
+            }
+            return val;
         });
 
-        const isBinary = op.inputType === "ArrayBuffer" ||
-            op.inputType === "File" ||
-            op.inputType.startsWith("List");
-
-        let rawResult;
-        if (isBinary) {
-            rawResult = await op.run(currentBuffer, ingValues);
-        } else {
-            const inputData = op.inputType === "string" ?
-                currentText :
-                new TextEncoder().encode(currentText).buffer;
-            rawResult = await op.run(inputData, ingValues);
-        }
-
-        let resultStr;
-        let updatedBuffer;
-
-        if (rawResult instanceof ArrayBuffer) {
-            resultStr = new TextDecoder("utf-8", { fatal: false }).decode(rawResult);
-            updatedBuffer = rawResult;
-        } else if (rawResult instanceof Uint8Array) {
-            resultStr = new TextDecoder("utf-8", { fatal: false }).decode(rawResult);
-            updatedBuffer = rawResult.buffer;
-        } else if (Array.isArray(rawResult)) {
-            resultStr = new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(rawResult));
-            updatedBuffer = new Uint8Array(rawResult).buffer;
-        } else if (typeof rawResult === "object" && rawResult !== null) {
-            resultStr = JSON.stringify(rawResult, null, 2);
-            updatedBuffer = new TextEncoder().encode(resultStr).buffer;
-        } else {
-            resultStr = String(rawResult ?? "");
-            updatedBuffer = new TextEncoder().encode(resultStr).buffer;
-        }
+        // Convert between pipeline bytes and the op's input/output types the
+        // same way a recipe does (e.g. HTML output is stripped to plain text).
+        // Setting ingValues prepares them as a recipe does (e.g. "\n" escapes in binaryString args).
+        op.ingValues = ingValues;
+        const dish = new Dish(currentBuffer, Dish.ARRAY_BUFFER);
+        dish.set(await op.run(await dish.get(op.inputType), op.ingValues), op.outputType);
+        const updatedBuffer = await dish.get(Dish.ARRAY_BUFFER);
+        const resultStr = new TextDecoder("utf-8", { fatal: false }).decode(updatedBuffer);
 
         if (isWorkerEnvironment() && self.chef && self.chef.auditLog) {
             const truncatedResult = resultStr.length > 5000000 ?
@@ -304,7 +333,86 @@ class AIAgent extends Operation {
             });
         }
 
-        return { result: resultStr, updatedText: resultStr, updatedBuffer };
+        return { result: resultStr, updatedText: resultStr, updatedBuffer, step: { op: opName, args: ingValues } };
+    }
+
+    /**
+     * Runs one agent turn on a browser-local model.
+     *
+     * Local models have no native function calling, so the tools and the
+     * conversation so far are rendered as text and the model replies in JSON.
+     * The reply is converted back into Gemini-style parts, so the agent loop
+     * treats both backends the same way.
+     *
+     * @param {string} localModel - "chrome", or the name of a stored GGUF model.
+     * @param {string} systemText - System instruction.
+     * @param {Object[]} contents - Conversation in Vertex AI `contents` format.
+     * @param {Object[]} functionDeclarations - Available tools.
+     * @param {number} maxTokens
+     * @param {number} temperature
+     * @returns {Promise<Object[]>} Gemini-style parts: [{functionCall}] or [{text}].
+     */
+    async _promptLocal(localModel, systemText, contents, functionDeclarations, maxTokens, temperature) {
+        const { promptLocalLLM, AUTO_BACKEND } = await import("../lib/LocalLLM.mjs");
+
+        const toolList = functionDeclarations
+            .map(d => `- ${d.name}: ${d.description}\n  args: ${JSON.stringify(d.parameters.properties)}`)
+            .join("\n");
+        const transcript = contents.map(c => c.parts.map(p => {
+            if (p.functionCall) return `Assistant: ${JSON.stringify({ tool: p.functionCall.name, args: p.functionCall.args })}`;
+            if (p.functionResponse) {
+                const r = p.functionResponse.response;
+                return `Tool result (${p.functionResponse.name}): ${r.result ?? `ERROR: ${r.error}`}`;
+            }
+            return `${c.role === "model" ? "Assistant" : "User"}: ${p.text}`;
+        }).join("\n")).join("\n\n");
+
+        const isChrome = localModel === "chrome";
+        const reply = await promptLocalLLM({
+            backend: isChrome ? "chrome" : AUTO_BACKEND,
+            model: isChrome ? "" : localModel,
+            systemPrompt: `${systemText}\n\n${LOCAL_TOOL_PROTOCOL}\n\nTools:\n${toolList}`,
+            text: transcript,
+            mimeType: "text/plain",
+            maxTokens,
+            temperature,
+            contextSize: LOCAL_CONTEXT_SIZE,
+            // Chrome constrains decoding to this schema, so its replies always parse.
+            responseConstraint: {
+                type: "object",
+                properties: {
+                    tool: { type: "string", enum: functionDeclarations.map(d => d.name) },
+                    args: { type: "object" },
+                    answer: { type: "string" }
+                },
+                additionalProperties: false
+            },
+            onStatus: msg => {
+                if (isWorkerEnvironment()) self.sendStatusMessage(msg);
+            }
+        });
+        return this._parseLocalReply(reply);
+    }
+
+    /**
+     * Converts a local model's text reply into Gemini-style parts. A JSON
+     * object with a "tool" key becomes a function call; {"answer": ...} or
+     * plain text is the final answer.
+     *
+     * @param {string} reply
+     * @returns {Object[]}
+     */
+    _parseLocalReply(reply) {
+        try {
+            const obj = JSON.parse(reply.slice(reply.indexOf("{"), reply.lastIndexOf("}") + 1));
+            if (typeof obj.tool === "string") {
+                return [{ functionCall: { name: obj.tool.replace(/[^a-zA-Z0-9_]/g, "_"), args: obj.args || {} } }];
+            }
+            if (typeof obj.answer === "string") return [{ text: obj.answer }];
+        } catch (e) {
+            // Not JSON: a plain-text final answer.
+        }
+        return [{ text: reply }];
     }
 
     /**
@@ -323,41 +431,53 @@ class AIAgent extends Operation {
             throw new OperationError(`AI Agent: Failed to load operation registry: ${e.message}`);
         }
 
-        const creds = getGcpCredentials();
-        const location = locationArg === "Default Region" ? creds?.defaultRegion : locationArg;
-        if (!creds || !creds.quotaProject || !location) {
-            throw new OperationError("Please configure a Quota Project (and a Default Region if Location is 'Default Region') in the 'Authenticate Google Cloud' operation before using this ingredient.");
+        const localModel = modelName.startsWith(LOCAL_PREFIX) ? modelName.slice(LOCAL_PREFIX.length).trim() : null;
+
+        let url;
+        if (localModel === null) {
+            const creds = getGcpCredentials();
+            const location = locationArg === "Default Region" ? creds?.defaultRegion : locationArg;
+            if (!creds || !creds.quotaProject || !location) {
+                throw new OperationError("Please configure a Quota Project (and a Default Region if Location is 'Default Region') in the 'Authenticate Google Cloud' operation before using this ingredient.");
+            }
+            url = vertexGeminiUrl(creds.quotaProject, location, modelName);
         }
 
         let currentBuffer = input;
         let currentText = new TextDecoder("utf-8", { fatal: false }).decode(input);
 
-        // Initialize state tracking for both text and binary data
+        // Initialize state tracking for both text and binary data. Each later
+        // entry also holds the recipe step that produced it, so Undo/Reset
+        // remove steps from the recipe too.
         let pipelineStateHistory = [{ text: currentText, buffer: currentBuffer }];
+        const recipe = () => pipelineStateHistory.slice(1).map(s => s.step);
 
         const toolNames = toolsArg.split(",").map(s => s.trim()).filter(Boolean);
         const functionDeclarations = [];
         const funcDeclByVertexName = {};
 
+        const opsByName = new Map();
+        for (const candidate of Object.values(operations)) {
+            try {
+                if (typeof candidate === "function") opsByName.set(new candidate().name, candidate);
+            } catch (e) { /* skip */ }
+        }
+        const opNames = [...opsByName.keys()];
+
+        const unknownTools = [];
         for (const toolName of toolNames) {
-            let OpClass = null;
-            for (const key of Object.keys(operations)) {
-                try {
-                    const candidate = operations[key];
-                    if (typeof candidate === "function") {
-                        const inst = new candidate();
-                        if (inst.name === toolName) {
-                            OpClass = candidate;
-                            break;
-                        }
-                    }
-                } catch (e) { /* skip */ }
-            }
-            if (!OpClass) {
-                if (isWorkerEnvironment()) self.sendStatusMessage(`⚠️ Tool '${toolName}' not found, skipping.`);
+            const ccName = opsByName.has(toolName) ? toolName : opNames.find(n => n.toLowerCase() === toolName.toLowerCase());
+            if (!ccName) {
+                const suggestions = opNames
+                    .map(n => [n, fuzzyMatch(toolName, n)])
+                    .filter(([, m]) => m[0])
+                    .sort((a, b) => b[1][1] - a[1][1])
+                    .slice(0, 3)
+                    .map(([n]) => `'${n}'`);
+                unknownTools.push(`'${toolName}'` + (suggestions.length ? ` (did you mean ${suggestions.join(", ")}?)` : ""));
                 continue;
             }
-            const op = new OpClass();
+            const op = new (opsByName.get(ccName))();
             const decl = this._buildFunctionDeclaration(op);
             if (!decl) {
                 if (isWorkerEnvironment()) self.sendStatusMessage(`⚠️ Tool '${toolName}' is a flow-control op, skipping.`);
@@ -368,6 +488,10 @@ class AIAgent extends Operation {
             delete decl._isBinary;
             functionDeclarations.push(decl);
             funcDeclByVertexName[decl.name] = meta;
+        }
+
+        if (unknownTools.length) {
+            throw new OperationError(`AI Agent: Unknown tool${unknownTools.length > 1 ? "s" : ""} ${unknownTools.join(", ")}. Names must match operation names; you can drag an operation onto the Tools box to add it.`);
         }
 
         // Inject Built-in Meta-Tools
@@ -397,8 +521,7 @@ class AIAgent extends Operation {
             "After each tool call you will receive the result and can decide what to do next. If a tool fails or produces garbage, use Undo_Last_Step to revert the pipeline.",
             "When you have a final answer, respond with text only (no further tool calls)."
         ].join(" ");
-
-        const url = vertexGeminiUrl(creds.quotaProject, location, modelName);
+        const systemText = `${contextNote}\n\n${systemPrompt}`;
 
         const userMessageText = mimeType === "text/plain" ?
             currentText :
@@ -414,35 +537,39 @@ class AIAgent extends Operation {
         while (iterations < maxIterations) {
             iterations++;
 
-            const body = {
-                contents,
-                systemInstruction: {
-                    role: "system",
-                    parts: [{ text: `${contextNote}\n\n${systemPrompt}` }]
-                },
-                tools: [{ functionDeclarations }],
-                generationConfig: {
-                    maxOutputTokens: maxTokens,
-                    temperature
+            let parts;
+            if (localModel !== null) {
+                parts = await this._promptLocal(localModel, systemText, contents, functionDeclarations, maxTokens, temperature);
+            } else {
+                const body = {
+                    contents,
+                    systemInstruction: {
+                        role: "system",
+                        parts: [{ text: systemText }]
+                    },
+                    tools: [{ functionDeclarations }],
+                    generationConfig: {
+                        maxOutputTokens: maxTokens,
+                        temperature
+                    }
+                };
+
+                let data;
+                try {
+                    data = await gcpFetch(url, {
+                        method: "POST",
+                        body
+                    });
+                } catch (e) {
+                    throw new OperationError(`AI Agent: Vertex AI API error on iteration ${iterations}: ${e.message}`);
                 }
-            };
 
-            let data;
-            try {
-                data = await gcpFetch(url, {
-                    method: "POST",
-                    body
-                });
-            } catch (e) {
-                throw new OperationError(`AI Agent: Vertex AI API error on iteration ${iterations}: ${e.message}`);
+                if (!data.candidates || data.candidates.length === 0) {
+                    throw new OperationError("AI Agent: No candidates returned from Vertex AI.");
+                }
+
+                parts = data.candidates[0]?.content?.parts ?? [];
             }
-
-            if (!data.candidates || data.candidates.length === 0) {
-                throw new OperationError("AI Agent: No candidates returned from Vertex AI.");
-            }
-
-            const candidate = data.candidates[0];
-            const parts = candidate?.content?.parts ?? [];
 
             const functionCalls = parts.filter(p => p.functionCall);
             const textParts = parts.filter(p => p.text);
@@ -462,10 +589,13 @@ class AIAgent extends Operation {
                             })),
                             "llm_answer": llmAnswer
                         },
+                        recipe: recipe(),
                         output: currentText
                     }, null, 2);
                 } else if (outputMode === "Agent Answer") {
                     return llmAnswer;
+                } else if (outputMode === "Recipe") {
+                    return JSON.stringify(recipe(), null, 2);
                 }
                 return currentText;
             }
@@ -527,7 +657,7 @@ class AIAgent extends Operation {
                 if (isWorkerEnvironment()) self.sendStatusMessage(`🔧 Calling tool: ${ccName}...`);
 
                 try {
-                    const { result, updatedText, updatedBuffer } = await this._executeTool(
+                    const { result, updatedText, updatedBuffer, step } = await this._executeTool(
                         ccName, llmArgs || {}, currentBuffer, currentText, operations
                     );
                     resultStr = result;
@@ -537,7 +667,8 @@ class AIAgent extends Operation {
                     // Save the new state to history upon success
                     pipelineStateHistory.push({
                         text: currentText,
-                        buffer: currentBuffer
+                        buffer: currentBuffer,
+                        step
                     });
                 } catch (e) {
                     resultStr = `Error executing ${ccName}: ${e.message}`;
@@ -576,8 +707,11 @@ class AIAgent extends Operation {
                         result: t.result
                     }))
                 },
+                recipe: recipe(),
                 output: currentText
             }, null, 2);
+        } else if (outputMode === "Recipe") {
+            return JSON.stringify(recipe(), null, 2);
         } else if (outputMode === "Agent Answer") {
             return "Agent stopped due to hitting Max Iterations limit prior to answering. Check the CyberChef output audit logs for more details on tool usage up to this point.";
         }

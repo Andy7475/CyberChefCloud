@@ -95,6 +95,10 @@ There are two ways to add a model:
 
 A provider for a multi-file format (ONNX) would store the files under one model name, for example as `<model>/<file>` entries. The store currently keeps a flat list of files, so it would need a folder per model first.
 
+### Use with AI Agent
+
+`AI Agent` runs on a local model when its `Model` argument is `local:chrome` (Chrome built-in) or `local:<stored model name>` (a GGUF model, chosen by `Auto`). Local providers have no native function calling, so `AIAgent._promptLocal` renders the tool list and the conversation as text, asks the model to reply with `{"tool": ..., "args": {...}}` or `{"answer": ...}`, and converts the reply back into Gemini-style `functionCall`/`text` parts. The rest of the agent loop (tool execution, undo/reset, output modes) is shared with the Vertex AI path. The context window is fixed at 8192 tokens (`LOCAL_CONTEXT_SIZE`). The request also carries a JSON Schema in `req.responseConstraint` (tool name as an enum, `args`, `answer`). The Chrome provider passes it to `session.prompt()` as `responseConstraint` (Chrome 137+), so Gemini Nano can only produce valid tool calls or answers. The GGUF provider ignores it and falls back to parsing the first JSON object in the reply, treating anything else as plain text.
+
 ## Testing
 
 - `tests/operations/tests/LocalLLM.mjs` checks argument handling and the messages shown when browser features (OPFS, `LanguageModel`) are missing. Node has neither, so no model is run there.

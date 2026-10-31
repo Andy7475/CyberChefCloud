@@ -188,6 +188,7 @@ class Operation {
             if (typeof ing.min === "number") conf.min = ing.min;
             if (typeof ing.max === "number") conf.max = ing.max;
             if (ing.step) conf.step = ing.step;
+            if (ing.acceptsOperations) conf.acceptsOperations = true;
             return conf;
         });
     }

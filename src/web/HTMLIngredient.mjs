@@ -39,6 +39,7 @@ class HTMLIngredient {
         this.max = (typeof config.max === "number") ? config.max : "";
         this.step = config.step || 1;
         this.autocomplete = config.autocomplete || false;
+        this.acceptsOperations = config.acceptsOperations || false;
     }
 
 
@@ -282,6 +283,7 @@ class HTMLIngredient {
                         tabindex="${this.tabIndex}"
                         arg-name="${this.name}"
                         rows="${this.rows ? this.rows : 3}"
+                        ${this.acceptsOperations ? "data-accepts-operations" : ""}
                         ${this.disabled ? "disabled" : ""}>${this.value}</textarea>
                 </div>`;
                 break;

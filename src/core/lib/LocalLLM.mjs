@@ -82,6 +82,7 @@ export async function resolveProvider(backend, modelName) {
  * @param {number} req.maxTokens
  * @param {number} req.temperature
  * @param {number} req.contextSize
+ * @param {Object} [req.responseConstraint] - JSON Schema the reply must match. Used by providers that support it (Chrome built-in); others ignore it.
  * @param {function(string)} [req.onStatus] - Progress messages for the UI.
  * @returns {Promise<string>}
  */

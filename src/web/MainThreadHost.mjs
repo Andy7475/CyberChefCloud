@@ -50,7 +50,7 @@ const SERVICES = {
     /**
      * Runs one stateless prompt against Chrome's built-in model.
      *
-     * @param {Object} payload - {systemPrompt, text, media: {mimeType, bytes}}
+     * @param {Object} payload - {systemPrompt, text, media: {mimeType, bytes}, responseConstraint}
      * @param {function(Object)} progress - Sends a progress update to the worker.
      * @returns {Promise<string>}
      */
@@ -87,7 +87,8 @@ const SERVICES = {
                 });
             }
             if (!content.length) content.push({ type: "text", value: "Please respond to the system instructions." });
-            return await session.prompt([{ role: "user", content }]);
+            const promptOptions = payload.responseConstraint ? { responseConstraint: payload.responseConstraint } : {};
+            return await session.prompt([{ role: "user", content }], promptOptions);
         } finally {
             session.destroy();
         }
