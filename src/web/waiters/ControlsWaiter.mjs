@@ -124,7 +124,7 @@ class ControlsWaiter {
      * @returns {string}
      */
     generateStateUrl(includeRecipe, includeInput, input, recipeConfig, baseURL) {
-        recipeConfig = recipeConfig || this.app.getRecipeConfig();
+        recipeConfig = this.app.redactRecipeConfig(recipeConfig || this.app.getRecipeConfig());
 
         const link = baseURL || window.location.protocol + "//" +
             window.location.host +
@@ -186,7 +186,7 @@ class ControlsWaiter {
      * Handler for the 'Save' command. Pops up the save dialog box.
      */
     saveClick() {
-        const recipeConfig = this.app.getRecipeConfig();
+        const recipeConfig = this.app.redactRecipeConfig(this.app.getRecipeConfig());
         const recipeStr = JSON.stringify(recipeConfig);
 
         document.getElementById("save-text-chef").value = Utils.generatePrettyRecipe(recipeConfig, true);

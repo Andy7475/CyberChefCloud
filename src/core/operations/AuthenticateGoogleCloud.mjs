@@ -32,7 +32,10 @@ class AuthenticateGoogleCloud extends Operation {
             "<b>Example:</b>",
             "<ul><li>Set 'Auth Type' to 'OAuth' and input your Project ID to enable other Google Cloud operations.</li></ul>",
             "<br>",
-            "<b>Requirements:</b> This must be the first step in the recipe before calling other Google Cloud operations."
+            "<b>Requirements:</b> This must be the first step in the recipe before calling other Google Cloud operations.",
+            "<br><br>",
+            "<b>Saving settings:</b> In Chrome, use the save icon on this operation to store its settings in the browser's password manager, and the key icon to fill them in again. ",
+            "The credential fields are left out of the page URL and saved recipes, so they are not kept in browser history."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/docs/authentication";
         this.inputType = "ArrayBuffer";
@@ -50,13 +53,12 @@ class AuthenticateGoogleCloud extends Operation {
                 "type": "toggleString",
                 "value": "",
                 "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"],
-                "autocomplete": "gcp-credentials"
+                "sensitive": true
             },
             {
                 "name": "Quota Project (OAuth only)",
                 "type": "string",
-                "value": "",
-                "autocomplete": "gcp-quota-project"
+                "value": ""
             },
             {
                 "name": "Default Region",
@@ -67,7 +69,8 @@ class AuthenticateGoogleCloud extends Operation {
                 "name": "API Key (For strict API Key endpoints)",
                 "type": "toggleString",
                 "value": "",
-                "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"]
+                "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"],
+                "sensitive": true
             },
             {
                 "name": "Output Logs",

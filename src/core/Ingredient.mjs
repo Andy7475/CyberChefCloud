@@ -53,6 +53,7 @@ class Ingredient {
         this.rows = ingredientConfig.rows || false;
         this.toggleValues = ingredientConfig.toggleValues;
         this.acceptsOperations = !!ingredientConfig.acceptsOperations;
+        this.sensitive = !!ingredientConfig.sensitive;
         this.target = typeof ingredientConfig.target !== "undefined" ? ingredientConfig.target : null;
         this.defaultIndex = typeof ingredientConfig.defaultIndex !== "undefined" ? ingredientConfig.defaultIndex : 0;
         this.maxLength = ingredientConfig.maxLength || null;

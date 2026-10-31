@@ -566,6 +566,31 @@ class App {
 
 
     /**
+     * Returns a copy of the recipe configuration with the values of sensitive
+     * arguments (credentials, API keys) blanked, so they are not written to the
+     * URL, browser history or saved recipes.
+     *
+     * @param {Object[]} recipeConfig
+     * @returns {Object[]}
+     */
+    redactRecipeConfig(recipeConfig) {
+        return recipeConfig.map(op => {
+            const argConfs = this.operations[op.op]?.args || [];
+            if (!argConfs.some(arg => arg.sensitive)) return op;
+
+            return {
+                ...op,
+                args: op.args.map((value, i) => {
+                    if (!argConfs[i]?.sensitive) return value;
+                    // toggleString values are {option, string}
+                    return typeof value === "object" && value !== null ? {...value, string: ""} : "";
+                })
+            };
+        });
+    }
+
+
+    /**
      * Given a recipe configuration, sets the recipe to that configuration.
      *
      * @fires Manager#statechange
@@ -579,22 +604,7 @@ class App {
 
             // Populate arguments
             log.debug(`Populating arguments for ${recipeConfig[i].op}`);
-            const args = item.querySelectorAll(".arg");
-            for (let j = 0; j < args.length; j++) {
-                if (recipeConfig[i].args[j] === undefined) continue;
-                if (args[j].getAttribute("type") === "checkbox") {
-                    // checkbox
-                    args[j].checked = recipeConfig[i].args[j];
-                } else if (args[j].classList.contains("toggle-string")) {
-                    // toggleString
-                    args[j].value = recipeConfig[i].args[j].string;
-                    args[j].parentNode.parentNode.querySelector("button").innerHTML =
-                        Utils.escapeHtml(recipeConfig[i].args[j].option);
-                } else {
-                    // all others
-                    args[j].value = recipeConfig[i].args[j];
-                }
-            }
+            this.manager.recipe.setArgs(item, recipeConfig[i].args);
 
             // Set disabled and breakpoint
             if (recipeConfig[i].disabled) {

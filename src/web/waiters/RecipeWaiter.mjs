@@ -393,6 +393,112 @@ class RecipeWaiter {
 
 
     /**
+     * Sets the argument values of an operation in the recipe.
+     *
+     * @param {HTMLElement} item - The operation's list element
+     * @param {Array} values - Argument values in recipe config form; undefined entries are left unchanged
+     */
+    setArgs(item, values) {
+        const args = item.querySelectorAll(".arg");
+        for (let j = 0; j < args.length; j++) {
+            if (values[j] === undefined) continue;
+            if (args[j].getAttribute("type") === "checkbox") {
+                // checkbox
+                args[j].checked = values[j];
+            } else if (args[j].classList.contains("toggle-string")) {
+                // toggleString
+                args[j].value = values[j].string;
+                args[j].parentNode.parentNode.querySelector("button").innerHTML =
+                    Utils.escapeHtml(values[j].option);
+            } else {
+                // all others
+                args[j].value = values[j];
+            }
+        }
+    }
+
+
+    /**
+     * Handler for save-creds-icon click events.
+     * Stores the operation's argument values in the browser's password manager
+     * as a JSON profile, using the Credential Management API.
+     *
+     * @param {event} e
+     */
+    async saveCredsClick(e) {
+        const item = e.target.closest("li.operation");
+        const opIndex = Array.from(document.querySelectorAll("#rec-list li.operation")).indexOf(item);
+        const {op, args} = this.getConfig()[opIndex];
+
+        const label = window.prompt("Name for this saved profile (for example, the project ID):");
+        if (!label) return;
+
+        const values = {};
+        this.app.operations[op].args.forEach((conf, i) => {
+            values[conf.name] = args[i];
+        });
+
+        try {
+            await navigator.credentials.store(new window.PasswordCredential({
+                id: label,
+                name: label,
+                password: JSON.stringify({op, args: values})
+            }));
+        } catch (err) {
+            this.app.alert(`Could not save to the browser password manager: ${Utils.escapeHtml(err.message)}`, 5000);
+            return;
+        }
+
+        // The browser discards the credential without any error if its password manager is turned off
+        this.app.alert(`Sent "${Utils.escapeHtml(label)}" to the browser password manager. If no "Save password?" prompt appeared, check that the browser's "Offer to save passwords" setting is on.`, 8000);
+    }
+
+
+    /**
+     * Handler for fill-creds-icon click events.
+     * Asks the browser for a saved profile and fills the operation's arguments from it.
+     *
+     * @fires Manager#statechange
+     * @param {event} e
+     */
+    async fillCredsClick(e) {
+        const item = e.target.closest("li.operation");
+        const opName = item.querySelector(".op-title").textContent;
+
+        let cred;
+        try {
+            cred = await navigator.credentials.get({password: true, mediation: "optional"});
+        } catch (err) {
+            this.app.alert(`Could not read from the browser password manager: ${Utils.escapeHtml(err.message)}`, 5000);
+            return;
+        }
+        if (!cred || cred.type !== "password") {
+            this.app.alert("No saved profile was selected.", 3000);
+            return;
+        }
+
+        let saved;
+        try {
+            saved = JSON.parse(cred.password);
+        } catch (err) {
+            saved = null;
+        }
+        if (!saved?.args) {
+            this.app.alert(`"${Utils.escapeHtml(cred.id)}" is not a saved CyberChef profile.`, 5000);
+            return;
+        }
+
+        // Match values by argument name, so a profile still fills correctly if arguments are reordered
+        this.setArgs(item, this.app.operations[opName].args.map(conf => saved.args[conf.name]));
+
+        // Lets bootstrap-material-design float the labels of filled fields
+        item.querySelectorAll(".arg").forEach(el => el.dispatchEvent(new Event("change", {bubbles: true})));
+        window.dispatchEvent(this.manager.statechange);
+        this.app.alert(`Filled settings from "${Utils.escapeHtml(cred.id)}".`, 3000);
+    }
+
+
+    /**
      * Moves or removes the breakpoint indicator in the recipe based on the position.
      *
      * @param {number|boolean} position - If boolean, turn off all indicators
