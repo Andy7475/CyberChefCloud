@@ -165,6 +165,7 @@ import "./tests/Template.mjs";
 import "./tests/TextEncodingBruteForce.mjs";
 import "./tests/ToFromInsensitiveRegex.mjs";
 import "./tests/TranslateDateTimeFormat.mjs";
+import "./tests/Trim.mjs";
 import "./tests/Typex.mjs";
 import "./tests/UnescapeString.mjs";
 import "./tests/Unicode.mjs";

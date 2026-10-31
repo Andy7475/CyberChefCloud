@@ -294,6 +294,7 @@
         "ops": [
             "Diff",
             "Remove whitespace",
+            "Trim",
             "Remove null bytes",
             "To Upper case",
             "To Lower case",
