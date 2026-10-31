@@ -67,43 +67,146 @@ TestRegister.addTests([
         recipeConfig: [{ op: "Parse Phone Number", args: ["GB", true, false, "CSV"] }]
     },
     {
-        name: "Parse Phone Number: JSON with no default region",
-        input: "+1 202 555 0143",
+        name: "Parse Phone Number: JSON with blank regions",
+        input: "+1 650 253 0000",
         expectedOutput: JSON.stringify([{
-            input: "+1 202 555 0143",
+            input: "+1 650 253 0000",
             valid: true,
             possible: true,
-            e164: "+12025550143",
-            country: "US",
-            countryName: "United States",
-            callingCode: "+1",
-            type: "Fixed line or mobile",
-            national: "(202) 555-0143",
-            international: "+1 202 555 0143",
-            extension: "",
-            repairs: [],
+            callingCode: "",
+            readings: [{
+                e164: "+16502530000",
+                country: "US",
+                countryName: "United States",
+                callingCode: "+1",
+                type: "Fixed line or mobile",
+                national: "(650) 253-0000",
+                international: "+1 650 253 0000",
+                extension: "",
+                valid: true,
+                repairs: [],
+                notes: []
+            }],
             notes: [],
             otherRegions: []
         }], null, 2),
         recipeConfig: [{ op: "Parse Phone Number", args: ["", true, false, "JSON"] }]
     },
     {
+        name: "Parse Phone Number: drama numbers are not valid and get a note",
+        input: "020 7946 0123",
+        expectedOutput: [
+            "020 7946 0123",
+            "  Valid:          No (see note)",
+            "  E.164:          +442079460123",
+            "  Country:        United Kingdom (GB, +44)",
+            "  Type:           Fixed line",
+            "  National:       020 7946 0123",
+            "  International:  +44 20 7946 0123",
+            "  Note:           Ofcom drama number: reserved for TV and radio drama, never allocated to a real line"
+        ].join("\n"),
+        recipeConfig: [{ op: "Parse Phone Number", args: ["GB", true, false, "Text Summary"] }]
+    },
+    {
         name: "Parse Phone Number: unknown region",
         input: "07400 123456",
-        expectedOutput: "Unknown default region \"ZZ\". Use a two-letter ISO 3166 code such as GB, US or FR, or leave it blank.",
+        expectedOutput: "Unknown region \"ZZ\". Use two-letter ISO 3166 codes such as GB, US or FR, separated by commas, or leave blank for all regions.",
         recipeConfig: [{ op: "Parse Phone Number", args: ["ZZ", true, false, "Text Summary"] }]
     },
     {
-        name: "Extract Phone Numbers: valid, E.164, unique, total",
+        name: "Extract Phone Numbers: valid, E.164, unique, total, keeps and counts drama numbers",
         input: EXTRACT_TEXT,
-        expectedOutput: "Total found: 3\n\n+447400123456\n+442073238000\n+33612345678",
-        recipeConfig: [{ op: "Extract Phone Numbers", args: ["GB", true, "E.164", true, false, true] }]
+        expectedOutput: "Total found: 3\nReserved for fiction, not real lines: +441632960123\n\n+447400123456\n+442073238000\n+441632960123",
+        recipeConfig: [{ op: "Extract Phone Numbers", args: ["GB", true, true, "E.164", true, false, true] }]
     },
     {
-        name: "Extract Phone Numbers: possible, as written",
+        name: "Extract Phone Numbers: possible, as written, region limits international numbers too",
         input: EXTRACT_TEXT,
-        expectedOutput: "07400 123456\n0207 323 8000\n01632 960123\n0033 6 12 34 56 78\n+447400123456",
-        recipeConfig: [{ op: "Extract Phone Numbers", args: ["GB", false, "As written", false, false, false] }]
+        expectedOutput: "07400 123456\n0207 323 8000\n01632 960123\n+447400123456",
+        recipeConfig: [{ op: "Extract Phone Numbers", args: ["GB", true, false, "As written", false, false, false] }]
+    },
+    {
+        name: "Extract Phone Numbers: region list, whitespace and case ignored",
+        input: EXTRACT_TEXT,
+        expectedOutput: "+447400123456\n+442073238000\n+441632960123\n+33612345678",
+        recipeConfig: [{ op: "Extract Phone Numbers", args: [" gb ;fr ", true, true, "E.164", false, false, true] }]
+    },
+    {
+        name: "Extract Phone Numbers: unknown regions",
+        input: EXTRACT_TEXT,
+        expectedOutput: "Unknown regions \"XX\", \"ZZ\". Use two-letter ISO 3166 codes such as GB, US or FR, separated by commas, or leave blank for all regions.",
+        recipeConfig: [{ op: "Extract Phone Numbers", args: ["GB, XX, zz", true, true, "E.164", false, false, false] }]
+    },
+    {
+        name: "Extract Phone Numbers: JSON keyed by region, fiction flagged",
+        input: "Bangkok 2 305 8333, US 202 555 0143",
+        expectedOutput: JSON.stringify({
+            TH: { country: "Thailand", matches: [{
+                asWritten: "2 305 8333", position: 8, e164: "+6623058333", callingCode: "+66", type: "Fixed line",
+                national: "02 305 8333", international: "+66 2 305 8333", extension: "", valid: true,
+                repairs: ["Leading 0 was missing (often stripped by spreadsheets)"], notes: []
+            }] },
+            US: { country: "United States", matches: [{
+                asWritten: "202 555 0143", position: 23, e164: "+12025550143", callingCode: "+1", type: "Fixed line or mobile",
+                national: "(202) 555-0143", international: "+1 202 555 0143", extension: "", valid: false, repairs: [],
+                notes: ["Fictional number: 555-0100 to 555-0199 is reserved for fiction in North America, never allocated to a real line"]
+            }] }
+        }, null, 2),
+        recipeConfig: [{ op: "Extract Phone Numbers", args: ["th, us", true, true, "JSON", false, false, false] }]
+    },
+    {
+        name: "Extract Phone Numbers: blank region finds national numbers, once per span",
+        input: "Embassy 2 305 8333 or +44 20 7008 1500",
+        expectedOutput: "2 305 8333\n+44 20 7008 1500",
+        recipeConfig: [{ op: "Extract Phone Numbers", args: ["", true, true, "As written", false, false, false] }]
+    },
+    {
+        name: "Extract Phone Numbers: blank region gives the number for each region it is valid in",
+        input: "Embassy 2 305 8333",
+        expectedOutput: "+6623058333",
+        recipeConfig: [
+            { op: "Extract Phone Numbers", args: ["", true, true, "E.164", false, false, false] },
+            { op: "Regular expression", args: ["User defined", "^\\+66\\d+$", false, true, false, false, false, false, "List matches"] }
+        ]
+    },
+    {
+        name: "Parse Phone Number: several regions, one reading per region the number fits",
+        input: "2 305 8333\n0612345678",
+        expectedOutput: [
+            "2 305 8333",
+            "  Fits 2 regions (no country code was written):",
+            "    +6623058333      Thailand (TH), Fixed line",
+            "    +4923058333      Germany (DE), Fixed line",
+            "  Repair:         Leading 0 was missing (often stripped by spreadsheets)",
+            "",
+            "0612345678",
+            "  Fits 2 regions (no country code was written):",
+            "    +66612345678     Thailand (TH), Mobile",
+            "    +49612345678     Germany (DE), Fixed line"
+        ].join("\n"),
+        recipeConfig: [{ op: "Parse Phone Number", args: ["th, gb, de", true, false, "Text Summary"] }]
+    },
+    {
+        name: "Parse Phone Number: repair is off, foreign exit prefix not read",
+        input: "011 44 7400 123456",
+        expectedOutput: [
+            "011 44 7400 123456",
+            "  Not a valid number",
+            "  Note:           15 digits: possibly an IMSI (SIM ID); if so the mobile country code is 011"
+        ].join("\n"),
+        recipeConfig: [{ op: "Parse Phone Number", args: ["GB", false, false, "Text Summary"] }]
+    },
+    {
+        name: "Extract Phone Numbers: repair reads foreign exit prefixes; comma-separated numbers kept apart",
+        input: "Embassy 2 305 8333, 011 44 7400 123456, +33 6 12 34 56 78, 7400 123456",
+        expectedOutput: "011 44 7400 123456\n7400 123456",
+        recipeConfig: [{ op: "Extract Phone Numbers", args: ["GB", true, true, "As written", false, false, false] }]
+    },
+    {
+        name: "Extract Phone Numbers: no repair, foreign exit prefix not read",
+        input: "Embassy 2 305 8333, 011 44 7400 123456, +33 6 12 34 56 78, 7400 123456",
+        expectedOutput: "7400 123456",
+        recipeConfig: [{ op: "Extract Phone Numbers", args: ["GB", false, true, "As written", false, false, false] }]
     },
     {
         name: "GCloud Phone Business Lookup: errors without auth",
