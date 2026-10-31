@@ -1,0 +1,169 @@
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
+
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
+
+/**
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * @author d98762625 [d98762625@gmail.com]
+ * @copyright Crown Copyright 2019
+ * @license Apache-2.0
+ */
+
+/**
+ * @author n1474335 [n1474335@gmail.com]
+ * @author Matt C [matt@artemisbot.uk]
+ * @copyright Crown Copyright 2016
+ * @license Apache-2.0
+ */
+
+/**
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2016
+ * @license Apache-2.0
+ */
+
+/**
+ * Base64 functions.
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2016
+ * @license Apache-2.0
+ */
+
+/**
+ * Browser-local model file store, backed by the Origin Private File System (OPFS).
+ *
+ * OPFS is per-origin storage that works in both the UI thread and Web Workers,
+ * handles multi-GB files, and can be written as a stream, so a model never has
+ * to sit in memory in one piece while it is downloaded. Files persist across
+ * page reloads until deleted (or evicted by the browser under storage pressure,
+ * unless persistent storage has been granted).
+ *
+ * Split GGUF files (`name-00001-of-00003.gguf`) are grouped into one model.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Custom error type for handling Dish type errors.
+ * i.e. where the Dish cannot be successfully translated between types
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ */
+
+/**
+ * Custom error type for handling operation input errors.
+ * i.e. where the operation can handle the error and print a message to the screen.
+ *
+ * @author d98762625 [d98762625@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ */
+
+/**
+ * CyberChef - The Cyber Swiss Army Knife
+ *
+ * @copyright Crown Copyright 2016-2026
+ * @license Apache-2.0
+ *
+ *   Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Decimal functions.
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ */
+
+/**
+ * File signatures and extractor functions
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ *
+ */
+
+/**
+ * File type functions
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ *
+ */
+
+/**
+ * Registry of browser-local LLM providers.
+ *
+ * A provider runs a prompt against a model that lives in the browser, with no
+ * cloud account or authentication. To add one (e.g. ONNX via Transformers.js,
+ * MLC via WebLLM, LiteRT via MediaPipe), implement the interface below and add
+ * it to PROVIDERS. See docs/LocalLLM.md.
+ *
+ * Provider interface:
+ *   id          {string}    Short stable id, used to pick the provider.
+ *   label       {string}    Name shown in the 'Backend' argument.
+ *   formats     {string[]}  Model store formats it can load (see LocalModelStore.MODEL_FORMATS),
+ *                           or [] if the browser supplies the model.
+ *   supportsMime(mimeType)  -> boolean
+ *   status()                -> Promise<string>  Human-readable availability.
+ *   prompt(req)             -> Promise<string>  See promptLocalLLM for `req`.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Request/response messaging from the ChefWorker to the main UI thread.
+ *
+ * Some browser APIs (for example Chrome's built-in `LanguageModel`) are only
+ * exposed on `window`, not inside Web Workers. Operations run in a worker, so
+ * they post a `mainThreadRequest` message and wait for the matching
+ * `mainThreadResponse`. The UI side lives in `src/web/MainThreadHost.mjs`.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Stream class for parsing binary protocols.
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @author tlwr [toby@toby.codes]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ *
+ */

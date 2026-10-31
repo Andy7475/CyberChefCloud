@@ -1,0 +1,203 @@
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
+
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
+
+/*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
+
+/**
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * @author d98762625 [d98762625@gmail.com]
+ * @copyright Crown Copyright 2019
+ * @license Apache-2.0
+ */
+
+/**
+ * @author j433866 [j433866@gmail.com]
+ * @copyright Crown Copyright 2019
+ * @license Apache-2.0
+ */
+
+/**
+ * @author n1474335 [n1474335@gmail.com]
+ * @author Matt C [matt@artemisbot.uk]
+ * @copyright Crown Copyright 2016
+ * @license Apache-2.0
+ */
+
+/**
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2016
+ * @license Apache-2.0
+ */
+
+/**
+ * Base64 functions.
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2016
+ * @license Apache-2.0
+ */
+
+/**
+ * Custom error type for handling Dish type errors.
+ * i.e. where the Dish cannot be successfully translated between types
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ */
+
+/**
+ * Custom error type for handling operation input errors.
+ * i.e. where the operation can handle the error and print a message to the screen.
+ *
+ * @author d98762625 [d98762625@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ */
+
+/**
+ * CyberChef - The Cyber Swiss Army Knife
+ *
+ * @copyright Crown Copyright 2016-2026
+ * @license Apache-2.0
+ *
+ *   Copyright 2016-2026 Crown Copyright
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Decimal functions.
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ */
+
+/**
+ * File signatures and extractor functions
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ *
+ */
+
+/**
+ * File type functions
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ *
+ */
+
+/**
+ * Heading anchors for Markdown, using the same slugs as GitHub, so that links
+ * such as [Class hierarchy](#class-hierarchy) work in Render Markdown and in
+ * other Markdown viewers.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Markdown helpers shared by the ontology operations' reports.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Quality checks for an ontology (missing labels and descriptions, terms used
+ * but not declared, duplicate labels, …), for the Ontology Quality Checks
+ * operation and the quality section of Ontology Summary.
+ *
+ * Every check is SPARQL over the store. Terms in the common vocabularies
+ * (RDF, RDFS, OWL, XSD, SKOS, Dublin Core, …) are not checked, as they are
+ * defined elsewhere.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * RDF / ontology helpers shared by the ontology operations.
+ *
+ * Input text is loaded into an in-memory Oxigraph store (WASM), queried or
+ * transformed there, and serialised back out. Oxigraph handles parsing,
+ * SPARQL and most serialisations; @rdfjs/serializer-turtle is used for
+ * human-readable Turtle (prefixes, nested blank nodes, lists).
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Reads an ontology's class hierarchy, class descriptions, restrictions and the
+ * properties that apply to each class (via rdfs:domain, including inherited
+ * ones), for the Ontology Summary operation.
+ *
+ * All functions take a `select` function that runs a SPARQL SELECT (with the
+ * usual prefixes added) and returns an array of binding Maps.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Rule-based reasoning over an Oxigraph store: the RDFS entailment rules and
+ * the OWL 2 RL/RDF rules, each written as a SPARQL CONSTRUCT query and applied
+ * repeatedly until no new triples appear.
+ *
+ * Rule ids and meanings follow the W3C specifications:
+ * - RDFS: RDF 1.1 Semantics, section 9.2.1 (rdfs2, rdfs3, …)
+ * - OWL 2 RL: OWL 2 Profiles, section 4.3, tables 4–9 (cax-sco, prp-inv1, …)
+ *
+ * Each rule's new triples are stored in the named graph
+ * `urn:ccc:inferred:<rule id>`, so which rule produced a triple survives
+ * serialisation as TriG or N-Quads, and later operations can tell asserted
+ * triples from inferred ones.
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/**
+ * Stream class for parsing binary protocols.
+ *
+ * @author n1474335 [n1474335@gmail.com]
+ * @author tlwr [toby@toby.codes]
+ * @copyright Crown Copyright 2018
+ * @license Apache-2.0
+ *
+ */
