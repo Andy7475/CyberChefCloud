@@ -42,6 +42,7 @@ import {
 
 import { statusBar } from "../utils/statusBar.mjs";
 import { fileDetailsPanel } from "../utils/fileDetails.mjs";
+import { charHighlight } from "../utils/charHighlight.mjs";
 import { eolCodeToSeq, eolCodeToName, renderSpecialChar } from "../utils/editorUtils.mjs";
 
 
@@ -91,7 +92,8 @@ class InputWaiter {
         this.inputEditorConf = {
             eol: new Compartment,
             lineWrapping: new Compartment,
-            fileDetailsPanel: new Compartment
+            fileDetailsPanel: new Compartment,
+            charHighlight: new Compartment
         };
 
         const self = this;
@@ -124,6 +126,7 @@ class InputWaiter {
 
                 // Mutable state
                 this.inputEditorConf.fileDetailsPanel.of([]),
+                this.inputEditorConf.charHighlight.of(this.app.options?.charHighlight ? charHighlight() : []),
                 this.inputEditorConf.lineWrapping.of(EditorView.lineWrapping),
                 this.inputEditorConf.eol.of(EditorState.lineSeparator.of("\n")),
 
@@ -269,6 +272,18 @@ class InputWaiter {
         this.inputEditorView.dispatch({
             effects: this.inputEditorConf.lineWrapping.reconfigure(
                 wrap ? EditorView.lineWrapping : []
+            )
+        });
+    }
+
+    /**
+     * Turns character class highlighting on or off
+     * @param {boolean} enabled
+     */
+    setCharHighlight(enabled) {
+        this.inputEditorView.dispatch({
+            effects: this.inputEditorConf.charHighlight.reconfigure(
+                enabled ? charHighlight() : []
             )
         });
     }

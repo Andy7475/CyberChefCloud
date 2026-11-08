@@ -91,6 +91,56 @@ body {
 .hl4 { background-color: var(--hl4); }
 .hl5 { background-color: var(--hl5); }
 
+/* Character class highlighting: the "Colour-code characters" option and the
+   Detect Homoglyphs operation share these classes */
+.cc-letter { color: var(--cc-letter); }
+.cc-digit { color: var(--cc-digit); }
+.cc-symbol { color: var(--cc-symbol); }
+.cc-homoglyph {
+    color: var(--cc-homoglyph);
+    background-color: var(--cc-homoglyph-bg);
+    font-weight: bold;
+    border-radius: 2px;
+    outline: 1px solid var(--cc-homoglyph);
+}
+.cc-accented {
+    color: var(--cc-accented);
+    background-color: var(--cc-accented-bg);
+    font-weight: bold;
+    border-radius: 2px;
+}
+.cc-other {
+    color: var(--cc-other);
+    background-color: var(--cc-other-bg);
+}
+.cc-invisible {
+    background-color: var(--cc-invisible-bg);
+    outline: 1px dashed var(--cc-invisible);
+}
+.cc-invisible-badge {
+    display: inline-block;
+    color: var(--cc-invisible);
+    background-color: var(--cc-invisible-bg);
+    border: 1px solid var(--cc-invisible);
+    border-radius: 3px;
+    font-size: 0.65em;
+    line-height: 1.2;
+    padding: 0 1px;
+    margin: 0 1px;
+    vertical-align: middle;
+    font-family: var(--fixed-width-font-family);
+}
+.cc-mixed {
+    text-decoration: underline wavy var(--cc-mixed);
+    text-decoration-skip-ink: none;
+    text-underline-offset: 3px;
+}
+.cc-legend {
+    margin: 2px 0 0 20px;
+    font-family: var(--fixed-width-font-family);
+}
+.cc-legend > span { margin-right: 6px; }
+
 /* Google Cloud Natural Language entity-type highlights */
 .nl-entity { border-radius: 3px; padding: 0 2px; }
 .nl-entity-PERSON        { background-color: #ffb3ba; }
@@ -106,3 +156,6 @@ body {
 .nl-entity-PRICE         { background-color: #f0d6ff; }
 .nl-entity-OTHER         { background-color: #e2e2e2; }
 .nl-entity-UNKNOWN       { background-color: #e2e2e2; }
+/* Detect Homoglyphs output: the badge text is CSS-only so copying returns the original character */
+.cc-badge-attr::after { content: attr(data-cp); }
+.cc-badge-attr .cm-specialChar { display: none; }

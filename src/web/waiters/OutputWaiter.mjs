@@ -40,6 +40,7 @@ import {statusBar} from "../utils/statusBar.mjs";
 import {htmlPlugin} from "../utils/htmlWidget.mjs";
 import {htmlSearch} from "../utils/htmlSearch.mjs";
 import {copyOverride} from "../utils/copyOverride.mjs";
+import {charHighlight} from "../utils/charHighlight.mjs";
 import {eolCodeToSeq, eolCodeToName, renderSpecialChar} from "../utils/editorUtils.mjs";
 
 
@@ -84,7 +85,8 @@ class OutputWaiter {
         this.outputEditorConf = {
             eol: new Compartment,
             lineWrapping: new Compartment,
-            drawSelection: new Compartment
+            drawSelection: new Compartment,
+            charHighlight: new Compartment
         };
 
         const initialState = EditorState.create({
@@ -125,6 +127,7 @@ class OutputWaiter {
                 this.outputEditorConf.lineWrapping.of(EditorView.lineWrapping),
                 this.outputEditorConf.eol.of(EditorState.lineSeparator.of("\n")),
                 this.outputEditorConf.drawSelection.of(drawSelection()),
+                this.outputEditorConf.charHighlight.of(this.app.options?.charHighlight ? charHighlight() : []),
 
                 // Keymap
                 keymap.of([
@@ -266,6 +269,18 @@ class OutputWaiter {
         this.outputEditorView.dispatch({
             effects: this.outputEditorConf.lineWrapping.reconfigure(
                 wrap ? EditorView.lineWrapping : []
+            )
+        });
+    }
+
+    /**
+     * Turns character class highlighting on or off
+     * @param {boolean} enabled
+     */
+    setCharHighlight(enabled) {
+        this.outputEditorView.dispatch({
+            effects: this.outputEditorConf.charHighlight.reconfigure(
+                enabled ? charHighlight() : []
             )
         });
     }

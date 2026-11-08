@@ -43,6 +43,7 @@ function main() {
         updateUrl:           true,
         showHighlighter:     true,
         wordWrap:            true,
+        charHighlight:       false,
         showErrors:          true,
         errorTimeout:        4000,
         attemptHighlight:    true,

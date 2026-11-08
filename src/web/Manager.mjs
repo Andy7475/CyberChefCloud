@@ -233,6 +233,7 @@ class Manager {
         document.getElementById("reset-options").addEventListener("click", this.options.resetOptionsClick.bind(this.options));
         this.addDynamicListener(".option-item input[type=checkbox]", "change", this.options.switchChange, this.options);
         this.addDynamicListener(".option-item input[type=checkbox]#wordWrap", "change", this.options.setWordWrap, this.options);
+        this.addDynamicListener(".option-item input[type=checkbox]#charHighlight", "change", this.options.setCharHighlight, this.options);
         this.addDynamicListener(".option-item input[type=checkbox]#useMetaKey", "change", this.bindings.updateKeybList, this.bindings);
         this.addDynamicListener(".option-item input[type=checkbox]#showCatCount", "change", this.ops.setCatCount, this.ops);
         this.addDynamicListener(".option-item input[type=number]", "keyup", this.options.numberChange, this.options);

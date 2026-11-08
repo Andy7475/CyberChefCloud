@@ -274,7 +274,8 @@
             "Decode NetBIOS Name",
             "Defang URL",
             "Fang URL",
-            "Defang IP Addresses"
+            "Defang IP Addresses",
+            "Detect Homoglyphs"
         ]
     },
     {
@@ -284,6 +285,8 @@
             "Decode text",
             "Unicode Text Format",
             "Remove Diacritics",
+            "Detect Homoglyphs",
+            "Remove Homoglyphs",
             "Unescape Unicode Characters",
             "Convert to NATO alphabet",
             "Convert Leet Speak"

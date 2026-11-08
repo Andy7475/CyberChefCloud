@@ -112,6 +112,20 @@
     --hl4: #fcf8e3;
     --hl5: #8de768;
 
+    /* Character class highlighting (homoglyph detection) */
+    --cc-letter: #1d4ed8;
+    --cc-digit: #c62828;
+    --cc-symbol: #7e22ce;
+    --cc-homoglyph: #065f46;
+    --cc-homoglyph-bg: #a7f3c9;
+    --cc-accented: #a21caf;
+    --cc-accented-bg: #fae8ff;
+    --cc-other: #9a4a00;
+    --cc-other-bg: #fef3c7;
+    --cc-invisible: #dc2626;
+    --cc-invisible-bg: #fecaca;
+    --cc-mixed: #dc2626;
+
 
     /* Scrollbar */
     --scrollbar-track: lightsteelblue;
