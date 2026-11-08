@@ -50,6 +50,7 @@ class OptionsWaiter {
 
         // Initialise options
         this.setWordWrap();
+        this.setCharHighlight();
         this.manager.ops.setCatCount();
     }
 
@@ -136,6 +137,16 @@ class OptionsWaiter {
     setWordWrap() {
         this.manager.input.setWordWrap(this.app.options.wordWrap);
         this.manager.output.setWordWrap(this.app.options.wordWrap);
+    }
+
+
+    /**
+     * Turns character class highlighting on or off in the input and output
+     * depending on the charHighlight option value.
+     */
+    setCharHighlight() {
+        this.manager.input.setCharHighlight(!!this.app.options.charHighlight);
+        this.manager.output.setCharHighlight(!!this.app.options.charHighlight);
     }
 
 

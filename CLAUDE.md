@@ -69,5 +69,6 @@ To add a new cloud operation end to end (op, CSP, category, tests), use the **`a
 - `GCloudServiceAccountLessonsLearned.md`: service agents, cross-project GCS access, LRO polling URL format.
 - `Troubleshooting.md`: 401/403 IAM problems.
 - `LocalLLM.md`: browser-local LLMs (`Prompt Local LLM`, `Local LLM Models`): Chrome built-in Gemini Nano, GGUF via wllama, OPFS model store, model format compatibility, adding a provider.
+- `Homoglyphs.md`: Detect/Remove Homoglyphs ops and the "colour-code characters" editor setting (shared logic in `src/core/lib/Homoglyph.mjs`, data generated from Unicode confusables).
 - `OntologyOperations.md`: ontology/RDF ops (Oxigraph WASM store, supported formats, SPARQL, To Table chaining, vis-network graph).
 - `*_ResearchReport.md`, `GCS_SpeechToText_*`: background research and past plans.

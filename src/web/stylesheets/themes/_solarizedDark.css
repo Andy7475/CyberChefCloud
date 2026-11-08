@@ -129,6 +129,20 @@
     --hl4: var(--sol-yellow);
     --hl5: var(--sol-magenta);
 
+    /* Character class highlighting (homoglyph detection) */
+    --cc-letter: #7cb3ff;
+    --cc-digit: #ff7b7b;
+    --cc-symbol: #d8a8ff;
+    --cc-homoglyph: #6ee7b7;
+    --cc-homoglyph-bg: #065f46;
+    --cc-accented: #f5b0ff;
+    --cc-accented-bg: #5b0b63;
+    --cc-other: #fcd34d;
+    --cc-other-bg: #6b3a0a;
+    --cc-invisible: #f87171;
+    --cc-invisible-bg: #7f1d1d;
+    --cc-mixed: #f87171;
+
 
     /* Scrollbar */
     --scrollbar-track: var(--base03);

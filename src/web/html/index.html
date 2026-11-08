@@ -577,6 +577,24 @@
                         </label>
                     </div>
 
+                    <div class="checkbox option-item">
+                        <label for="charHighlight">
+                            <input type="checkbox" option="charHighlight" id="charHighlight">
+                            Colour-code characters in the input and output to expose homoglyphs
+                        </label>
+                        <div class="cc-legend" aria-hidden="true">
+                            <span class="cc-letter">abc</span>
+                            <span class="cc-digit">123</span>
+                            <span class="cc-symbol">.-/@</span>
+                            <span class="cc-homoglyph" title="Non-ASCII character that looks like ASCII (Unicode confusable)">&#1072;&#1086;</span>
+                            <span class="cc-accented" title="Latin letter with a diacritic">é</span>
+                            <span class="cc-other" title="Other non-ASCII character">東</span>
+                            <span class="cc-invisible-badge" title="Zero-width, bidi or control character">200B</span>
+                            <span class="cc-invisible" title="Unusual whitespace">&nbsp;</span>
+                            <span class="cc-mixed" title="Word that mixes scripts">p&#1072;ypal</span>
+                        </div>
+                    </div>
+
                     <div class="checkbox option-item mb-0">
                         <label for="showErrors">
                             <input type="checkbox" option="showErrors" id="showErrors" checked>

@@ -116,6 +116,7 @@ import "./tests/MS.mjs";
 import "./tests/MultipleBombe.mjs";
 import "./tests/MurmurHash3.mjs";
 import "./tests/NetBIOS.mjs";
+import "./tests/Homoglyphs.mjs";
 import "./tests/NormaliseUnicode.mjs";
 import "./tests/NTLM.mjs";
 import "./tests/OTP.mjs";
