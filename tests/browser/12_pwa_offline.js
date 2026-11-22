@@ -65,6 +65,33 @@ module.exports = {
         });
     },
 
+    "Each release loads its own files, never a stale copy from the browser cache": browser => {
+        if (!server.available) return;
+        browser.execute(function () {
+            return {
+                script: document.querySelector("script[src*='main.js']").getAttribute("src"),
+                style: document.querySelector("link[href*='main.css']").getAttribute("href")
+            };
+        }, [], ({value}) => {
+            browser.assert.ok(/main\.js\?\w+/.test(value.script), `main.js has a build version (${value.script})`);
+            browser.assert.ok(/main\.css\?\w+/.test(value.style), `main.css has a build version (${value.style})`);
+        });
+        // Baking an operation from another module makes the worker load modules/<name>.js
+        browser.execute(function () {
+            window.app.setRecipeConfig([{op: "MD5", args: []}]);
+            window.app.setInput("x");
+            window.app.bake();
+        }).pause(3000);
+        browser.perform(() => {
+            const modules = server.requests.filter(url => url.includes("/modules/"));
+            browser.assert.ok(modules.length > 0 && modules.every(url => /\/modules\/\w+\.js\?v=\d+$/.test(url)),
+                `module URLs have a build version (${modules.join(", ")})`);
+        });
+        browser.execute(function () {
+            return window.app.manager.output.outputEditorView.state.doc.toString();
+        }, [], ({value}) => browser.assert.strictEqual(value, "9dd4e461268c8034f5c8564e155c67a6", "a module loads and bakes"));
+    },
+
     "The service worker registers and controls the page": browser => {
         if (!server.available) return;
         browser.executeAsync(function (done) {

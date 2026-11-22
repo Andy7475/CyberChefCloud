@@ -67,7 +67,9 @@ self.addEventListener("fetch", event => {
 async function networkFirst(request) {
     const cache = await caches.open(CACHE);
     try {
-        const response = await fetch(request);
+        // no-cache: check with the server rather than reuse the browser's HTTP cache.
+        // A navigation request cannot be re-sent with options, so make a new one from its URL.
+        const response = await fetch(new Request(request.url, {cache: "no-cache", credentials: "same-origin"}));
         if (response.ok) cache.put(INDEX, response.clone());
         return response;
     } catch (err) {
@@ -87,7 +89,8 @@ async function cacheFirst(request) {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(request);
     if (cached) return cached;
-    const response = await fetch(request);
+    // no-cache, so this build's cache is never filled with an older file from the HTTP cache
+    const response = await fetch(request, {cache: "no-cache"});
     if (response.ok && response.type === "basic") cache.put(request, response.clone());
     return response;
 }

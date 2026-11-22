@@ -49,7 +49,7 @@ class BackgroundWorkerWaiter {
         if (index > 0) {
             docURL = docURL.substring(0, index);
         }
-        this.chefWorker.postMessage({"action": "docURL", "data": docURL});
+        this.chefWorker.postMessage({"action": "docURL", "data": docURL, "version": window.compileTime});
     }
 
 

@@ -353,8 +353,9 @@ function setPhoneLayout(browser) {
  * (service worker, offline, share target). Stopping the server takes the site offline.
  *
  * @param {number} port
- * @returns {{available: boolean, origin: string, start: Function, stop: Function}}
- *   `available` is false when there is no production build; start() and stop() return promises.
+ * @returns {{available: boolean, origin: string, requests: string[], start: Function, stop: Function}}
+ *   `available` is false when there is no production build; start() and stop() return promises;
+ *   `requests` lists the URLs requested so far.
  */
 function prodBuildServer(port) {
     const http = require("http");
@@ -370,12 +371,15 @@ function prodBuildServer(port) {
     };
     let server = null;
     const sockets = new Set();
+    const requests = [];
 
     return {
+        requests,
         available: fs.existsSync(path.join(build, "index.html")) && fs.existsSync(path.join(build, "sw.js")),
         origin,
         start() {
             server = http.createServer((req, res) => {
+                requests.push(req.url);
                 let file = decodeURIComponent(new URL(req.url, origin).pathname);
                 if (file.endsWith("/")) file += "index.html";
                 const full = path.join(build, path.normalize(file));
