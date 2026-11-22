@@ -1,0 +1,5 @@
+deploy.sh
+.gcloudignore
+__pycache__/
+.venv/
+.env

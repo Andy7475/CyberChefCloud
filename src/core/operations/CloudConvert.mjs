@@ -23,7 +23,15 @@ class CloudConvert extends Operation {
 
         this.name = "Cloud Convert";
         this.module = "Cloud";
-        this.description = "Converts files between different formats via CloudConvert proxy on Google Cloud Run.";
+        this.description = [
+            "Converts files between formats (e.g. txt to pdf, docx to pdf, wav to mp4) using CloudConvert, through a CyberChefCloud Cloud Run service that holds the CloudConvert API key.",
+            "<br><br>",
+            "<b>Inputs:</b> the file bytes, or a <code>gs://</code> URI when Input Mode is GCS.",
+            "<br>",
+            "<b>Outputs:</b> the converted file bytes, or the <code>gs://</code> URI it was written to.",
+            "<br><br>",
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation using OAuth or a Personal Access Token, for an account with access to the cyberchefcloud project. API keys are not accepted."
+        ].join("\n");
         this.infoURL = "https://cloudconvert.com/";
         this.inputType = "ArrayBuffer";
         this.outputType = "ArrayBuffer";
@@ -90,6 +98,9 @@ class CloudConvert extends Operation {
         const creds = getGcpCredentials();
         if (!creds || !creds.authString) {
             throw new OperationError("Cloud Convert: Please run 'Authenticate Google Cloud' first.");
+        }
+        if (creds.authType === "API Key") {
+            throw new OperationError("Cloud Convert: needs OAuth or a Personal Access Token in 'Authenticate Google Cloud'. An API key can't be checked by the conversion service.");
         }
 
         const requestPayload = {

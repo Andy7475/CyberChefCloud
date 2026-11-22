@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-CyberChefCloud is a fork of GCHQ's CyberChef that adds Google Cloud APIs (Translate, Vision, Speech, GCS, Maps, Vertex AI/Gemini, DLP, etc.) as recipe operations ("ingredients"). Everything runs client-side in the browser: operations call Google APIs directly with `fetch()` from a Web Worker. There is no backend, apart from two small Cloud Run proxies (see `infrastructure/`).
+CyberChefCloud is a fork of GCHQ's CyberChef that adds Google Cloud APIs (Translate, Vision, Speech, GCS, Maps, Vertex AI/Gemini, DLP, etc.) as recipe operations ("ingredients"). Everything runs client-side in the browser: operations call Google APIs directly with `fetch()` from a Web Worker. There is no backend, apart from small single-purpose Cloud Run functions (see `infrastructure/README.md`).
 
 ## Environment
 
@@ -35,7 +35,7 @@ After adding or renaming an operation, the generated config must be rebuilt (`np
 - `src/web/html/index.html`: holds the **CSP `connect-src`** allow-list. A new Google endpoint that isn't covered there is blocked by the browser.
 - `tests/browser/GCloud*.js`: Nightwatch E2E tests against live APIs, one file per op. Helpers are in `tests/browser/browserUtils.js`.
 - `tests/operations/tests/`: offline operation tests, registered in `tests/operations/index.mjs`.
-- `infrastructure/google-http-proxy/`: Cloud Run proxy used by `GoogleHTTPRequest`.
+- `infrastructure/`: Cloud Run functions, one per op: `google-http-proxy/` (used by `GoogleHTTPRequest`) and `cloud-convert-proxy/` (used by `CloudConvert`). Secrets are kept in Secret Manager, never in the repo. See `infrastructure/README.md`.
 - `docs/`: design notes, setup guides and lessons learned (see below).
 
 ## Conventions for cloud operations
@@ -48,7 +48,7 @@ After adding or renaming an operation, the generated config must be rebuilt (`np
 - The `AIAgent` op discovers other operations from the registry automatically, so a new op can be used as an agent tool without being registered anywhere else.
 - File header: `@author CyberChefCloud`, `@copyright Crown Copyright 2026`, `@license Apache-2.0`. Every class and method gets a JSDoc comment (ESLint enforces this).
 
-To add a new cloud operation end to end (op, CSP, category, tests), use the **`add-cloud-operation`** skill in `.claude/skills/`.
+To add a new cloud operation end to end (op, CSP, category, tests), use the **`add-cloud-operation`** skill in `.claude/skills/`. If the op needs its own backend (a third-party API key, an API that blocks browser requests), use **`add-cloud-run-function`**.
 
 ## Testing notes
 

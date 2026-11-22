@@ -1,0 +1,4 @@
+functions-framework>=3.10.1
+google-cloud-storage>=3.10.1
+cloudconvert>=2.1.0
+requests==2.33.0
