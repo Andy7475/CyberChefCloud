@@ -110,7 +110,7 @@ module.exports = {
             browser.assert.strictEqual(value.id, "my-profile", "Profile is stored under the chosen label");
             const saved = JSON.parse(value.password);
             browser.assert.strictEqual(saved.op, "Authenticate Google Cloud");
-            browser.assert.strictEqual(saved.args["Credentials (Client ID, PAT, or API Key)"].string, CLIENT_ID);
+            browser.assert.strictEqual(saved.args["Credentials (Client ID, Access Token, or API Key)"].string, CLIENT_ID);
             browser.assert.strictEqual(saved.args["API Key (For strict API Key endpoints)"].string, API_KEY);
             browser.assert.strictEqual(saved.args["Default Region"], "europe-west2");
         });

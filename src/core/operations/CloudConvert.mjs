@@ -30,7 +30,7 @@ class CloudConvert extends Operation {
             "<br>",
             "<b>Outputs:</b> the converted file bytes, or the <code>gs://</code> URI it was written to.",
             "<br><br>",
-            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation using OAuth or a Personal Access Token, for an account with access to the cyberchefcloud project. API keys are not accepted."
+            "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation using OAuth or an access token, for an account with access to the cyberchefcloud project. API keys are not accepted."
         ].join("\n");
         this.infoURL = "https://cloudconvert.com/";
         this.inputType = "ArrayBuffer";
@@ -100,7 +100,7 @@ class CloudConvert extends Operation {
             throw new OperationError("Cloud Convert: Please run 'Authenticate Google Cloud' first.");
         }
         if (creds.authType === "API Key") {
-            throw new OperationError("Cloud Convert: needs OAuth or a Personal Access Token in 'Authenticate Google Cloud'. An API key can't be checked by the conversion service.");
+            throw new OperationError("Cloud Convert: needs OAuth or an access token in 'Authenticate Google Cloud'. An API key can't be checked by the conversion service.");
         }
 
         const requestPayload = {

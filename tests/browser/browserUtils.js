@@ -287,7 +287,7 @@ function uploadFolder(browser, foldername) {
 
 
 /** @function
- * Helper function to retrieve a Google Cloud Personal Access Token (PAT) for testing purposes.
+ * Helper function to retrieve a Google Cloud access token for testing purposes.
  * First checks for CYBERCHEF_GCP_TEST_TOKEN environment variable. If not found or empty,
  * attempts to dynamically generate one using `gcloud auth print-access-token`.
  *

@@ -251,7 +251,7 @@ class Recipe {
                             }
                         }
                         self.chef.auditLog.push({
-                            ingredient: op.name,
+                            operation: op.name,
                             input: stepInputStr.length > 5000000 ? stepInputStr.substring(0, 5000000) + "\n... [truncated for memory]" : stepInputStr,
                             args: argsObj,
                             output: stepOutputStr.length > 5000000 ? stepOutputStr.substring(0, 5000000) + "\n... [truncated for memory]" : stepOutputStr,

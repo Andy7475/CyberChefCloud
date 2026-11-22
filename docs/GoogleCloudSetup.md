@@ -50,7 +50,7 @@ You must enable the APIs for any operation you intend to use.
 
 ---
 
-## Method 2: Temporary Personal Access Token (PAT)
+## Method 2: Temporary access token
 
 If you have the Google Cloud SDK (`gcloud`) installed locally and you are authorized in your project, you can generate a short-lived token to use. This is secure because the token expires automatically.
 
@@ -62,7 +62,7 @@ If you have the Google Cloud SDK (`gcloud`) installed locally and you are author
    ```bash
    gcloud auth print-access-token
    ```
-3. In CyberChef's **Authenticate Google Cloud** operation, set "Auth Type" to **Personal Access Token (PAT)** and paste the token output into the Credentials box.
+3. In CyberChef's **Authenticate Google Cloud** operation, set "Auth Type" to **Access Token** and paste the token output into the Credentials box.
 
 ---
 

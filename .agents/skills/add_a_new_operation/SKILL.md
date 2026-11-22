@@ -1,9 +1,9 @@
 ---
-description: How to add a new CyberChef ingredient (operation) for Google Cloud
+description: How to add a new CyberChef cloud operation for Google Cloud
 ---
-# How to Add a New Google Cloud Ingredient
+# How to Add a New Cloud Operation
 
-When adding a new Google Cloud integration (ingredient or operation) to CyberChef Cloud, it's important to strictly separate core authentication logic from specific application logic, and follow CyberChef's standard operation creation process.
+When adding a new Google Cloud integration (a cloud operation) to CyberChef Cloud, it's important to strictly separate core authentication logic from specific application logic, and follow CyberChef's standard operation creation process.
 
 ## 1. Creating the Operation
 
@@ -14,8 +14,8 @@ The easiest way to create a new operation is using the CyberChef quickstart scri
 
 ## 2. Code Structure & Placement
 
-- **Core Cloud Components (`src/core/lib/GoogleCloud.mjs`)**: This file should *only* contain common Google Cloud logic that is shared across multiple ingredients, namely credential management, the `gcpFetch` utility, and the GCS URI generator. Do not place specific API feature implementations here.
-- **Specific Ingredient Code (`src/core/operations/[OperationName].mjs`)**: The majority of the logic for any new Google Cloud ingredient must be encapsulated inside its separate `*.mjs` file.
+- **Core Cloud Components (`src/core/lib/GoogleCloud.mjs`)**: This file should *only* contain common Google Cloud logic that is shared across multiple cloud operations, namely credential management, the `gcpFetch` utility, and the GCS URI generator. Do not place specific API feature implementations here.
+- **Specific Operation Code (`src/core/operations/[OperationName].mjs`)**: The majority of the logic for any new cloud operation must be encapsulated inside its separate `*.mjs` file.
 
 ## 3. Communication with Google Cloud APIs (`gcpFetch`)
 
@@ -49,7 +49,7 @@ return data.responses[0];
 
 ## 5. Auto MIME Type Detection
 
-If your ingredient accepts an arbitrary file and needs to send its precise MIME type to a Google Cloud API, you should add an `"Auto"` option to the dropdown.
+If your operation accepts an arbitrary file and needs to send its precise MIME type to a Google Cloud API, you should add an `"Auto"` option to the dropdown.
 Use `resolveMimeType()` from `../lib/FileType.mjs` to easily resolve it at runtime.
 
 **Argument Definition:**
@@ -84,7 +84,7 @@ If your operation generates complex data (like a large JSON structure), but you 
 
 ## 6. Content Security Policy (CSP) & Whitelisting 
 
-CyberChef Cloud employs a strict Content Security Policy. If your new ingredient communicates with a new Google Cloud API endpoint (e.g., `https://language.googleapis.com`), you **must**:
+CyberChef Cloud employs a strict Content Security Policy. If your new operation communicates with a new Google Cloud API endpoint (e.g., `https://language.googleapis.com`), you **must**:
 1. Open `src/web/html/index.html` and append the endpoint to the `connect-src` directive in the `<meta http-equiv="Content-Security-Policy">` tag.
 2. Add the endpoint to `docs/AuthorizedEndpoints.md`.
 
@@ -99,7 +99,7 @@ When interacting with large media/datasets that cannot fit in browser memory, ac
 
 You **MUST** use the `generateGCSDestinationUri(inputUri, destDir, suffix, extensionOverride)` utility from `src/core/lib/GoogleCloud.mjs` to systematically generate the correct final destination.
 
-When "Write to GCS" succeeds, the ingredient **must** return the full destination GCS URI (`gs://...`) back to the CyberChef output for pipelining.
+When "Write to GCS" succeeds, the operation **must** return the full destination GCS URI (`gs://...`) back to the CyberChef output for pipelining.
 
 ## 9. Error Handling & Verbose Output
 

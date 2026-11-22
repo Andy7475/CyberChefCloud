@@ -58,7 +58,7 @@ npm run test
 
 CyberChef is equipped with Nightwatch for end-to-end testing of features running in a real Chromium browser. This is extremely useful for Cloud Operations that cannot be easily tested within the headless NodeJS environment.
 
-**Important Note on Authentication:** Google Identity Services (GIS), the library used for the secure **OAuth 2.0 (Web Application: PKCE)** flow, contains strict anti-automation reCAPTCHA logic. Because of this, it is nearly impossible to automate the Google Login popup using standard E2E frameworks like Nightwatch. Therefore, all automated Nightwatch tests utilize either **API Keys** or **Personal Access Tokens (PATs)** to authenticate. Manual testing is still required to verify the PKCE Popup flow works as expected for human users.
+**Important Note on Authentication:** Google Identity Services (GIS), the library used for the secure **OAuth 2.0 (Web Application: PKCE)** flow, contains strict anti-automation reCAPTCHA logic. Because of this, it is nearly impossible to automate the Google Login popup using standard E2E frameworks like Nightwatch. Therefore, all automated Nightwatch tests utilize either **API Keys** or **access tokens** to authenticate. Manual testing is still required to verify the PKCE Popup flow works as expected for human users.
 
 ### Setting up Credentials
 
@@ -68,7 +68,7 @@ To prevent live API keys from being leaked in CI/CD, the Cloud API browser tests
    cp .env.template .env
    ```
 2. Open `.env` and replace `YOUR_API_KEY_HERE` with your actual Google Cloud API key for the `CYBERCHEF_GCP_TEST_API_KEY` variable. Ensure the API Key restrictions at console.cloud.google.com are set up to accept requests from `http://localhost:8080/*`.
-3. For tests that use a PAT, either set `CYBERCHEF_GCP_TEST_TOKEN` to a fresh token from `gcloud auth print-access-token`, or leave it unset and the tests will call `gcloud` themselves.
+3. For tests that use an access token, either set `CYBERCHEF_GCP_TEST_TOKEN` to a fresh token from `gcloud auth print-access-token`, or leave it unset and the tests will call `gcloud` themselves.
 
 ### Running Nightwatch Tests
 

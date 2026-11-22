@@ -48,9 +48,9 @@ class AIAgent extends Operation {
             "<b>Output Modes:</b>",
             "<ul>",
             "<li><b>Agent Answer:</b> The final text explanation or answer provided by the LLM itself.</li>",
-            "<li><b>Final Ingredient:</b> The exact raw bytes/text returned by the last tool the Agent used.</li>",
-            "<li><b>AI Agent Flow & Output:</b> A JSON payload containing the full trace of tool calls, the LLM answer, the recipe and the final ingredient result.</li>",
-            "<li><b>Recipe:</b> The tool calls that produced the final ingredient, as CyberChef recipe JSON. Undone, reset and failed steps are left out. Paste it into <i>Load recipe</i> to rerun the same steps without the LLM.</li>",
+            "<li><b>Recipe Output:</b> The exact raw bytes/text returned by the last tool the Agent used, i.e. the result of running the <b>Recipe</b> below over the input.</li>",
+            "<li><b>AI Agent Flow & Output:</b> A JSON payload containing the full trace of tool calls, the LLM answer, the recipe and the recipe output.</li>",
+            "<li><b>Recipe:</b> The tool calls that produced the recipe output, as CyberChef recipe JSON. Undone, reset and failed steps are left out. Paste it into <i>Load recipe</i> to rerun the same steps without the LLM.</li>",
             "</ul>",
             "<br>",
             "<b>Location:</b> Most Gemini 3.x models are only served from the <code>global</code> location (the default). Choose <code>Default Region</code> to use the region set in <code>Authenticate Google Cloud</code> when data must stay in one region; gemini-3.5-flash is available regionally (e.g. europe-west2).",
@@ -153,7 +153,7 @@ class AIAgent extends Operation {
             {
                 "name": "Output Mode",
                 "type": "option",
-                "value": ["Agent Answer", "Final Ingredient", "AI Agent Flow & Output", "Recipe"]
+                "value": ["Agent Answer", "Recipe Output", "AI Agent Flow & Output", "Recipe"]
             },
             {
                 "name": "Location",
@@ -324,7 +324,7 @@ class AIAgent extends Operation {
                 resultStr.substring(0, 5000000) + "\n... [truncated for memory]" :
                 resultStr;
             self.chef.auditLog.push({
-                ingredient: `AI Agent → ${opName}`,
+                operation: `AI Agent → ${opName}`,
                 input: currentText.length > 5000000 ? currentText.substring(0, 5000000) : currentText,
                 args: llmArgs || {},
                 output: truncatedResult,
@@ -597,6 +597,7 @@ class AIAgent extends Operation {
                 } else if (outputMode === "Recipe") {
                     return JSON.stringify(recipe(), null, 2);
                 }
+                // "Recipe Output" (saved recipes may still use the old name "Final Ingredient")
                 return currentText;
             }
 

@@ -85,7 +85,7 @@ module.exports = {
     "GCloud List Bucket: Lists audio/ files from cyber-chef-cloud-examples": function (browser) {
         const testToken = browserUtils.getTestPAT();
         if (!testToken) {
-            console.log("Skipping live API test: No PAT available.");
+            console.log("Skipping live API test: No access token available.");
             return;
         }
 
@@ -93,7 +93,7 @@ module.exports = {
             {
                 op: "Authenticate Google Cloud",
                 args: [
-                    "Personal Access Token (PAT)",
+                    "Access Token",
                     { option: "UTF8", string: testToken },
                     "cyberchefcloud",
                     true

@@ -1,11 +1,11 @@
 ---
 name: add-cloud-run-function
-description: Create, secure and deploy a Cloud Run function that one CyberChefCloud ingredient (operation) calls, with its secrets in Secret Manager and its source in infrastructure/. Use when an op needs a backend, for example to hold a third-party API key, call an API that blocks browser (CORS) requests, or run a server-side library; when asked to add, write, deploy or redeploy a Cloud Run function, proxy or service for CyberChefCloud; or when wiring an ingredient to such a function.
+description: Create, secure and deploy a Cloud Run function that one CyberChefCloud cloud operation calls, with its secrets in Secret Manager and its source in infrastructure/. Use when an op needs a backend, for example to hold a third-party API key, call an API that blocks browser (CORS) requests, or run a server-side library; when asked to add, write, deploy or redeploy a Cloud Run function, proxy or service for CyberChefCloud; or when wiring an ingredient to such a function.
 ---
 
-# Add a Cloud Run function for an ingredient
+# Add a Cloud Run function for a cloud operation
 
-**One ingredient calls one Cloud Run function, and that function does one job.** The function takes the op's JSON request, does the one thing the browser can't, and returns JSON. It holds no state, serves no other op, and does no formatting that the op could do itself.
+**One cloud operation calls one Cloud Run function, and that function does one job.** The function takes the op's JSON request, does the one thing the browser can't, and returns JSON. It holds no state, serves no other op, and does no formatting that the op could do itself.
 
 Worked example: the `Cloud Convert` op (`src/core/operations/CloudConvert.mjs`) and `infrastructure/cloud-convert-proxy/`. Read both before you start. `infrastructure/README.md` lists the services and the rules on secrets and access.
 
@@ -108,7 +108,7 @@ def handle(request):
     if request.method != "POST":
         return ({"error": "Use POST."}, 405, headers)
     if not caller_allowed(request):
-        return ({"error": "Not authorised. Use OAuth or a PAT in 'Authenticate Google Cloud' "
+        return ({"error": "Not authorised. Use OAuth or an access token in 'Authenticate Google Cloud' "
                           "for an account with access to project cyberchefcloud."}, 403, headers)
 
     body = request.get_json(silent=True)
@@ -127,7 +127,7 @@ def handle(request):
 
 Rules:
 - **Request and response contract:** the request is JSON. A success returns `200` with JSON. A failure returns a 4xx/5xx status with `{"error": "<readable message>"}`, which the op shows to the user. Binary data travels as base64 in a field (`file_data` in Cloud Convert).
-- **The caller check works like this:** it asks Google whether the token's owner has `run.routes.invoke` on `cyberchefcloud`. A valid token for someone with project access gets the permission back. Anyone else gets an empty list, and a bad token gets 401. It works with PATs and PKCE tokens (scope `cloud-platform`). It does **not** work with API keys, so the op must refuse API-key auth (step 6). Checked: a `gcloud` PAT returns the permission and a bogus token returns 401. If a PKCE token gets `SERVICE_DISABLED` back, enable the Cloud Resource Manager API in the project that owns the OAuth client.
+- **The caller check works like this:** it asks Google whether the token's owner has `run.routes.invoke` on `cyberchefcloud`. A valid token for someone with project access gets the permission back. Anyone else gets an empty list, and a bad token gets 401. It works with access tokens and PKCE tokens (scope `cloud-platform`). It does **not** work with API keys, so the op must refuse API-key auth (step 6). Checked: a `gcloud` access token returns the permission and a bogus token returns 401. If a PKCE token gets `SERVICE_DISABLED` back, enable the Cloud Resource Manager API in the project that owns the OAuth client.
 - **Don't send `x-goog-user-project`** on the `testIamPermissions` call. Doing so needs the Cloud Resource Manager API enabled in `cyberchefcloud`, and it isn't.
 - **Keep secrets out of errors.** If the third-party API takes its key in the URL, don't return `str(e)` from a `requests` exception unchanged, because the message can contain the URL.
 - **Temporary files:** use `tempfile.NamedTemporaryFile`, never a fixed path like `/tmp/input.pdf`. Cloud Run handles several requests at once in one instance, and `/tmp` is in memory.
@@ -186,12 +186,12 @@ curl -s -X POST "$URL" -H "Authorization: Bearer $TOKEN" -H "Content-Type: appli
 
 Read the logs with `gcloud run services logs read cyber-chef-cloud-<thing> --project cyberchefcloud --region europe-west2 --limit 50`.
 
-## 6. Write the ingredient
+## 6. Write the operation
 
 Follow the `add-cloud-operation` skill steps 1 to 7 (op file, CSP, category, config/lint, offline test, Nightwatch test, manual check). These things are different for a function-backed op:
 
 - **Call the function with `fetch`, not `gcpFetch`.** `gcpFetch` is for Google APIs, and it adds `?key=` / `x-goog-user-project` handling the function doesn't use.
-- **Refuse API-key auth**, because the function's caller check needs an OAuth token or PAT.
+- **Refuse API-key auth**, because the function's caller check needs an OAuth token or access token.
 - The CSP `connect-src` entry in `src/web/html/index.html` is the **exact** service URL, as is the entry in `docs/AuthorizedEndpoints.md`.
 
 ```javascript
@@ -203,7 +203,7 @@ if (!creds || !creds.authString) {
     throw new OperationError("<Op Name>: Please run 'Authenticate Google Cloud' first.");
 }
 if (creds.authType === "API Key") {
-    throw new OperationError("<Op Name>: needs OAuth or a Personal Access Token in 'Authenticate Google Cloud'. An API key can't be checked by the service.");
+    throw new OperationError("<Op Name>: needs OAuth or an access token in 'Authenticate Google Cloud'. An API key can't be checked by the service.");
 }
 
 const response = await fetch(SERVICE_URL, {
@@ -228,7 +228,7 @@ if (!response.ok) {
 }
 ```
 
-In the op description, say that it uses a CyberChefCloud Cloud Run service, and that it needs `Authenticate Google Cloud` with OAuth or a PAT for an account that has access to the project.
+In the op description, say that it uses a CyberChefCloud Cloud Run service, and that it needs `Authenticate Google Cloud` with OAuth or an access token for an account that has access to the project.
 
 ## 7. Record it
 

@@ -1,6 +1,6 @@
 # CyberChefCloud
 
-A personal project which is a fork of the CyberChef tool. I want to experiment allowing Cloud APIs as Ingredients (give it the power of AI)
+A personal project which is a fork of the CyberChef tool. I want to experiment allowing Cloud APIs as Operations (give it the power of AI)
 
 ## Ontology / RDF operations
 

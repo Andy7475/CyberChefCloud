@@ -65,7 +65,7 @@ def convert_file(request):
     if request.method != "POST":
         return ({"error": "Use POST."}, 405, headers)
     if not caller_allowed(request):
-        return ({"error": "Not authorised. Use OAuth or a PAT in 'Authenticate Google Cloud' "
+        return ({"error": "Not authorised. Use OAuth or an access token in 'Authenticate Google Cloud' "
                           "for an account with access to project cyberchefcloud."}, 403, headers)
 
     req_json = request.get_json(silent=True)

@@ -1,12 +1,12 @@
 ---
-description: How to test a new CyberChef ingredient (operation)
+description: How to test a new CyberChef operation
 ---
-# How to Test a New Ingredient
+# How to Test a New Operation
 
-When developing new ingredients for CyberChef Cloud—especially those interacting with Complex UIs or external Cloud APIs—automated verification using Nightwatch.js is critical.
+When developing new operations for CyberChef Cloud—especially those interacting with Complex UIs or external Cloud APIs—automated verification using Nightwatch.js is critical.
 
 > [!IMPORTANT]
-> **Functional Testing Priority**: Before writing extensive automated Nightwatch.js test suites for a new ingredient, work with the user to test the ingredient functionally together in the browser. Only proceed to develop the automated test suite once the user has confirmed the ingredient is working as expected.
+> **Functional Testing Priority**: Before writing extensive automated Nightwatch.js test suites for a new operation, work with the user to test the operation functionally together in the browser. Only proceed to develop the automated test suite once the user has confirmed the operation is working as expected.
 
 ## 1. Headless Browser Environments
 Agents typically operate in headless environments (like Docker or WSL) that lack graphical display servers.
@@ -14,15 +14,15 @@ Agents typically operate in headless environments (like Docker or WSL) that lack
 - In your `nightwatch.json` configuration, include Chrome options: `--headless`, `--no-sandbox` (critical in WSL/Containers), `--disable-gpu`, and `--disable-dev-shm-usage`.
 
 
-## 2. Secure Credential Management & Dynamic PATs
-Testing live Cloud APIs requires real credentials, but these **must not** be committed to source control. CyberChef Cloud enforces a dynamic Personal Access Token (PAT) generation strategy to avoid relying on long-lived API keys.
+## 2. Secure Credential Management & Dynamic Access Tokens
+Testing live Cloud APIs requires real credentials, but these **must not** be committed to source control. CyberChef Cloud enforces a dynamic access token generation strategy to avoid relying on long-lived API keys.
 
-1. **File Structure**: Create a distinct, separate Nightwatch test file for each new ingredient (e.g., `tests/browser/MyNewIngredient.js`). Never bundle multiple unrelated ingredients into a single massive test file.
+1. **File Structure**: Create a distinct, separate Nightwatch test file for each new operation (e.g., `tests/browser/MyNewOperation.js`). Never bundle multiple unrelated operations into a single massive test file.
 2. **Dynamic Tokens**: Use the provided `browserUtils.getTestPAT()` helper. This function automatically calls `gcloud auth print-access-token` on the host to generate an ephemeral, short-lived token to run the tests.
    ```javascript
    const testToken = browserUtils.getTestPAT();
    if (!testToken) {
-       console.log("Skipping live API test: No PAT available.");
+       console.log("Skipping live API test: No access token available.");
        return;
    }
    ```

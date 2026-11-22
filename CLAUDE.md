@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-CyberChefCloud is a fork of GCHQ's CyberChef that adds Google Cloud APIs (Translate, Vision, Speech, GCS, Maps, Vertex AI/Gemini, DLP, etc.) as recipe operations ("ingredients"). Everything runs client-side in the browser: operations call Google APIs directly with `fetch()` from a Web Worker. There is no backend, apart from small single-purpose Cloud Run functions (see `infrastructure/README.md`).
+CyberChefCloud is a fork of GCHQ's CyberChef that adds Google Cloud APIs (Translate, Vision, Speech, GCS, Maps, Vertex AI/Gemini, DLP, etc.) as recipe operations. Domain terms (operation, argument, recipe, cloud operation, etc.) are defined in `CONTEXT.md`; note that in CyberChef an "ingredient" is an argument, not an operation. Everything runs client-side in the browser: operations call Google APIs directly with `fetch()` from a Web Worker. There is no backend, apart from small single-purpose Cloud Run functions (see `infrastructure/README.md`).
 
 ## Environment
 
@@ -27,7 +27,7 @@ After adding or renaming an operation, the generated config must be rebuilt (`np
 - `src/core/operations/*.mjs`: one class per operation. Cloud ops are named `GCloud*.mjs` (plus `GoogleTranslate`, `GoogleHTTPRequest`, `AuthenticateGoogleCloud`, `AIAgent`, `PromptLLM`, `CloudConvert`) and set `this.module = "Cloud"`.
 - `src/core/lib/GoogleCloud.mjs`: shared cloud helpers. Use these; don't reimplement them.
   - `gcpFetch(url, {method, params, body, headers})`: auth + query params + JSON + error handling. **Default choice for new ops.**
-  - `applyGCPAuth(url, headers)`: low-level auth injection (API key → `?key=`, OAuth/PAT → `Authorization: Bearer` + `x-goog-user-project`). Maps/Places APIs get special handling.
+  - `applyGCPAuth(url, headers)`: low-level auth injection (API key → `?key=`, OAuth/access token → `Authorization: Bearer` + `x-goog-user-project`). Maps/Places APIs get special handling.
   - `getGcpCredentials()`: `{authType, authString, quotaProject, defaultRegion, apiKey}` set by the `Authenticate Google Cloud` op.
   - `generateGCSDestinationUri`, `writeGCSText`, `writeGCSBytes`: GCS output helpers.
 - `src/core/lib/LocalLLM.mjs` + `src/core/lib/localllm/`: providers for browser-local models (no GCP auth; module `LocalAI`, category `Local AI`). Window-only browser APIs are reached from the worker via `MainThreadBridge.mjs` → `src/web/MainThreadHost.mjs`.
@@ -52,7 +52,7 @@ To add a new cloud operation end to end (op, CSP, category, tests), use the **`a
 
 ## Testing notes
 
-- OAuth PKCE (Google Identity Services popup) **cannot be automated** because of reCAPTCHA. E2E tests authenticate with an API key or PAT; the PKCE flow is checked by hand.
+- OAuth PKCE (Google Identity Services popup) **cannot be automated** because of reCAPTCHA. E2E tests authenticate with an API key or access token; the PKCE flow is checked by hand.
 - Credentials come from `.env` (gitignored; copy from `.env.template`). `browserUtils.getTestAPIKey()` reads `CYBERCHEF_GCP_TEST_API_KEY`, falling back to the old name `CYBERCHEF_GCP_TEST_KEY`. `getTestPAT()` reads `CYBERCHEF_GCP_TEST_TOKEN` and falls back to `gcloud auth print-access-token`.
 - Live tests must **skip gracefully** (`return;`) when credentials are missing, so that CI passes.
 - Read output via `window.app.manager.output.outputEditorView.state.doc.toString()` in `browser.execute`. Don't use `browserUtils.expectOutput`, which has given false timeouts on async cloud ops.
@@ -72,3 +72,17 @@ To add a new cloud operation end to end (op, CSP, category, tests), use the **`a
 - `Homoglyphs.md`: Detect/Remove Homoglyphs ops and the "colour-code characters" editor setting (shared logic in `src/core/lib/Homoglyph.mjs`, data generated from Unicode confusables).
 - `OntologyOperations.md`: ontology/RDF ops (Oxigraph WASM store, supported formats, SPARQL, To Table chaining, vis-network graph).
 - `*_ResearchReport.md`, `GCS_SpeechToText_*`: background research and past plans.
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues on Andy7475/CyberChefCloud via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root (created lazily by /domain-modeling). See `docs/agents/domain.md`.

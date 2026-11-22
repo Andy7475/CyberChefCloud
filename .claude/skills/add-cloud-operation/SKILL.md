@@ -182,7 +182,7 @@ module.exports = {
             {
                 op: "Authenticate Google Cloud",
                 // [authType, credentials(toggleString), quotaProject, defaultRegion, apiKey, outputLogs]
-                args: ["Personal Access Token (PAT)", { option: "UTF8", string: token }, "<quota-project>", "us-central1"]
+                args: ["Access Token", { option: "UTF8", string: token }, "<quota-project>", "us-central1"]
             },
             { op: "GCloud <Name>", args: ["Text Summary"] }
         ], "test input");

@@ -9,6 +9,17 @@ import Sortable from "sortablejs";
 
 // Drag data type set on operations dragged from the operations list.
 const OPERATION_MIME = "application/x-cyberchef-operation";
+
+// Dropdown values that were renamed, so saved recipes and profiles using the old value still load.
+const RENAMED_OPTION_VALUES = {
+    "Personal Access Token (PAT)": "Access Token",
+    "Final Ingredient": "Recipe Output",
+};
+
+// Argument names that were renamed (new name -> old name), so saved credential profiles still fill.
+const RENAMED_ARG_NAMES = {
+    "Credentials (Client ID, Access Token, or API Key)": "Credentials (Client ID, PAT, or API Key)",
+};
 import Utils from "../../core/Utils.mjs";
 import {escapeControlChars} from "../utils/editorUtils.mjs";
 import DOMPurify from "dompurify";
@@ -410,6 +421,10 @@ class RecipeWaiter {
                 args[j].value = values[j].string;
                 args[j].parentNode.parentNode.querySelector("button").innerHTML =
                     Utils.escapeHtml(values[j].option);
+            } else if (args[j].tagName === "SELECT" && values[j] in RENAMED_OPTION_VALUES &&
+                !Array.from(args[j].options).some(o => o.value === values[j])) {
+                // option whose value has since been renamed
+                args[j].value = RENAMED_OPTION_VALUES[values[j]];
             } else {
                 // all others
                 args[j].value = values[j];
@@ -489,7 +504,8 @@ class RecipeWaiter {
         }
 
         // Match values by argument name, so a profile still fills correctly if arguments are reordered
-        this.setArgs(item, this.app.operations[opName].args.map(conf => saved.args[conf.name]));
+        this.setArgs(item, this.app.operations[opName].args.map(conf =>
+            saved.args[conf.name] ?? saved.args[RENAMED_ARG_NAMES[conf.name]]));
 
         // Lets bootstrap-material-design float the labels of filled fields
         item.querySelectorAll(".arg").forEach(el => el.dispatchEvent(new Event("change", {bubbles: true})));

@@ -48,7 +48,7 @@ class GCloudVisionAnalyze extends Operation {
 }
 ```
 
-**Do not** add credential arguments (API keys or tokens) to the operation. Users put the `Authenticate Google Cloud` operation at the top of the recipe, and `gcpFetch` reads the cached credentials. It supports API keys, Personal Access Tokens (PATs) and GIS OAuth tokens.
+**Do not** add credential arguments (API keys or tokens) to the operation. Users put the `Authenticate Google Cloud` operation at the top of the recipe, and `gcpFetch` reads the cached credentials. It supports API keys, access tokens and GIS OAuth tokens.
 
 If you need a non-JSON request or response (for example a binary upload), use the lower-level `applyGCPAuth`. It returns an object:
 
@@ -80,7 +80,7 @@ npm run lint
 
 **Offline tests.** These need no network. Create `tests/operations/tests/GCloud<Name>.mjs` and import it in `tests/operations/index.mjs`. Test behaviour that does not call the API, such as empty input or the error raised when there is no `Authenticate Google Cloud` operation. See `tests/operations/tests/GoogleTranslate.mjs`. Run with `npm test`.
 
-**End-to-end tests (Nightwatch).** The PKCE OAuth popup is protected by reCAPTCHA, so it **cannot be automated**. E2E tests authenticate with an API key or PAT from `.env` (see `LocalTesting.md`):
+**End-to-end tests (Nightwatch).** The PKCE OAuth popup is protected by reCAPTCHA, so it **cannot be automated**. E2E tests authenticate with an API key or access token from `.env` (see `LocalTesting.md`):
 
 - `browserUtils.getTestAPIKey()` reads `CYBERCHEF_GCP_TEST_API_KEY`.
 - `browserUtils.getTestPAT()` reads `CYBERCHEF_GCP_TEST_TOKEN`, or falls back to `gcloud auth print-access-token`.

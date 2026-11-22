@@ -50,18 +50,18 @@ module.exports = {
         browser.execute(function () {
             return window.app.manager.output.outputEditorView.state.doc.toString();
         }, [], function ({ value }) {
-            browser.assert.ok(value.includes("needs OAuth or a Personal Access Token"), `Got: ${value}`);
+            browser.assert.ok(value.includes("needs OAuth or an access token"), `Got: ${value}`);
         });
     },
 
-    "Cloud Convert: txt to pdf with a PAT": function (browser) {
+    "Cloud Convert: txt to pdf with an access token": function (browser) {
         const testToken = browserUtils.getTestPAT();
         if (!testToken) {
-            console.log("Skipping live Cloud Convert test: no PAT available.");
+            console.log("Skipping live Cloud Convert test: no access token available.");
             return;
         }
 
-        loadTxtToPdfRecipe(browser, "Personal Access Token (PAT)", testToken);
+        loadTxtToPdfRecipe(browser, "Access Token", testToken);
 
         browser.waitForElementNotVisible("#snackbar-container", 6000);
         browserUtils.bake(browser);

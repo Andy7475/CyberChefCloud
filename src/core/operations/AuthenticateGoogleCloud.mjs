@@ -23,7 +23,7 @@ class AuthenticateGoogleCloud extends Operation {
         this.name = "Authenticate Google Cloud";
         this.module = "Cloud";
         this.description = [
-            "Authenticates CyberChef with Google Cloud using an API Key, OAuth, or Personal Access Token.",
+            "Authenticates CyberChef with Google Cloud using an API Key, OAuth, or an access token (for example from <code>gcloud auth print-access-token</code>).",
             "<br><br>",
             "<b>Inputs:</b> Any data (data is passed through unmodified).",
             "<br>",
@@ -46,10 +46,10 @@ class AuthenticateGoogleCloud extends Operation {
             {
                 "name": "Auth Type",
                 "type": "option",
-                "value": ["OAuth 2.0 (Web Application: PKCE)", "Personal Access Token (PAT)", "API Key"]
+                "value": ["OAuth 2.0 (Web Application: PKCE)", "Access Token", "API Key"]
             },
             {
-                "name": "Credentials (Client ID, PAT, or API Key)",
+                "name": "Credentials (Client ID, Access Token, or API Key)",
                 "type": "toggleString",
                 "value": "",
                 "toggleValues": ["UTF8", "Latin1", "Base64", "Hex"],
@@ -86,12 +86,14 @@ class AuthenticateGoogleCloud extends Operation {
      * @returns {ArrayBuffer}
      */
     async run(input, args) {
-        const [authType, credObj, quotaProject, defaultRegion, mapsKeyObj, outputLogs] = args;
+        const [authTypeArg, credObj, quotaProject, defaultRegion, mapsKeyObj, outputLogs] = args;
+        // Recipes saved before the rename still say "Personal Access Token (PAT)"
+        const authType = authTypeArg === "Personal Access Token (PAT)" ? "Access Token" : authTypeArg;
         const credString = typeof credObj === "string" ? credObj : (credObj.string || "");
         const mapsKeyString = typeof mapsKeyObj === "string" ? mapsKeyObj : (mapsKeyObj.string || "");
 
         if (!credString) {
-            throw new OperationError("Please provide Google Cloud credentials (Client ID, PAT, or API Key).");
+            throw new OperationError("Please provide Google Cloud credentials (Client ID, access token, or API Key).");
         }
 
         let logs = "";
@@ -104,7 +106,7 @@ class AuthenticateGoogleCloud extends Operation {
 
         log("Starting Google Cloud Authentication...");
 
-        // If not using the Web App PKCE Flow, just cache the PAT/API Key and return.
+        // If not using the Web App PKCE Flow, just cache the access token/API Key and return.
         if (authType !== "OAuth 2.0 (Web Application: PKCE)") {
             setGcpCredentials({
                 authType: authType,
@@ -158,7 +160,7 @@ class AuthenticateGoogleCloud extends Operation {
             // Assuming this operation is executed within a ChefWorker, we bubble up `gcpAuthRequest`
             // and we must include `inputNum` so WorkerWaiter knows which worker to send the response back to.
             if (!isWorkerEnvironment()) {
-                reject(new OperationError("OAuth PKCE Flow can only run in a Web Worker environment. For manual node testing, use PAT or API Key auth types."));
+                reject(new OperationError("OAuth PKCE Flow can only run in a Web Worker environment. For manual node testing, use the Access Token or API Key auth types."));
                 return;
             }
 

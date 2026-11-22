@@ -985,7 +985,7 @@ class OutputWaiter {
 
             const eventObj = {
                 forkId: logArray[i].forkId,
-                ingredient: logArray[i].ingredient,
+                operation: logArray[i].operation,
                 input: logArray[i].input,
                 args: finalArgs || {},
                 output: finalOutput
@@ -1020,11 +1020,11 @@ class OutputWaiter {
                 rows.set(fId, { Start: entry.input, ops: new Map() });
             }
             const rowData = rows.get(fId);
-            if (!rowData.ops.has(entry.ingredient)) {
-                rowData.ops.set(entry.ingredient, []);
+            if (!rowData.ops.has(entry.operation)) {
+                rowData.ops.set(entry.operation, []);
             }
-            rowData.ops.get(entry.ingredient).push(entry.output);
-            allOpNamesSet.add(entry.ingredient);
+            rowData.ops.get(entry.operation).push(entry.output);
+            allOpNamesSet.add(entry.operation);
         }
 
         const cols = ["Start", ...Array.from(allOpNamesSet)];

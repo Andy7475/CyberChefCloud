@@ -130,7 +130,7 @@ class GCloudWriteFile extends Operation {
         const creds = getGcpCredentials();
         if (creds && creds.authType === "API Key") {
             throw new OperationError(
-                "GCloud Write File: Writing to Google Cloud Storage requires OAuth 2.0 or Personal Access Token (PAT) authentication. " +
+                "GCloud Write File: Writing to Google Cloud Storage requires OAuth 2.0 or access token authentication. " +
                 "API Keys do not have permissions to upload objects. Please update your Authenticate Google Cloud settings."
             );
         }

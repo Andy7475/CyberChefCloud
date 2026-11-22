@@ -55,7 +55,8 @@ export function applyGCPAuth(url, headers) {
 
     if (creds.authType === "API Key") {
         url += `${url.includes("?") ? "&" : "?"}key=${encodeURIComponent(creds.authString)}`;
-    } else if (creds.authType === "OAuth 2.0 (Web Application: PKCE)" || creds.authType === "Personal Access Token (PAT)") {
+    } else if (creds.authType === "OAuth 2.0 (Web Application: PKCE)" || creds.authType === "Access Token" ||
+               creds.authType === "Personal Access Token (PAT)") { // old name, in case credentials were cached before the rename
         const isMapsApi = url.includes("maps.googleapis.com") || url.includes("places.googleapis.com");
 
         // If it's a Maps API and we have a fallback API key, use it INSTEAD of OAuth

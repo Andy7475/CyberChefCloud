@@ -6,7 +6,7 @@ CyberChefCloud runs in the browser. A Cloud Run function is used only when an op
 - call an API that doesn't allow browser (CORS) requests;
 - run a server-side library.
 
-The rule is **one ingredient calls one function, and that function does one job.**
+The rule is **one cloud operation calls one function, and that function does one job.**
 
 To add a new function, use the `add-cloud-run-function` skill in `.claude/skills/`.
 
