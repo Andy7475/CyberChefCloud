@@ -18,6 +18,7 @@ import PhonePicker from "./PhonePicker.mjs";
 import PhoneInput from "./PhoneInput.mjs";
 import PhoneToast from "./PhoneToast.mjs";
 import PhoneRecipes from "./PhoneRecipes.mjs";
+import PhoneEditor from "./PhoneEditor.mjs";
 
 /**
  * Screens that get the phone layout when the Layout option is "auto":
@@ -46,6 +47,7 @@ class PhoneLayout {
         this.toast = new PhoneToast();
         this.picker = new PhonePicker(app, manager, this.sheets, this.toast);
         this.recipes = new PhoneRecipes(app, manager, this.sheets, this.toast);
+        this.editor = new PhoneEditor(app, manager, this);
         this.input = new PhoneInput(app, manager);
         this.renderQueued = false;
         // Where #rec-list lives in the desktop layout, while it is in the argument sheet
@@ -81,6 +83,7 @@ class PhoneLayout {
         this.picker.setup();
         this.input.setup();
         this.recipes.setup();
+        this.editor.setup();
 
         document.getElementById("phone-share-output").addEventListener("click",
             this.manager.output.shareClick.bind(this.manager.output));
@@ -244,6 +247,7 @@ class PhoneLayout {
         this.toast.hide();
         // closeAll() finishes on a later popstate; the desktop layout needs the recipe list now
         this.restoreRecipeList();
+        this.editor.restore();
         document.body.classList.remove("mobile");
         this.app.initialiseSplitter();
     }
@@ -331,8 +335,10 @@ class PhoneLayout {
      * hidden, so every argument kind works exactly as on the desktop.
      *
      * @param {number} index - The operation's position in the recipe
+     * @param {Function} [onClosed] - Called after the sheet closes, instead of moving focus
+     *   back to the recipe strip (the recipe editor uses this)
      */
-    openArgs(index) {
+    openArgs(index, onClosed) {
         const recList = document.getElementById("rec-list");
         const op = recList.querySelectorAll("li.operation")[index];
         if (!op || this.recListHome) return;
@@ -351,6 +357,10 @@ class PhoneLayout {
             onClose: () => {
                 this.restoreRecipeList();
                 this.render();
+                if (onClosed) {
+                    onClosed();
+                    return;
+                }
                 const item = document.querySelector(`#phone-recipe-ops [data-index="${index}"]`);
                 if (item) item.focus({preventScroll: true});
             }
@@ -359,8 +369,8 @@ class PhoneLayout {
 
 
     /**
-     * Puts #rec-list back in the desktop recipe pane after the argument sheet. Safe to call
-     * when it is already there.
+     * Puts #rec-list back where it was before the argument sheet opened: the desktop recipe
+     * pane, or the recipe editor. Safe to call when the sheet is not open.
      */
     restoreRecipeList() {
         if (!this.recListHome) return;

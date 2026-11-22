@@ -799,3 +799,81 @@ body.mobile .tooltip {
     font-size: 13px;
     color: var(--subtext-font-colour);
 }
+
+/* Recipe editor: #rec-list moved into the sheet, one compact row per operation */
+.phone-editor-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.phone-editor-body #rec-list {
+    position: static;
+    height: auto;
+    overflow: visible;
+    bottom: auto !important;
+}
+
+.phone-editor-body #rec-list li.operation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 4px 4px 4px 12px;
+}
+
+.phone-editor-body #rec-list li.operation > :not(.op-title):not(.phone-op-controls) {
+    display: none;
+}
+
+.phone-editor-body #rec-list .op-title {
+    flex: 1 1 100%;
+    display: flex;
+    align-items: center;
+    min-height: var(--phone-tap-size);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.phone-editor-body #rec-list li.operation.disabled .op-title {
+    text-decoration: line-through;
+}
+
+.phone-op-controls {
+    flex: 1 1 100%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.phone-op-controls button[aria-pressed="true"] {
+    background-color: var(--secondary-background-colour);
+    color: var(--breakpoint-icon-selected-colour);
+}
+
+.phone-op-controls button[data-action="disable"][aria-pressed="true"] {
+    color: var(--disable-icon-selected-colour);
+}
+
+.phone-op-controls button:disabled {
+    opacity: 0.3;
+}
+
+.phone-op-handle {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--phone-tap-size);
+    min-height: var(--phone-tap-size);
+    color: var(--subtext-font-colour);
+    cursor: grab;
+    touch-action: none;
+}
+
+/* The argument sheet opened from the editor shows the arguments, not the editor controls */
+.phone-arg-body .phone-op-controls {
+    display: none;
+}

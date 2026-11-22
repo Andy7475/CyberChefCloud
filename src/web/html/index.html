@@ -494,7 +494,10 @@
             </div>
             <span class="phone-title">CyberChefCloud</span>
             <div id="phone-header-end" class="phone-header-group">
-                <!-- Reserved: Edit recipe button (#20) -->
+                <button type="button" id="phone-editor-btn" class="phone-icon-btn" aria-label="Edit recipe"
+                    aria-haspopup="dialog" aria-controls="phone-editor-sheet">
+                    <i class="material-icons" aria-hidden="true">edit_note</i>
+                </button>
                 <button type="button" id="phone-menu-btn" class="phone-icon-btn" aria-label="More actions"
                     aria-haspopup="dialog" aria-controls="phone-menu-sheet">
                     <i class="material-icons" aria-hidden="true">more_vert</i>
@@ -528,6 +531,21 @@
                     enterkeyhint="go">
             </div>
             <div id="phone-picker-results" class="phone-picker-results"></div>
+        </div>
+        <div id="phone-editor-sheet" class="phone-sheet phone-sheet-full" role="dialog" aria-modal="true"
+            aria-labelledby="phone-editor-title" tabindex="-1" hidden>
+            <div class="phone-picker-header">
+                <button type="button" id="phone-editor-back" class="phone-icon-btn" aria-label="Close">
+                    <i class="material-icons" aria-hidden="true">arrow_back</i>
+                </button>
+                <h2 id="phone-editor-title" class="phone-sheet-title phone-screen-title">Edit recipe</h2>
+                <button type="button" id="phone-editor-add" class="phone-icon-btn" aria-label="Add operation">
+                    <i class="material-icons" aria-hidden="true">add</i>
+                </button>
+            </div>
+            <!-- While the editor is open, the desktop #rec-list is moved in here (docs/MobileUI.md) -->
+            <div id="phone-editor-body" class="phone-editor-body"></div>
+            <p id="phone-editor-empty" class="phone-picker-empty" hidden>No operations yet. Tap + to add one.</p>
         </div>
         <div id="phone-recipes-sheet" class="phone-sheet phone-sheet-full" role="dialog" aria-modal="true"
             aria-labelledby="phone-recipes-title" tabindex="-1" hidden>
