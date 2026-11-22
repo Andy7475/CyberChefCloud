@@ -1,0 +1,17 @@
+/**
+ * CyberChefCloud service worker: lets the installed app open and bake local operations offline.
+ *
+ * - index.html (page navigations): network first, falling back to the cached copy offline.
+ * - Other files from this site: cache first, in a cache named for this build. A new build
+ *   changes BUILD_ID, so the browser installs the new worker, which deletes old caches.
+ * - Cross-origin requests (Google APIs, model downloads) and non-GET requests are never cached.
+ * - Shared input (Web Share Target, Android): the POST to ./share-target is stored in the
+ *   "ccc-shared-input" cache under a one-time id, then the browser is sent to ./?share=<id>.
+ *   The page reads it, loads it into the input and deletes it (src/web/mobile/PhoneShare.mjs).
+ *
+ * The build sets BUILD_ID (webpack.config.js). Design: docs/MobileUI.md
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
