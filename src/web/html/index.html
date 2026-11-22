@@ -260,6 +260,40 @@
             <div class="split split-horizontal" id="IO">
                 <div id="input" class="split no-select" data-help-title="Input pane"
                     data-help="<p>Input data can be entered by typing it in, pasting it in, dragging it in, or using the 'Load file' or 'Load folder' buttons.</p><p>CyberChef does its best to represent data as accurately as possible to ensure you know exactly what you are working with. Non-printable characters are represented using control character pictures, for example a null byte (0x00) is displayed like this: <span title='Control character null' aria-label='Control character null' class='cm-specialChar'>␀</span>.</p>">
+                    <!-- Phone layout input bar (docs/MobileUI.md). The input-source row has a fixed order:
+                         Paste, Open file, Camera (#21), Microphone (#22). Camera and Microphone each put their
+                         button inside their own reserved slot, so they can be added in either order. -->
+                    <div id="phone-input-bar" class="phone-only phone-input-bar">
+                        <div class="phone-input-row">
+                            <button type="button" id="phone-input-toggle" class="phone-input-toggle"
+                                aria-controls="input-wrapper">
+                                <i class="material-icons phone-input-type" aria-hidden="true">notes</i>
+                                <span class="phone-input-summary"></span>
+                                <i class="material-icons phone-input-state" aria-hidden="true">unfold_more</i>
+                            </button>
+                            <div id="phone-input-switcher" class="phone-input-switcher" hidden>
+                                <button type="button" id="phone-input-prev" class="phone-icon-btn" aria-label="Previous input">
+                                    <i class="material-icons" aria-hidden="true">chevron_left</i>
+                                </button>
+                                <span id="phone-input-position" class="phone-input-position" aria-live="polite"></span>
+                                <button type="button" id="phone-input-next" class="phone-icon-btn" aria-label="Next input">
+                                    <i class="material-icons" aria-hidden="true">chevron_right</i>
+                                </button>
+                            </div>
+                            <button type="button" id="phone-input-clear" class="phone-icon-btn" aria-label="Clear input">
+                                <i class="material-icons" aria-hidden="true">delete</i>
+                            </button>
+                        </div>
+                        <div id="phone-input-sources" class="phone-input-sources" role="toolbar" aria-label="Input sources">
+                            <button type="button" id="phone-input-paste" class="phone-input-source">
+                                <i class="material-icons" aria-hidden="true">content_paste</i>Paste</button>
+                            <button type="button" id="phone-input-file" class="phone-input-source">
+                                <i class="material-icons" aria-hidden="true">folder_open</i>Open file</button>
+                            <span class="phone-input-slot" data-slot="camera"></span>
+                            <span class="phone-input-slot" data-slot="microphone"></span>
+                        </div>
+                        <input type="file" id="phone-open-file" multiple hidden>
+                    </div>
                     <div class="title no-select">
                         <label for="input-text">Input</label>
                         <span class="pane-controls">

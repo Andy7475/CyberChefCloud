@@ -15,6 +15,7 @@
 import Sortable from "sortablejs";
 import PhoneSheets from "./PhoneSheets.mjs";
 import PhonePicker from "./PhonePicker.mjs";
+import PhoneInput from "./PhoneInput.mjs";
 
 /**
  * Screens that get the phone layout when the Layout option is "auto":
@@ -41,6 +42,7 @@ class PhoneLayout {
         this.mql = window.matchMedia(PHONE_MEDIA_QUERY);
         this.sheets = new PhoneSheets(app);
         this.picker = new PhonePicker(app, manager, this.sheets);
+        this.input = new PhoneInput(app, manager);
         this.renderQueued = false;
         // Where #rec-list lives in the desktop layout, while it is in the argument sheet
         this.recListHome = null;
@@ -73,6 +75,7 @@ class PhoneLayout {
         document.getElementById("phone-menu-items").addEventListener("click", this.menuClick.bind(this));
 
         this.picker.setup();
+        this.input.setup();
 
         document.getElementById("phone-share-output").addEventListener("click",
             this.manager.output.shareClick.bind(this.manager.output));
@@ -222,6 +225,7 @@ class PhoneLayout {
         document.getElementById("phone-share-output").hidden = !navigator.share;
         this.render();
         this.syncBakeButton();
+        this.input.update();
         this.app.adjustComponentSizes();
     }
 
