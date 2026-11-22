@@ -594,3 +594,35 @@ body.mobile .phone-toast {
     text-transform: uppercase;
     cursor: pointer;
 }
+
+/* Output and input pane buttons: 44px tap targets. Replace input with output is in the ⋯ menu. */
+body.mobile .pane-controls .bmd-btn-icon {
+    width: var(--phone-tap-size);
+    height: var(--phone-tap-size);
+    min-width: var(--phone-tap-size);
+}
+
+body.mobile #switch {
+    display: none !important;
+}
+
+/* Wide HTML output (tables, graphs) scrolls inside the output area, never the page */
+body.mobile {
+    overflow-x: hidden;
+}
+
+body.mobile #output-text .cm-scroller {
+    overflow: auto;
+}
+
+body.mobile #output-html {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* Keep words whole in table cells; a table wider than the screen scrolls instead */
+body.mobile #output-html td,
+body.mobile #output-html th {
+    word-break: normal;
+    overflow-wrap: normal;
+}

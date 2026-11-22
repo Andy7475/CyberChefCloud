@@ -354,6 +354,10 @@
                                 data-help="<p>When operating with multiple tabbed Inputs and Outputs, you can use this button to save off all the Outputs at once in a ZIP file.</p><p>Use the 'Bake' button to bake all Inputs at once.</p><p>You will be given the choice to specify the file extension for the Outputs, or you can let CyberChef attempt to detect the filetype of each one. If an Output's type is not clear, CyberChef will use the '.dat' extension.</p>">
                                 <i class="material-icons">archive</i>
                             </button>
+                            <button type="button" aria-label="Share output" class="btn btn-primary bmd-btn-icon phone-only"
+                                id="phone-share-output" hidden>
+                                <i class="material-icons" aria-hidden="true">share</i>
+                            </button>
                             <button type="button" aria-label="save" class="btn btn-primary bmd-btn-icon"
                                 id="save-to-file" data-toggle="tooltip" title="Save output to file"
                                 data-help-title="Saving output to a file"
@@ -495,7 +499,7 @@
             <div class="phone-sheet-handle" aria-hidden="true"></div>
             <h2 id="phone-menu-title" class="phone-sheet-title">More actions</h2>
             <!-- Each item calls the matching desktop control. Later tickets add items here
-                 (Save recipe #19, Replace input with output #18). -->
+                 (Save recipe #19). -->
             <ul id="phone-menu-items" class="phone-menu-items">
                 <li><button type="button" data-phone-action="options">
                     <i class="material-icons" aria-hidden="true">settings</i>Options</button></li>
@@ -506,6 +510,8 @@
                 <li><label class="phone-menu-toggle">
                     <i class="material-icons" aria-hidden="true">autorenew</i>Auto Bake
                     <input type="checkbox" id="phone-auto-bake"></label></li>
+                <li><button type="button" data-phone-action="switch">
+                    <i class="material-icons" aria-hidden="true">open_in_browser</i>Replace input with output</button></li>
                 <li><button type="button" data-phone-action="about">
                     <i class="material-icons" aria-hidden="true">help_outline</i>About / Support</button></li>
             </ul>

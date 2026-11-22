@@ -74,6 +74,9 @@ class PhoneLayout {
 
         this.picker.setup();
 
+        document.getElementById("phone-share-output").addEventListener("click",
+            this.manager.output.shareClick.bind(this.manager.output));
+
         // Argument sheet: tap an operation in the recipe strip
         const strip = document.getElementById("phone-recipe-ops");
         strip.addEventListener("click", this.stripClick.bind(this));
@@ -215,6 +218,8 @@ class PhoneLayout {
         this.app.ioSplitter = null;
 
         document.body.classList.add("mobile");
+        // Share only where the browser has a Share menu (Web Share API)
+        document.getElementById("phone-share-output").hidden = !navigator.share;
         this.render();
         this.syncBakeButton();
         this.app.adjustComponentSizes();
@@ -420,6 +425,7 @@ class PhoneLayout {
             options: "options",
             load: "load",
             clear: "clr-recipe",
+            switch: "switch",
             about: "support"
         };
         const target = document.getElementById(targets[item.dataset.phoneAction]);
