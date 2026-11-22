@@ -32,6 +32,8 @@ class PhoneSheets {
         this.closing = 0;
         // Number of sheets to hide on the next popstate after closeAll()'s history.go(-n)
         this.bulkClose = 0;
+        // Sheets asked to open while a close is still going through history; opened afterwards
+        this.pending = [];
 
         this.backdrop.addEventListener("click", () => this.close());
         document.addEventListener("keydown", e => {
@@ -61,6 +63,12 @@ class PhoneSheets {
      * @param {Function} [opts.onClose] - Called after the sheet has closed.
      */
     open(sheet, {onClose} = {}) {
+        // history.back() is asynchronous: pushing a new entry before it lands would let the
+        // back step remove the new sheet's entry instead, so wait for it
+        if (this.closing > 0 || this.bulkClose > 0) {
+            this.pending.push([sheet, {onClose}]);
+            return;
+        }
         if (this.stack.some(entry => entry.sheet === sheet)) return;
 
         this.stack.push({sheet, returnFocus: document.activeElement, onClose});
@@ -125,6 +133,11 @@ class PhoneSheets {
             // The app may have replaced the sheet's history entry with a newer recipe URL
             // while the sheet was open, so write the current state back to this entry.
             this.app.updateURL(true, null, true);
+            if (!this.closing && !this.bulkClose && this.pending.length) {
+                const pending = this.pending;
+                this.pending = [];
+                pending.forEach(([sheet, opts]) => this.open(sheet, opts));
+            }
             return true;
         }
         // Forward navigation onto an old sheet entry: nothing to reopen

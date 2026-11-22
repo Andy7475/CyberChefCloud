@@ -16,8 +16,6 @@ import DOMPurify from "dompurify";
 /** localStorage key for the operations most recently added from the picker */
 const RECENT_KEY = "phoneRecentOperations";
 const RECENT_MAX = 8;
-/** How long the "Added X — Undo" message stays up */
-const TOAST_MS = 6000;
 
 /**
  * Controls the operation picker and its Undo message.
@@ -30,13 +28,13 @@ class PhonePicker {
      * @param {App} app - The main view object for CyberChef.
      * @param {Manager} manager - The CyberChef event manager.
      * @param {PhoneSheets} sheets - The phone layout's sheets.
+     * @param {PhoneToast} toast - The phone layout's message bar.
      */
-    constructor(app, manager, sheets) {
+    constructor(app, manager, sheets, toast) {
         this.app = app;
         this.manager = manager;
         this.sheets = sheets;
-        this.lastAdded = null;
-        this.toastTimer = null;
+        this.toast = toast;
     }
 
 
@@ -47,7 +45,6 @@ class PhonePicker {
         this.sheet = document.getElementById("phone-picker-sheet");
         this.search = document.getElementById("phone-picker-search");
         this.results = document.getElementById("phone-picker-results");
-        this.toast = document.getElementById("phone-toast");
 
         document.getElementById("phone-add-op").addEventListener("click", () => this.open());
         document.getElementById("phone-picker-back").addEventListener("click", () => this.sheets.close());
@@ -81,8 +78,6 @@ class PhonePicker {
                 if (cat) details.appendChild(this.opList(cat.ops));
             }
         }, true);
-
-        this.toast.querySelector(".phone-toast-action").addEventListener("click", () => this.undo());
     }
 
 
@@ -90,7 +85,7 @@ class PhonePicker {
      * Opens the picker with an empty search field that has focus, so the keyboard comes up.
      */
     open() {
-        this.hideToast();
+        this.toast.hide();
         this.search.value = "";
         this.render();
         this.sheets.open(this.sheet);
@@ -290,7 +285,7 @@ class PhonePicker {
         const item = this.manager.recipe.addOperation(name);
         this.remember(name);
         this.sheets.close();
-        this.showToast(`Added ${name}`, item);
+        this.toast.show(`Added ${name}`, () => this.undo(item));
     }
 
 
@@ -325,38 +320,13 @@ class PhonePicker {
 
 
     /**
-     * Shows the "Added X — Undo" message.
+     * Removes an operation that was just added, the same way the desktop removes one.
      *
-     * @param {string} text
-     * @param {HTMLElement} item - The recipe operation that Undo removes
+     * @param {HTMLElement} item - The recipe operation element
      */
-    showToast(text, item) {
-        this.lastAdded = item;
-        this.toast.querySelector(".phone-toast-text").textContent = text;
-        this.toast.hidden = false;
-        clearTimeout(this.toastTimer);
-        this.toastTimer = setTimeout(() => this.hideToast(), TOAST_MS);
-    }
-
-
-    /**
-     * Hides the Undo message.
-     */
-    hideToast() {
-        clearTimeout(this.toastTimer);
-        this.toast.hidden = true;
-        this.lastAdded = null;
-    }
-
-
-    /**
-     * Removes the operation that was just added, the same way the desktop removes one.
-     */
-    undo() {
-        const item = this.lastAdded;
+    undo(item) {
         const recList = document.getElementById("rec-list");
-        this.hideToast();
-        if (!item || !recList.contains(item)) return;
+        if (!recList.contains(item)) return;
         item.remove();
         recList.dispatchEvent(this.manager.operationremove);
     }

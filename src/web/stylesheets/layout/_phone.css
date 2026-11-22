@@ -598,7 +598,8 @@ body.mobile .phone-toast {
     left: calc(16px + env(safe-area-inset-left));
     right: calc(16px + env(safe-area-inset-right));
     bottom: calc(100px + env(safe-area-inset-bottom));
-    z-index: 1001;
+    /* Above sheets, so Undo can follow an action taken in one */
+    z-index: 1100;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -762,4 +763,39 @@ body.mobile #output-html th {
 /* Hover tooltips mean nothing on a touch screen, and a tap can leave one covering the page */
 body.mobile .tooltip {
     display: none !important;
+}
+
+/* My recipes */
+.phone-screen-title {
+    flex: 1;
+    margin: 0;
+}
+
+.phone-recipe-load .phone-pick-desc {
+    -webkit-line-clamp: 1;
+}
+
+.phone-name-form {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px;
+}
+
+.phone-name-form .bmd-form-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.phone-name-form .btn {
+    min-height: var(--phone-tap-size);
+    margin: 0;
+}
+
+.phone-sheet-note {
+    margin: 8px 16px 16px;
+    font-size: 13px;
+    color: var(--subtext-font-colour);
 }

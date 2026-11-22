@@ -16,6 +16,8 @@ import Sortable from "sortablejs";
 import PhoneSheets from "./PhoneSheets.mjs";
 import PhonePicker from "./PhonePicker.mjs";
 import PhoneInput from "./PhoneInput.mjs";
+import PhoneToast from "./PhoneToast.mjs";
+import PhoneRecipes from "./PhoneRecipes.mjs";
 
 /**
  * Screens that get the phone layout when the Layout option is "auto":
@@ -41,7 +43,9 @@ class PhoneLayout {
         this.ready = false;
         this.mql = window.matchMedia(PHONE_MEDIA_QUERY);
         this.sheets = new PhoneSheets(app);
-        this.picker = new PhonePicker(app, manager, this.sheets);
+        this.toast = new PhoneToast();
+        this.picker = new PhonePicker(app, manager, this.sheets, this.toast);
+        this.recipes = new PhoneRecipes(app, manager, this.sheets, this.toast);
         this.input = new PhoneInput(app, manager);
         this.renderQueued = false;
         // Where #rec-list lives in the desktop layout, while it is in the argument sheet
@@ -76,6 +80,7 @@ class PhoneLayout {
 
         this.picker.setup();
         this.input.setup();
+        this.recipes.setup();
 
         document.getElementById("phone-share-output").addEventListener("click",
             this.manager.output.shareClick.bind(this.manager.output));
@@ -236,7 +241,7 @@ class PhoneLayout {
     leave() {
         this.active = false;
         this.sheets.closeAll();
-        this.picker.hideToast();
+        this.toast.hide();
         // closeAll() finishes on a later popstate; the desktop layout needs the recipe list now
         this.restoreRecipeList();
         document.body.classList.remove("mobile");
@@ -432,8 +437,12 @@ class PhoneLayout {
             switch: "switch",
             about: "support"
         };
-        const target = document.getElementById(targets[item.dataset.phoneAction]);
         this.sheets.close();
+        if (item.dataset.phoneAction === "save") {
+            this.recipes.openSave();
+            return;
+        }
+        const target = document.getElementById(targets[item.dataset.phoneAction]);
         if (target) target.click();
     }
 
