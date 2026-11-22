@@ -310,3 +310,85 @@ body.mobile .phone-sheet:focus {
     width: 20px;
     height: 20px;
 }
+
+/* The argument sheet leaves the output visible above it, so its backdrop is see-through */
+body.mobile #phone-sheet-backdrop.phone-backdrop-clear {
+    background-color: transparent;
+}
+
+/* Recipe strip items open the argument sheet */
+.phone-recipe-op {
+    cursor: pointer;
+}
+
+.phone-recipe-op:focus-visible {
+    outline: 2px solid var(--primary-font-colour);
+    outline-offset: 2px;
+}
+
+/* Argument sheet: half the height, or nearly all of it while typing in a field */
+body.mobile #phone-arg-sheet {
+    max-height: 50dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+body.mobile.phone-text-focus #phone-arg-sheet {
+    max-height: calc(100dvh - var(--phone-header-height));
+}
+
+.phone-arg-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 8px;
+}
+
+.phone-arg-header .phone-sheet-title {
+    flex: 1;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#phone-arg-done {
+    min-height: var(--phone-tap-size);
+    margin: 0;
+}
+
+.phone-arg-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* #rec-list is moved into the sheet while it is open; only the edited operation shows */
+.phone-arg-body #rec-list {
+    position: static;
+    height: auto;
+    overflow: visible;
+    bottom: auto !important;
+}
+
+.phone-arg-body #rec-list li.operation:not(.phone-editing) {
+    display: none;
+}
+
+.phone-arg-body #rec-list li.operation {
+    border-top: 0;
+    border-bottom: 0;
+}
+
+/* Bigger argument controls for fingers */
+.phone-arg-body .arg {
+    font-size: 16px; /* 16px stops iOS Safari zooming in when a field gets focus */
+}
+
+/* The sheet's title already names the operation; keep the row for its disable and breakpoint icons */
+.phone-arg-body #rec-list li.phone-editing .op-title {
+    visibility: hidden;
+}

@@ -1,6 +1,6 @@
 /**
  * The phone layout: decides when it is used, and runs the run screen
- * (input, recipe strip, output and a floating Bake button) and the ⋯ menu.
+ * (input, recipe strip, output and a floating Bake button), the argument sheet and the ⋯ menu.
  *
  * Design and decisions: docs/MobileUI.md and docs/adr/0001-own-phone-layout-not-upstream-pr.md.
  * The phone layout reuses the desktop's elements and waiters; it never keeps its own copy of
@@ -11,6 +11,7 @@
  * @license Apache-2.0
  */
 
+import Sortable from "sortablejs";
 import PhoneSheets from "./PhoneSheets.mjs";
 
 /**
@@ -38,6 +39,8 @@ class PhoneLayout {
         this.mql = window.matchMedia(PHONE_MEDIA_QUERY);
         this.sheets = new PhoneSheets(app);
         this.renderQueued = false;
+        // Where #rec-list lives in the desktop layout, while it is in the argument sheet
+        this.recListHome = null;
     }
 
 
@@ -65,13 +68,32 @@ class PhoneLayout {
         document.getElementById("phone-bake").addEventListener("click", () => bake.click());
         document.getElementById("phone-menu-btn").addEventListener("click", () => this.openMenu());
         document.getElementById("phone-menu-items").addEventListener("click", this.menuClick.bind(this));
+
+        // Argument sheet: tap an operation in the recipe strip
+        const strip = document.getElementById("phone-recipe-ops");
+        strip.addEventListener("click", this.stripClick.bind(this));
+        strip.addEventListener("keydown", e => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                this.stripClick(e);
+            }
+        });
+        const argSheet = document.getElementById("phone-arg-sheet");
+        document.getElementById("phone-arg-done").addEventListener("click", () => this.sheets.close());
+        // On the desktop, double-clicking an operation removes it. In the sheet a double tap
+        // is an accident, so stop it before it reaches the recipe list's handlers.
+        argSheet.addEventListener("dblclick", e => e.stopPropagation(), true);
         document.getElementById("phone-auto-bake").addEventListener("change", this.menuAutoBakeChange.bind(this));
         document.getElementById("auto-bake").addEventListener("change", () => this.syncAutoBake());
 
         // Hide floating controls while the on-screen keyboard covers the page. Android (with
         // interactive-widget=resizes-content) shrinks the layout viewport, so fixed controls
         // stay above the keyboard. iOS Safari ignores that and only shrinks the visual viewport.
-        const updateTyping = () => document.body.classList.toggle("phone-typing", this.isKeyboardCovering());
+        const updateTyping = () => {
+            document.body.classList.toggle("phone-typing", this.isKeyboardCovering());
+            document.body.classList.toggle("phone-text-focus", PhoneLayout.isTextField(document.activeElement));
+            this.keepSheetsAboveKeyboard();
+        };
         document.addEventListener("focusin", updateTyping);
         document.addEventListener("focusout", () => setTimeout(updateTyping, 0));
         if (window.visualViewport) window.visualViewport.addEventListener("resize", updateTyping);
@@ -104,6 +126,30 @@ class PhoneLayout {
     isKeyboardCovering() {
         if (!PhoneLayout.isTextField(document.activeElement) || !window.visualViewport) return false;
         return window.innerHeight - window.visualViewport.height > 100;
+    }
+
+
+    /**
+     * Keeps open sheets inside the visual viewport and the focused field in view. Needed on iOS,
+     * where the keyboard covers fixed elements instead of shrinking the page.
+     */
+    keepSheetsAboveKeyboard() {
+        const vv = window.visualViewport;
+        const covering = this.isKeyboardCovering();
+        document.querySelectorAll(".phone-sheet:not([hidden])").forEach(sheet => {
+            if (covering) {
+                const hidden = window.innerHeight - vv.height - vv.offsetTop;
+                sheet.style.bottom = `${Math.max(0, hidden)}px`;
+                sheet.style.maxHeight = `${vv.height}px`;
+            } else {
+                sheet.style.bottom = "";
+                sheet.style.maxHeight = "";
+            }
+        });
+        const active = document.activeElement;
+        if (PhoneLayout.isTextField(active) && active.closest(".phone-sheet")) {
+            active.scrollIntoView({block: "nearest"});
+        }
     }
 
 
@@ -176,6 +222,8 @@ class PhoneLayout {
     leave() {
         this.active = false;
         this.sheets.closeAll();
+        // closeAll() finishes on a later popstate; the desktop layout needs the recipe list now
+        this.restoreRecipeList();
         document.body.classList.remove("mobile");
         this.app.initialiseSplitter();
     }
@@ -200,6 +248,12 @@ class PhoneLayout {
     render() {
         const list = document.getElementById("phone-recipe-ops");
         const config = this.app.getRecipeConfig();
+        const focused = list.contains(document.activeElement) ? document.activeElement.dataset.index : null;
+
+        // The operation being edited has gone (removed, or a new recipe was loaded)
+        if (this.recListHome && !document.querySelector("#rec-list li.phone-editing")) {
+            this.sheets.close();
+        }
         list.textContent = "";
 
         if (!config.length) {
@@ -215,6 +269,9 @@ class PhoneLayout {
             li.className = "phone-recipe-op";
             li.dataset.index = i;
             li.textContent = op.op;
+            li.tabIndex = 0;
+            li.setAttribute("role", "button");
+            li.setAttribute("aria-haspopup", "dialog");
 
             const states = [];
             if (op.disabled) {
@@ -229,6 +286,72 @@ class PhoneLayout {
                 `${i + 1}. ${op.op}${states.length ? ` (${states.join(", ")})` : ""}`);
             list.appendChild(li);
         });
+
+        if (focused !== null) {
+            const again = list.querySelector(`[data-index="${focused}"]`);
+            if (again) again.focus({preventScroll: true});
+        }
+    }
+
+
+    /**
+     * Handler for taps on the recipe strip: opens the tapped operation's argument sheet.
+     *
+     * @param {Event} e
+     */
+    stripClick(e) {
+        const item = e.target.closest(".phone-recipe-op");
+        if (item) this.openArgs(Number(item.dataset.index));
+    }
+
+
+    /**
+     * Opens the argument sheet for one operation in the recipe. The sheet shows the real
+     * operation element: #rec-list is moved into the sheet and the other operations are
+     * hidden, so every argument kind works exactly as on the desktop.
+     *
+     * @param {number} index - The operation's position in the recipe
+     */
+    openArgs(index) {
+        const recList = document.getElementById("rec-list");
+        const op = recList.querySelectorAll("li.operation")[index];
+        if (!op || this.recListHome) return;
+
+        this.recListHome = {parent: recList.parentNode, next: recList.nextSibling};
+        op.classList.add("phone-editing");
+        document.getElementById("phone-arg-title").textContent = op.querySelector(".op-title").textContent;
+        document.getElementById("phone-arg-body").appendChild(recList);
+        recList.scrollTop = 0;
+
+        // No dragging inside the sheet: the other operations are hidden
+        const sortable = Sortable.get(recList);
+        if (sortable) sortable.option("disabled", true);
+
+        this.sheets.open(document.getElementById("phone-arg-sheet"), {
+            onClose: () => {
+                this.restoreRecipeList();
+                this.render();
+                const item = document.querySelector(`#phone-recipe-ops [data-index="${index}"]`);
+                if (item) item.focus({preventScroll: true});
+            }
+        });
+    }
+
+
+    /**
+     * Puts #rec-list back in the desktop recipe pane after the argument sheet. Safe to call
+     * when it is already there.
+     */
+    restoreRecipeList() {
+        if (!this.recListHome) return;
+        const recList = document.getElementById("rec-list");
+        const {parent, next} = this.recListHome;
+        parent.insertBefore(recList, next);
+        this.recListHome = null;
+
+        recList.querySelectorAll("li.phone-editing").forEach(li => li.classList.remove("phone-editing"));
+        const sortable = Sortable.get(recList);
+        if (sortable) sortable.option("disabled", false);
     }
 
 

@@ -458,6 +458,17 @@
             <span class="phone-bake-label">Bake!</span>
         </button>
         <div id="phone-sheet-backdrop" class="phone-only" hidden></div>
+        <div id="phone-arg-sheet" class="phone-sheet" role="dialog" aria-modal="true" aria-labelledby="phone-arg-title"
+            tabindex="-1" data-backdrop="clear" hidden>
+            <div class="phone-sheet-handle" aria-hidden="true"></div>
+            <div class="phone-arg-header">
+                <h2 id="phone-arg-title" class="phone-sheet-title"></h2>
+                <button type="button" id="phone-arg-done" class="btn btn-primary">Done</button>
+            </div>
+            <!-- While the sheet is open, the desktop #rec-list is moved in here, with every
+                 operation except the one being edited hidden (docs/MobileUI.md). -->
+            <div id="phone-arg-body" class="phone-arg-body"></div>
+        </div>
         <div id="phone-menu-sheet" class="phone-sheet" role="dialog" aria-modal="true" aria-labelledby="phone-menu-title"
             tabindex="-1" hidden>
             <div class="phone-sheet-handle" aria-hidden="true"></div>

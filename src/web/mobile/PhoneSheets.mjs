@@ -70,6 +70,7 @@ class PhoneSheets {
         sheet.style.zIndex = 1050 + this.stack.length * 2;
         this.backdrop.style.zIndex = 1049 + this.stack.length * 2;
         this.backdrop.hidden = false;
+        this.syncBackdrop();
         this.bindSwipe(sheet);
 
         const first = sheet.querySelector("button, [href], input, select, textarea");
@@ -138,9 +139,12 @@ class PhoneSheets {
         const {sheet, returnFocus, onClose} = this.stack.pop();
         sheet.hidden = true;
         sheet.style.transform = "";
+        sheet.style.bottom = "";
+        sheet.style.maxHeight = "";
 
         if (this.stack.length) {
             this.backdrop.style.zIndex = 1049 + this.stack.length * 2;
+            this.syncBackdrop();
         } else {
             this.backdrop.hidden = true;
         }
@@ -149,6 +153,16 @@ class PhoneSheets {
             returnFocus.focus({preventScroll: true});
         }
         if (onClose) onClose();
+    }
+
+
+    /**
+     * Makes the backdrop see-through when the top sheet has `data-backdrop="clear"`, for sheets
+     * that leave the output visible above them (the argument sheet). Tapping it still closes the sheet.
+     */
+    syncBackdrop() {
+        const top = this.stack[this.stack.length - 1];
+        this.backdrop.classList.toggle("phone-backdrop-clear", Boolean(top && top.sheet.dataset.backdrop === "clear"));
     }
 
 
