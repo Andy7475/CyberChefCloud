@@ -6,7 +6,57 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
+import Utils from "../Utils.mjs";
+import { toBase64 } from "../lib/Base64.mjs";
 import { applyGCPAuth, generateGCSDestinationUri, gcpFetch } from "../lib/GoogleCloud.mjs";
+
+/** The synchronous recognize API accepts at most 10 MB of request and about one minute of audio */
+const MAX_INLINE_BASE64 = 10 * 1024 * 1024 - 1024;
+const MAX_INLINE_SECONDS = 60;
+
+/**
+ * Prepares raw audio input for the API's audio.content field. Audio files (bytes) are
+ * Base64-encoded here; input that is already Base64 text is passed through unchanged.
+ *
+ * @param {ArrayBuffer} input
+ * @returns {string} Base64 audio
+ */
+export function audioContentFromInput(input) {
+    if (!looksLikeAudioFile(input)) {
+        const text = Utils.arrayBufferToStr(input).trim();
+        if (text && /^[A-Za-z0-9+/=\s]+$/.test(text)) return text.replace(/\s+/g, "");
+    }
+    return toBase64(new Uint8Array(input));
+}
+
+/**
+ * Whether the input starts with the signature of a common audio file (WAV, MP3, Ogg, FLAC, MP4/M4A, WebM).
+ *
+ * @param {ArrayBuffer} input
+ * @returns {boolean}
+ */
+export function looksLikeAudioFile(input) {
+    const b = new Uint8Array(input.slice(0, 12));
+    const ascii = (start, str) => [...str].every((c, i) => b[start + i] === c.charCodeAt(0));
+    return ascii(0, "RIFF") || ascii(0, "ID3") || ascii(0, "OggS") || ascii(0, "fLaC") || ascii(4, "ftyp") ||
+        (b[0] === 0xFF && (b[1] & 0xE0) === 0xE0) || (b[0] === 0x1A && b[1] === 0x45 && b[2] === 0xDF && b[3] === 0xA3);
+}
+
+/**
+ * The length in seconds of a PCM WAV file, from its header, or null if it is not one.
+ *
+ * @param {ArrayBuffer} input
+ * @returns {number|null}
+ */
+export function wavSeconds(input) {
+    if (input.byteLength < 44) return null;
+    const view = new DataView(input);
+    const tag = (o) => String.fromCharCode(view.getUint8(o), view.getUint8(o + 1), view.getUint8(o + 2), view.getUint8(o + 3));
+    if (tag(0) !== "RIFF" || tag(8) !== "WAVE") return null;
+    const byteRate = view.getUint32(28, true);
+    if (!byteRate) return null;
+    return (input.byteLength - 44) / byteRate;
+}
 
 /**
  * Writes text content to a GCS object.
@@ -96,7 +146,9 @@ class GCloudSpeechToText extends Operation {
         this.description = [
             "Transcribes audio files into text using the Google Cloud Speech-to-Text API.",
             "<br><br>",
-            "<b>Inputs:</b> An audio file (ArrayBuffer) or a GCS URI depending on the Input Mode.",
+            "<b>Inputs:</b> An audio file (for example a recording from the Microphone) or a GCS URI, depending on the Input Mode.",
+            "<br>",
+            "Raw audio is sent directly and is limited to about one minute and 10 MB; for longer audio, upload it to GCS and use GCS URI mode.",
             "<br>",
             "<b>Outputs:</b> A textual transcript of the spoken audio.",
             "<br><br>",
@@ -106,7 +158,7 @@ class GCloudSpeechToText extends Operation {
             "<b>Requirements:</b> Requires a prior <code>Authenticate Google Cloud</code> operation."
         ].join("\n");
         this.infoURL = "https://cloud.google.com/speech-to-text/docs/reference/rest";
-        this.inputType = "string";
+        this.inputType = "ArrayBuffer";
         this.outputType = "string";
         this.manualBake = true;
         this.args = [
@@ -144,7 +196,7 @@ class GCloudSpeechToText extends Operation {
     }
 
     /**
-     * @param {string} input
+     * @param {ArrayBuffer} input
      * @param {Object[]} args
      * @returns {string}
      */
@@ -153,25 +205,37 @@ class GCloudSpeechToText extends Operation {
             inputMode, languageCode, model, outputDest, outputDirectory, maxPollMinutes
         ] = args;
 
-        const uri = input.trim();
-        if (!uri) throw new OperationError("Please provide a GCS URI or Base64 audio input.");
+        if (!input || !input.byteLength) throw new OperationError("Please provide a GCS URI or an audio file.");
+        // An audio file (such as a Microphone recording) is sent as raw audio whichever mode is chosen
+        const gcsMode = inputMode === "GCS URI (gs://...)" && !looksLikeAudioFile(input);
+        const uri = gcsMode ? Utils.arrayBufferToStr(input).trim() : "";
 
         const maxMs = maxPollMinutes * 60 * 1000;
         let transcript;
 
-        if (inputMode === "GCS URI (gs://...)") {
+        if (gcsMode) {
             if (!uri.startsWith("gs://")) {
                 throw new OperationError("Input Mode is set to GCS URI but input does not start with gs://");
             }
             transcript = await this._transcribeGcsUri(uri, languageCode, model, maxMs);
         } else {
-            // Raw audio bytes (Base64)
-            transcript = await this._transcribeRawAudio(uri, languageCode, model);
+            // Raw audio: an audio file, or Base64 text of one
+            const seconds = wavSeconds(input);
+            if (seconds !== null && seconds > MAX_INLINE_SECONDS) {
+                throw new OperationError(`This recording is ${Math.round(seconds)} seconds long. Raw audio is limited to ` +
+                    `${MAX_INLINE_SECONDS} seconds: record a shorter clip, or upload the file to GCS and use GCS URI mode.`);
+            }
+            const content = audioContentFromInput(input);
+            if (content.length > MAX_INLINE_BASE64) {
+                throw new OperationError("This audio is too large to send directly (the limit is 10 MB). " +
+                    "Upload it to GCS and use GCS URI mode.");
+            }
+            transcript = await this._transcribeRawAudio(content, languageCode, model);
         }
 
         if (outputDest === "Write to GCS") {
             // Generate full destination GCS URI using the core utility
-            const virtualInputUri = inputMode === "GCS URI (gs://...)" ? uri : "gs://raw-audio-bucket/raw_audio.raw";
+            const virtualInputUri = gcsMode ? uri : "gs://raw-audio-bucket/raw_audio.raw";
             const dest = generateGCSDestinationUri(virtualInputUri, outputDirectory, "_ccc_stt", ".txt");
 
             await writeGCSFile(dest.bucket, dest.objectPath, transcript);

@@ -198,7 +198,9 @@ export async function gcpFetch(urlStr, { method = "GET", params = {}, body = nul
         if (typeof navigator !== "undefined" && navigator.onLine === false) {
             throw new OperationError("You are offline. Cloud operations need an internet connection; local operations still work.");
         }
-        throw new OperationError(`Network Error: Could not connect to Google APIs. ${e.message}`);
+        const size = typeof config.body === "string" ? ` with a ${Math.ceil(config.body.length / 1024)} KB request` : "";
+        throw new OperationError(`Network Error: Could not connect to Google APIs (${new URL(authed.url).host}${size}). ${e.message}. ` +
+            "No response was received: the connection may have dropped, the request may be too large, or the browser blocked it.");
     }
 
     // 5. Centralized Error Handling
