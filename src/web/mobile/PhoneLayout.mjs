@@ -22,12 +22,19 @@ import PhoneEditor from "./PhoneEditor.mjs";
 import PhoneCamera from "./PhoneCamera.mjs";
 import PhoneMicrophone from "./PhoneMicrophone.mjs";
 import PhoneShare from "./PhoneShare.mjs";
+import PhoneCredentials from "./PhoneCredentials.mjs";
 
 /**
  * Screens that get the phone layout when the Layout option is "auto":
  * narrow screens, and touch screens that are short (a phone in landscape).
  */
 export const PHONE_MEDIA_QUERY = "(max-width: 767px), (pointer: coarse) and (max-height: 499px)";
+
+/** Recipe strip gestures: a tap moves less than TAP_SLOP pixels; a second tap within
+ * DOUBLE_TAP_MS is a double tap; holding for LONG_PRESS_MS starts a drag */
+const TAP_SLOP = 10;
+const DOUBLE_TAP_MS = 300;
+const LONG_PRESS_MS = 250;
 
 /**
  * Controls the phone layout.
@@ -54,10 +61,13 @@ class PhoneLayout {
         this.camera = new PhoneCamera(app, this);
         this.microphone = new PhoneMicrophone(app, this);
         this.share = new PhoneShare(app, this);
+        this.credentials = new PhoneCredentials(app, manager, this);
         this.input = new PhoneInput(app, manager);
         this.renderQueued = false;
         // Where #rec-list lives in the desktop layout, while it is in the argument sheet
         this.recListHome = null;
+        // A first tap on the recipe strip, waiting to see if a second one makes a double tap
+        this.pendingTap = null;
     }
 
 
@@ -93,19 +103,14 @@ class PhoneLayout {
         this.camera.setup();
         this.microphone.setup();
         this.share.setup();
+        this.credentials.setup();
 
         document.getElementById("phone-share-output").addEventListener("click",
             this.manager.output.shareClick.bind(this.manager.output));
 
         // Argument sheet: tap an operation in the recipe strip
         const strip = document.getElementById("phone-recipe-ops");
-        strip.addEventListener("click", this.stripClick.bind(this));
-        strip.addEventListener("keydown", e => {
-            if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                this.stripClick(e);
-            }
-        });
+        this.setupStripGestures(strip);
         const argSheet = document.getElementById("phone-arg-sheet");
         document.getElementById("phone-arg-done").addEventListener("click", () => this.sheets.close());
         // On the desktop, double-clicking an operation removes it. In the sheet a double tap
@@ -317,6 +322,7 @@ class PhoneLayout {
             }
             li.setAttribute("aria-label",
                 `${i + 1}. ${op.op}${states.length ? ` (${states.join(", ")})` : ""}`);
+            li.setAttribute("aria-description", "Tap to edit, double tap to delete, press and hold to move");
             list.appendChild(li);
         });
 
@@ -328,13 +334,124 @@ class PhoneLayout {
 
 
     /**
-     * Handler for taps on the recipe strip: opens the tapped operation's argument sheet.
+     * Sets up the recipe strip's gestures:
+     * - tap: open the operation's argument sheet;
+     * - double tap: delete the operation, with Undo;
+     * - press and hold, then drag: move the operation;
+     * - keyboard: Enter or Space opens the arguments, Delete removes the operation.
      *
-     * @param {Event} e
+     * Taps are read from pointer events because SortableJS, which runs the dragging, can swallow
+     * the click that follows a finger tap.
+     *
+     * @param {HTMLElement} strip - The recipe strip's list
      */
-    stripClick(e) {
-        const item = e.target.closest(".phone-recipe-op");
-        if (item) this.openArgs(Number(item.dataset.index));
+    setupStripGestures(strip) {
+        let down = null;
+        strip.addEventListener("pointerdown", e => {
+            const item = e.target.closest(".phone-recipe-op");
+            down = item ? {item, x: e.clientX, y: e.clientY, time: Date.now()} : null;
+        });
+        strip.addEventListener("pointerup", e => {
+            const start = down;
+            down = null;
+            if (!start || e.target.closest(".phone-recipe-op") !== start.item) return;
+            const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+            // A long press starts a drag rather than a tap
+            if (moved > TAP_SLOP || Date.now() - start.time > LONG_PRESS_MS) return;
+            this.stripTap(Number(start.item.dataset.index));
+        });
+        strip.addEventListener("pointercancel", () => {
+            down = null;
+        });
+        strip.addEventListener("keydown", e => {
+            const item = e.target.closest(".phone-recipe-op");
+            if (!item) return;
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                this.openArgs(Number(item.dataset.index));
+            } else if (e.key === "Delete" || e.key === "Backspace") {
+                e.preventDefault();
+                this.deleteOperation(Number(item.dataset.index));
+            }
+        });
+
+        Sortable.create(strip, {
+            direction: "horizontal",
+            draggable: ".phone-recipe-op",
+            delay: LONG_PRESS_MS,
+            delayOnTouchOnly: true,
+            touchStartThreshold: 5,
+            animation: 150,
+            onEnd: evt => this.moveOperation(evt.oldDraggableIndex, evt.newDraggableIndex)
+        });
+    }
+
+
+    /**
+     * A tap on an operation in the recipe strip. A second tap on the same operation soon after
+     * deletes it; otherwise its argument sheet opens once the double-tap time has passed.
+     *
+     * @param {number} index - The operation's position in the recipe
+     */
+    stripTap(index) {
+        const pending = this.pendingTap;
+        if (pending && pending.index === index) {
+            clearTimeout(pending.timer);
+            this.pendingTap = null;
+            this.deleteOperation(index);
+            return;
+        }
+        if (pending) clearTimeout(pending.timer);
+        this.pendingTap = {
+            index,
+            timer: setTimeout(() => {
+                this.pendingTap = null;
+                this.openArgs(index);
+            }, DOUBLE_TAP_MS)
+        };
+    }
+
+
+    /**
+     * Removes an operation from the recipe, the way the desktop does, and offers Undo.
+     *
+     * @param {number} index
+     */
+    deleteOperation(index) {
+        const recList = document.getElementById("rec-list");
+        const li = recList.querySelectorAll("li.operation")[index];
+        if (!li) return;
+        const name = li.querySelector(".op-title").textContent;
+        const next = li.nextElementSibling;
+        li.remove();
+        recList.dispatchEvent(this.manager.operationremove);
+
+        this.toast.show(`Deleted ${name}`, () => {
+            const list = document.getElementById("rec-list");
+            list.insertBefore(li, next && list.contains(next) ? next : null);
+            this.app.progress = 0;
+            window.dispatchEvent(this.manager.statechange);
+        });
+    }
+
+
+    /**
+     * Moves an operation after it was dragged in the recipe strip, as a desktop drag does.
+     *
+     * @param {number} from - Its old position
+     * @param {number} to - Its new position
+     */
+    moveOperation(from, to) {
+        if (from === to || from === undefined || to === undefined) return;
+        const recList = document.getElementById("rec-list");
+        const ops = Array.from(recList.querySelectorAll("li.operation"));
+        const moving = ops[from];
+        const target = ops[to];
+        if (!moving || !target) return;
+        recList.insertBefore(moving, to > from ? target.nextElementSibling : target);
+        this.app.progress = 0;
+        document.dispatchEvent(this.manager.statechange);
+        this.render();
     }
 
 

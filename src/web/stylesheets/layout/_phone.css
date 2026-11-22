@@ -828,6 +828,32 @@ body.mobile .tooltip {
     display: none;
 }
 
+/* Tapping an operation's name shows its arguments, and its own icons (such as the password
+   manager keys), in place */
+.phone-editor-body #rec-list li.operation.phone-expanded > .ingredients {
+    display: flex;
+    flex: 1 1 100%;
+}
+
+.phone-editor-body #rec-list li.operation.phone-expanded > .recip-icons {
+    display: flex;
+    flex: 1 1 100%;
+    justify-content: flex-end;
+}
+
+.phone-editor-body #rec-list li.operation.phone-expanded .op-title::after {
+    content: "expand_less";
+}
+
+.phone-editor-body #rec-list .op-title::after {
+    content: "expand_more";
+    margin-left: auto;
+    font-family: "Material Icons";
+    font-size: 24px;
+    font-weight: normal;
+    color: var(--subtext-font-colour);
+}
+
 .phone-editor-body #rec-list .op-title {
     flex: 1 1 100%;
     display: flex;
@@ -927,4 +953,38 @@ body.mobile .tooltip {
 
 #phone-share-list .phone-pick-current .phone-pick-name {
     font-weight: bold;
+}
+
+/* Password-manager profile sheet */
+.phone-profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 16px 16px;
+}
+
+.phone-profile-form label {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-profile-form input {
+    min-height: var(--phone-tap-size);
+    padding: 0 12px;
+    border: 1px solid var(--primary-border-colour);
+    border-radius: 8px;
+    background-color: var(--secondary-background-colour);
+    color: var(--primary-font-colour);
+    font-size: 16px;
+}
+
+.phone-profile-form .bmd-form-group {
+    margin: 0;
+    padding: 0;
+}
+
+.phone-profile-form .btn {
+    min-height: var(--phone-tap-size);
+    margin: 12px 0 0;
 }

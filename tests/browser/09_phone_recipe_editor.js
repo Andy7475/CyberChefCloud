@@ -108,16 +108,29 @@ module.exports = {
         browser.expect.elements("#phone-recipe-ops .phone-recipe-op").count.to.equal(2);
     },
 
-    "Tapping an operation's name opens its argument sheet; Back returns to the editor": browser => {
-        browser
-            .click("#phone-editor-body #rec-list li.operation:nth-child(2) .op-title")
-            .waitForElementVisible("#phone-arg-sheet", 5000)
-            .expect.element("#phone-arg-title").text.to.equal("Find / Replace");
-        browser.expect.element("#phone-arg-sheet li.phone-editing .ingredients").to.be.visible;
+    "Tapping an operation's name shows its arguments in place, to edit them in the editor": browser => {
+        const op = "#phone-editor-body #rec-list li.operation:nth-child(2)";
+        browser.expect.element(`${op} .ingredients`).to.not.be.visible;
+        browser.click(`${op} .op-title`).pause(300);
+        browser.expect.element(`${op} .ingredients`).to.be.visible;
+        browser.expect.element(`${op} .op-title`).to.have.attribute("aria-expanded").equals("true");
+        browser.expect.element("#phone-arg-sheet").to.not.be.visible;
 
-        browser.back().waitForElementNotVisible("#phone-arg-sheet", 5000);
-        browser.expect.element("#phone-editor-sheet").to.be.visible;
-        browser.expect.elements("#phone-editor-body #rec-list li.operation").count.to.equal(2);
+        // Find / Replace: replace "C" with "z" instead of "x"; the recipe is Reverse (disabled), Find / Replace
+        browser.execute(function () {
+            const field = document.querySelectorAll("#phone-editor-body #rec-list li.operation:nth-child(2) input.arg")[1];
+            field.value = "z";
+            field.dispatchEvent(new Event("input", {bubbles: true}));
+        });
+        browser.execute(function () {
+            const findField = document.querySelectorAll("#phone-editor-body #rec-list li.operation:nth-child(2) input.arg")[0];
+            findField.value = "a";
+            findField.dispatchEvent(new Event("input", {bubbles: true}));
+        });
+        expectRecipe(browser, ["Reverse", "Find / Replace"], "zbc");
+
+        browser.click(`${op} .op-title`).pause(300);
+        browser.expect.element(`${op} .ingredients`).to.not.be.visible;
     },
 
     "Back closes the editor and leaves the desktop recipe list as it was": browser => {

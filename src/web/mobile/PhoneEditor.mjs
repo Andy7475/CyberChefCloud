@@ -1,7 +1,7 @@
 /**
  * The phone layout's recipe editor: a full-screen view of the whole recipe, where operations
  * can be moved up and down (or dragged by their ≡ handle), disabled, given a breakpoint and
- * deleted. Tapping an operation's name opens its argument sheet.
+ * deleted. Tapping an operation's name shows or hides its arguments in place.
  *
  * Like the argument sheet, the editor shows the desktop #rec-list itself, moved into the sheet
  * while it is open, so the recipe, URL and bake update exactly as after desktop edits.
@@ -66,7 +66,7 @@ class PhoneEditor {
             this.tapStart = null;
             if (!start || !e.target.closest(".op-title")) return;
             if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > TAP_SLOP) return;
-            this.openArgs(start.op);
+            this.toggleArgs(start.op);
         });
         this.body.addEventListener("pointercancel", () => {
             this.tapStart = null;
@@ -75,7 +75,7 @@ class PhoneEditor {
             const title = e.target.closest(".op-title");
             if (title && (e.key === "Enter" || e.key === " ")) {
                 e.preventDefault();
-                this.openArgs(title.closest("li.operation"));
+                this.toggleArgs(title.closest("li.operation"));
             }
         });
         // Double-clicking an operation removes it on the desktop; here a double tap is an accident
@@ -122,6 +122,7 @@ class PhoneEditor {
         this.home = null;
         parent.insertBefore(recList, next);
         recList.querySelectorAll(".phone-op-controls").forEach(el => el.remove());
+        recList.querySelectorAll("li.phone-expanded").forEach(li => li.classList.remove("phone-expanded"));
         recList.querySelectorAll(".op-title[tabindex]").forEach(el => {
             el.removeAttribute("tabindex");
             el.removeAttribute("role");
@@ -166,7 +167,8 @@ class PhoneEditor {
             const title = li.querySelector(".op-title");
             title.tabIndex = 0;
             title.setAttribute("role", "button");
-            title.setAttribute("aria-label", `${name}: edit arguments`);
+            title.setAttribute("aria-label", `${name}: ${li.classList.contains("phone-expanded") ? "hide" : "show"} arguments`);
+            title.setAttribute("aria-expanded", String(li.classList.contains("phone-expanded")));
 
             const disabled = li.classList.contains("disabled");
             const breakpoint = li.querySelector(".breakpoint").getAttribute("break") === "true";
@@ -241,18 +243,15 @@ class PhoneEditor {
 
 
     /**
-     * Opens an operation's argument sheet from the editor, and returns focus to it afterwards.
+     * Shows or hides an operation's arguments in the editor, so they can be changed in place.
      *
      * @param {HTMLElement} li
      */
-    openArgs(li) {
-        const index = Array.from(document.querySelectorAll("#rec-list li.operation")).indexOf(li);
-        if (index < 0) return;
-        this.layout.openArgs(index, () => {
-            this.decorate();
-            const title = li.querySelector(".op-title");
-            if (title && document.contains(title)) title.focus({preventScroll: true});
-        });
+    toggleArgs(li) {
+        if (!li) return;
+        li.classList.toggle("phone-expanded");
+        this.decorate();
+        if (li.classList.contains("phone-expanded")) li.scrollIntoView({block: "nearest"});
     }
 
 }

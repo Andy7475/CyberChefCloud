@@ -615,6 +615,22 @@
             <p id="phone-share-summary" class="phone-sheet-note"></p>
             <ul id="phone-share-list" class="phone-pick-list" aria-labelledby="phone-share-title"></ul>
         </div>
+        <div id="phone-profile-sheet" class="phone-sheet" role="dialog" aria-modal="true"
+            aria-labelledby="phone-profile-title" tabindex="-1" hidden>
+            <div class="phone-sheet-handle" aria-hidden="true"></div>
+            <h2 id="phone-profile-title" class="phone-sheet-title"></h2>
+            <p id="phone-profile-help" class="phone-sheet-note"></p>
+            <!-- A real sign-in form, so the phone's password manager offers to save it and fills it
+                 from keyboard suggestions (src/web/mobile/PhoneCredentials.mjs) -->
+            <form id="phone-profile-form" class="phone-profile-form" method="post" action="#" autocomplete="on">
+                <label for="phone-profile-name">Profile name</label>
+                <input type="text" id="phone-profile-name" name="username" autocomplete="username"
+                    autocapitalize="off" spellcheck="false" required>
+                <label for="phone-profile-secret">Saved settings</label>
+                <input type="password" id="phone-profile-secret" name="password" autocomplete="current-password">
+                <button type="submit" id="phone-profile-submit" class="btn btn-primary btn-raised"></button>
+            </form>
+        </div>
         <div id="phone-toast" class="phone-only phone-toast" role="status" aria-live="polite" hidden>
             <span class="phone-toast-text"></span>
             <button type="button" class="phone-toast-action">Undo</button>
