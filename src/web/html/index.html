@@ -335,7 +335,12 @@
                 <div id="phone-recipe-strip" class="phone-only" role="region" aria-label="Recipe">
                     <ol id="phone-recipe-ops" class="phone-recipe-ops" aria-label="Operations in the recipe"></ol>
                     <!-- Reserved: the operation picker's "+" button (#16) is added here -->
-                    <div id="phone-strip-actions" class="phone-strip-actions"></div>
+                    <div id="phone-strip-actions" class="phone-strip-actions">
+                        <button type="button" id="phone-add-op" class="phone-icon-btn phone-add-op" aria-label="Add operation"
+                            aria-haspopup="dialog" aria-controls="phone-picker-sheet">
+                            <i class="material-icons" aria-hidden="true">add</i>
+                        </button>
+                    </div>
                 </div>
                 <div id="output" class="split" data-help-title="Output pane"
                     data-help="<p>This pane displays the results of the Recipe after it has processed your Input.</p><p>CyberChef does its best to represent data as accurately as possible to ensure you know exactly what you are working with. Non-printable characters are represented using control character pictures, for example a null byte (0x00) is displayed like this: <span title='Control character null' aria-label='Control character null' class='cm-specialChar'>␀</span>.</p><p>When copying these characters from the Output, the original byte value will be copied into your clipboard, rather than the control character picture itself.</p>">
@@ -468,6 +473,22 @@
             <!-- While the sheet is open, the desktop #rec-list is moved in here, with every
                  operation except the one being edited hidden (docs/MobileUI.md). -->
             <div id="phone-arg-body" class="phone-arg-body"></div>
+        </div>
+        <div id="phone-picker-sheet" class="phone-sheet phone-sheet-full" role="dialog" aria-modal="true"
+            aria-label="Add an operation" tabindex="-1" hidden>
+            <div class="phone-picker-header">
+                <button type="button" id="phone-picker-back" class="phone-icon-btn" aria-label="Close">
+                    <i class="material-icons" aria-hidden="true">arrow_back</i>
+                </button>
+                <input type="search" id="phone-picker-search" class="phone-picker-search" placeholder="Search operations"
+                    aria-label="Search operations" autocomplete="off" autocapitalize="off" spellcheck="false"
+                    enterkeyhint="go">
+            </div>
+            <div id="phone-picker-results" class="phone-picker-results"></div>
+        </div>
+        <div id="phone-toast" class="phone-only phone-toast" role="status" aria-live="polite" hidden>
+            <span class="phone-toast-text"></span>
+            <button type="button" class="phone-toast-action">Undo</button>
         </div>
         <div id="phone-menu-sheet" class="phone-sheet" role="dialog" aria-modal="true" aria-labelledby="phone-menu-title"
             tabindex="-1" hidden>

@@ -175,7 +175,9 @@ class PhoneSheets {
         if (sheet.dataset.swipeBound) return;
         sheet.dataset.swipeBound = "true";
 
-        const handle = sheet.querySelector(".phone-sheet-handle") || sheet;
+        // Full-screen sheets have no handle; they close with their own button or Back
+        const handle = sheet.querySelector(".phone-sheet-handle");
+        if (!handle) return;
         let startY = null;
 
         handle.addEventListener("pointerdown", e => {

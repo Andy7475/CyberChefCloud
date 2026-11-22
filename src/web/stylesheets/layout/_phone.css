@@ -392,3 +392,205 @@ body.mobile.phone-text-focus #phone-arg-sheet {
 .phone-arg-body #rec-list li.phone-editing .op-title {
     visibility: hidden;
 }
+
+/* "+" on the recipe strip */
+.phone-add-op {
+    background-color: var(--primary-background-colour);
+    border: 1px solid var(--primary-border-colour);
+}
+
+/* Full-screen sheets (the operation picker) */
+body.mobile .phone-sheet-full {
+    top: 0;
+    max-height: none;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: none;
+}
+
+/* Operation picker */
+.phone-picker-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--primary-border-colour);
+}
+
+/* Bootstrap Material wraps the field in a .bmd-form-group span with top padding */
+.phone-picker-header .bmd-form-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.phone-picker-search {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: var(--phone-tap-size);
+    padding: 0 12px;
+    border: 1px solid var(--primary-border-colour);
+    border-radius: 22px;
+    background-color: var(--secondary-background-colour);
+    color: var(--primary-font-colour);
+    font-size: 16px; /* stops iOS Safari zooming in */
+}
+
+.phone-picker-results {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.phone-pick-heading {
+    margin: 16px 16px 4px;
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.phone-pick-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--secondary-border-colour);
+}
+
+.phone-pick {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 6px 4px 6px 16px;
+    border: 0;
+    background: none;
+    color: var(--primary-font-colour);
+    text-align: left;
+    cursor: pointer;
+}
+
+.phone-pick:active {
+    background-color: var(--secondary-background-colour);
+}
+
+.phone-pick-name {
+    font-size: 16px;
+}
+
+.phone-pick-name b {
+    color: var(--primary-font-colour);
+    text-decoration: underline;
+}
+
+.phone-pick-desc {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 13px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick-desc br {
+    display: none;
+}
+
+.phone-pick-fav {
+    flex: none;
+    margin-right: 4px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick-fav[aria-pressed="true"] {
+    color: #f0b400;
+}
+
+.phone-pick-category > summary {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--secondary-border-colour);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.phone-pick-category[open] > summary {
+    font-weight: bold;
+    background-color: var(--secondary-background-colour);
+}
+
+.phone-pick-category .phone-pick {
+    padding-left: 28px;
+}
+
+.phone-picker-empty {
+    margin: 24px 16px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick:focus-visible,
+.phone-pick-category > summary:focus-visible {
+    outline: 2px solid var(--primary-font-colour);
+    outline-offset: -2px;
+}
+
+/* "Added X — Undo" message, above the floating Bake button */
+body.mobile .phone-toast {
+    position: fixed;
+    left: calc(16px + env(safe-area-inset-left));
+    right: calc(16px + env(safe-area-inset-right));
+    bottom: calc(100px + env(safe-area-inset-bottom));
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 4px 4px 4px 16px;
+    border-radius: 8px;
+    background-color: #323232;
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.phone-toast[hidden] {
+    display: none !important;
+}
+
+.phone-toast-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.phone-toast-action {
+    min-height: var(--phone-tap-size);
+    padding: 0 12px;
+    border: 0;
+    background: none;
+    color: #8ab4f8;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+}

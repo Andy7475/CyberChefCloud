@@ -1,6 +1,7 @@
 /**
  * The phone layout: decides when it is used, and runs the run screen
- * (input, recipe strip, output and a floating Bake button), the argument sheet and the ⋯ menu.
+ * (input, recipe strip, output and a floating Bake button), the argument sheet, the operation
+ * picker (PhonePicker.mjs) and the ⋯ menu.
  *
  * Design and decisions: docs/MobileUI.md and docs/adr/0001-own-phone-layout-not-upstream-pr.md.
  * The phone layout reuses the desktop's elements and waiters; it never keeps its own copy of
@@ -13,6 +14,7 @@
 
 import Sortable from "sortablejs";
 import PhoneSheets from "./PhoneSheets.mjs";
+import PhonePicker from "./PhonePicker.mjs";
 
 /**
  * Screens that get the phone layout when the Layout option is "auto":
@@ -38,6 +40,7 @@ class PhoneLayout {
         this.ready = false;
         this.mql = window.matchMedia(PHONE_MEDIA_QUERY);
         this.sheets = new PhoneSheets(app);
+        this.picker = new PhonePicker(app, manager, this.sheets);
         this.renderQueued = false;
         // Where #rec-list lives in the desktop layout, while it is in the argument sheet
         this.recListHome = null;
@@ -68,6 +71,8 @@ class PhoneLayout {
         document.getElementById("phone-bake").addEventListener("click", () => bake.click());
         document.getElementById("phone-menu-btn").addEventListener("click", () => this.openMenu());
         document.getElementById("phone-menu-items").addEventListener("click", this.menuClick.bind(this));
+
+        this.picker.setup();
 
         // Argument sheet: tap an operation in the recipe strip
         const strip = document.getElementById("phone-recipe-ops");
@@ -222,6 +227,7 @@ class PhoneLayout {
     leave() {
         this.active = false;
         this.sheets.closeAll();
+        this.picker.hideToast();
         // closeAll() finishes on a later popstate; the desktop layout needs the recipe list now
         this.restoreRecipeList();
         document.body.classList.remove("mobile");
@@ -259,7 +265,7 @@ class PhoneLayout {
         if (!config.length) {
             const empty = document.createElement("li");
             empty.className = "phone-recipe-empty";
-            empty.textContent = "No operations in the recipe";
+            empty.textContent = "No operations yet. Tap + to add one.";
             list.appendChild(empty);
             return;
         }

@@ -446,6 +446,20 @@ class App {
     }
 
     /**
+     * Removes an operation from the user's favourites.
+     *
+     * @param {string} name - The name of the operation
+     */
+    removeFavourite(name) {
+        const favourites = JSON.parse(localStorage.favourites).filter(fav => fav !== name);
+        this.saveFavourites(favourites);
+        this.loadFavourites();
+        this.populateOperationsList();
+        this.manager.recipe.initialiseOperationDragNDrop();
+    }
+
+
+    /**
      * Gets the URI params from the window and parses them to extract the actual values.
      *
      * @returns {object}
