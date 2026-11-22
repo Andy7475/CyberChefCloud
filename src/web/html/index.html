@@ -289,7 +289,9 @@
                                 <i class="material-icons" aria-hidden="true">content_paste</i>Paste</button>
                             <button type="button" id="phone-input-file" class="phone-input-source">
                                 <i class="material-icons" aria-hidden="true">folder_open</i>Open file</button>
-                            <span class="phone-input-slot" data-slot="camera"></span>
+                            <span class="phone-input-slot" data-slot="camera"><button type="button" id="phone-input-camera"
+                                class="phone-input-source"><i class="material-icons" aria-hidden="true">photo_camera</i>Camera</button><input
+                                type="file" id="phone-camera-file" accept="image/*" capture="environment" hidden></span>
                             <span class="phone-input-slot" data-slot="microphone"></span>
                         </div>
                         <input type="file" id="phone-open-file" multiple hidden>
@@ -730,6 +732,15 @@
                             <option value="auto">Auto (phone layout on small screens)</option>
                             <option value="phone">Phone</option>
                             <option value="desktop">Desktop</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group option-item">
+                        <label for="cameraPhotoSize" class="bmd-label-floating">Camera photo size (phone layout)</label>
+                        <select class="form-control" option="cameraPhotoSize" id="cameraPhotoSize">
+                            <option value="2048">2048px, location and other EXIF data removed</option>
+                            <option value="4096">4096px, location and other EXIF data removed</option>
+                            <option value="original">Original file, unchanged</option>
                         </select>
                     </div>
 

@@ -49,6 +49,7 @@ function main() {
         attemptHighlight:    true,
         theme:               "classic",
         layout:              "auto",
+        cameraPhotoSize:     "2048",
         useMetaKey:          false,
         logLevel:            "info",
         autoMagic:           true,
