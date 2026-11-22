@@ -348,6 +348,77 @@ function setPhoneLayout(browser) {
     browser.waitForElementVisible("#phone-header", 5000);
 }
 
+/** @function
+ * Serves the production build (build/prod) on its own port, for tests of the installable app
+ * (service worker, offline, share target). Stopping the server takes the site offline.
+ *
+ * @param {number} port
+ * @returns {{available: boolean, origin: string, start: Function, stop: Function}}
+ *   `available` is false when there is no production build; start() and stop() return promises.
+ */
+function prodBuildServer(port) {
+    const http = require("http");
+    const fs = require("fs");
+    const path = require("path");
+    const build = path.resolve(__dirname, "../../build/prod");
+    const origin = `http://localhost:${port}/`;
+    const types = {
+        ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
+        ".webmanifest": "application/manifest+json", ".png": "image/png", ".ico": "image/x-icon",
+        ".svg": "image/svg+xml", ".wasm": "application/wasm", ".woff2": "font/woff2", ".woff": "font/woff",
+        ".ttf": "font/ttf"
+    };
+    let server = null;
+    const sockets = new Set();
+
+    return {
+        available: fs.existsSync(path.join(build, "index.html")) && fs.existsSync(path.join(build, "sw.js")),
+        origin,
+        start() {
+            server = http.createServer((req, res) => {
+                let file = decodeURIComponent(new URL(req.url, origin).pathname);
+                if (file.endsWith("/")) file += "index.html";
+                const full = path.join(build, path.normalize(file));
+                if (!full.startsWith(build) || !fs.existsSync(full) || fs.statSync(full).isDirectory()) {
+                    res.writeHead(404);
+                    res.end();
+                    return;
+                }
+                res.writeHead(200, {"Content-Type": types[path.extname(full)] || "application/octet-stream"});
+                fs.createReadStream(full).pipe(res);
+            });
+            server.on("connection", s => {
+                sockets.add(s);
+                s.on("close", () => sockets.delete(s));
+            });
+            return new Promise(resolve => server.listen(port, resolve));
+        },
+        stop() {
+            if (!server) return Promise.resolve();
+            sockets.forEach(s => s.destroy());
+            return new Promise(resolve => server.close(() => {
+                server = null;
+                resolve();
+            }));
+        }
+    };
+}
+
+/** @function
+ * Removes service workers and caches from the current origin, so later tests start clean.
+ *
+ * @param {Browser} browser
+ */
+function clearServiceWorkers(browser) {
+    browser.executeAsync(function (done) {
+        navigator.serviceWorker.getRegistrations()
+            .then(regs => Promise.all(regs.map(r => r.unregister())))
+            .then(() => caches.keys())
+            .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+            .then(() => done(), () => done());
+    });
+}
+
 module.exports = {
     clear: clear,
     setInput: setInput,
@@ -365,5 +436,7 @@ module.exports = {
     getTestPAT: getTestPAT,
     getTestAPIKey: getTestAPIKey,
     setLayoutOption: setLayoutOption,
-    setPhoneLayout: setPhoneLayout
+    setPhoneLayout: setPhoneLayout,
+    prodBuildServer: prodBuildServer,
+    clearServiceWorkers: clearServiceWorkers
 };

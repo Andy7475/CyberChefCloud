@@ -36,6 +36,11 @@
         content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://unpkg.com https://maps.googleapis.com blob:; worker-src 'self' blob:; frame-src 'self' https://accounts.google.com blob: data:; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' data: blob: https://tile.openstreetmap.org https://maps.googleapis.com https://maps.gstatic.com https://unpkg.com; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://storage.googleapis.com https://speech.googleapis.com https://texttospeech.googleapis.com https://translation.googleapis.com https://vision.googleapis.com https://language.googleapis.com https://videointelligence.googleapis.com https://*.googleapis.com https://*.aiplatform.googleapis.com https://aiplatform.googleapis.com https://*.documentai.googleapis.com https://maps.googleapis.com https://places.googleapis.com https://enterpriseknowledgegraph.googleapis.com https://kgsearch.googleapis.com https://dlp.googleapis.com https://cyber-chef-cloud-convert-593556123914.europe-west2.run.app https://google-http-proxy-593556123914.europe-west2.run.app https://unpkg.com https://huggingface.co https://*.huggingface.co https://*.hf.co;" />
 
     <link rel="icon" type="image/ico" href="<%- require('../static/images/favicon.ico') %>" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="images/cyberchef-256x256.png" />
+    <meta name="theme-color" content="#3f51b5" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="CyberChefCloud" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <script type="application/javascript">
@@ -602,6 +607,13 @@
                     <i class="material-icons" aria-hidden="true">stop</i>Stop and use</button>
             </div>
             <p class="phone-sheet-note">Saved as a 16 kHz mono WAV file in the input.</p>
+        </div>
+        <div id="phone-share-sheet" class="phone-sheet" role="dialog" aria-modal="true"
+            aria-labelledby="phone-share-title" tabindex="-1" hidden>
+            <div class="phone-sheet-handle" aria-hidden="true"></div>
+            <h2 id="phone-share-title" class="phone-sheet-title">Run a recipe on the shared input</h2>
+            <p id="phone-share-summary" class="phone-sheet-note"></p>
+            <ul id="phone-share-list" class="phone-pick-list" aria-labelledby="phone-share-title"></ul>
         </div>
         <div id="phone-toast" class="phone-only phone-toast" role="status" aria-live="polite" hidden>
             <span class="phone-toast-text"></span>

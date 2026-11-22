@@ -103,6 +103,21 @@ module.exports = {
                     context: "node_modules/@wllama/wllama/esm/wasm",
                     from: "wllama.wasm",
                     to: "assets/wllama/"
+                }, {
+                    // Installable app (PWA): manifest, icons and service worker. docs/MobileUI.md
+                    context: "src/web/static/pwa/",
+                    from: "manifest.webmanifest",
+                    to: "."
+                }, {
+                    context: "src/web/static/images/",
+                    from: "cyberchef-{128x128,256x256,512x512}.png",
+                    to: "images/"
+                }, {
+                    // A new BUILD_ID on every build makes browsers install the new service worker
+                    context: "src/web/static/pwa/",
+                    from: "sw.js",
+                    to: ".",
+                    transform: content => content.toString().replace(/"__BUILD_ID__"/, JSON.stringify(Date.now().toString(36)))
                 }
             ]
         }),

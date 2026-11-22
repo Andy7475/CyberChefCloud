@@ -195,6 +195,9 @@ export async function gcpFetch(urlStr, { method = "GET", params = {}, body = nul
     try {
         response = await fetch(authed.url, config);
     } catch (e) {
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+            throw new OperationError("You are offline. Cloud operations need an internet connection; local operations still work.");
+        }
         throw new OperationError(`Network Error: Could not connect to Google APIs. ${e.message}`);
     }
 

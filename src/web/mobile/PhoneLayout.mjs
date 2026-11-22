@@ -21,6 +21,7 @@ import PhoneRecipes from "./PhoneRecipes.mjs";
 import PhoneEditor from "./PhoneEditor.mjs";
 import PhoneCamera from "./PhoneCamera.mjs";
 import PhoneMicrophone from "./PhoneMicrophone.mjs";
+import PhoneShare from "./PhoneShare.mjs";
 
 /**
  * Screens that get the phone layout when the Layout option is "auto":
@@ -52,6 +53,7 @@ class PhoneLayout {
         this.editor = new PhoneEditor(app, manager, this);
         this.camera = new PhoneCamera(app, this);
         this.microphone = new PhoneMicrophone(app, this);
+        this.share = new PhoneShare(app, this);
         this.input = new PhoneInput(app, manager);
         this.renderQueued = false;
         // Where #rec-list lives in the desktop layout, while it is in the argument sheet
@@ -90,6 +92,7 @@ class PhoneLayout {
         this.editor.setup();
         this.camera.setup();
         this.microphone.setup();
+        this.share.setup();
 
         document.getElementById("phone-share-output").addEventListener("click",
             this.manager.output.shareClick.bind(this.manager.output));
