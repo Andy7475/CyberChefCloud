@@ -292,7 +292,9 @@
                             <span class="phone-input-slot" data-slot="camera"><button type="button" id="phone-input-camera"
                                 class="phone-input-source"><i class="material-icons" aria-hidden="true">photo_camera</i>Camera</button><input
                                 type="file" id="phone-camera-file" accept="image/*" capture="environment" hidden></span>
-                            <span class="phone-input-slot" data-slot="microphone"></span>
+                            <span class="phone-input-slot" data-slot="microphone"><button type="button" id="phone-input-mic"
+                                class="phone-input-source" aria-haspopup="dialog" aria-controls="phone-recorder-sheet"><i
+                                class="material-icons" aria-hidden="true">mic</i>Microphone</button></span>
                         </div>
                         <input type="file" id="phone-open-file" multiple hidden>
                     </div>
@@ -585,6 +587,21 @@
                 <li><button type="button" id="phone-recipe-delete">
                     <i class="material-icons" aria-hidden="true">delete</i>Delete</button></li>
             </ul>
+        </div>
+        <div id="phone-recorder-sheet" class="phone-sheet" role="dialog" aria-modal="true"
+            aria-labelledby="phone-recorder-title" tabindex="-1" hidden>
+            <div class="phone-sheet-handle" aria-hidden="true"></div>
+            <h2 id="phone-recorder-title" class="phone-sheet-title">Recording</h2>
+            <div class="phone-recorder">
+                <span class="phone-recorder-dot" aria-hidden="true"></span>
+                <span id="phone-recorder-time" class="phone-recorder-time" role="timer" aria-live="off">0:00</span>
+            </div>
+            <div class="phone-recorder-actions">
+                <button type="button" id="phone-recorder-cancel" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="phone-recorder-stop" class="btn btn-primary btn-raised">
+                    <i class="material-icons" aria-hidden="true">stop</i>Stop and use</button>
+            </div>
+            <p class="phone-sheet-note">Saved as a 16 kHz mono WAV file in the input.</p>
         </div>
         <div id="phone-toast" class="phone-only phone-toast" role="status" aria-live="polite" hidden>
             <span class="phone-toast-text"></span>

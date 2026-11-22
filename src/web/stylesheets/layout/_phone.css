@@ -877,3 +877,45 @@ body.mobile .tooltip {
 .phone-arg-body .phone-op-controls {
     display: none;
 }
+
+/* Microphone recorder sheet */
+.phone-recorder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+}
+
+.phone-recorder-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #e53935;
+    animation: phone-recorder-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes phone-recorder-pulse {
+    from { opacity: 1; }
+    to { opacity: 0.3; }
+}
+
+.phone-recorder-time {
+    font-size: 32px;
+    font-variant-numeric: tabular-nums;
+}
+
+.phone-recorder-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 0 16px;
+}
+
+.phone-recorder-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--phone-tap-size);
+    margin: 0;
+}
