@@ -122,6 +122,46 @@ The language-model loop inside the `AI Agent` operation, which chooses operation
 An operation as the agent sees and calls it.
 _Avoid_: Function, action
 
+### Phone layout
+
+**Phone layout**:
+The arrangement of CyberChefCloud used on phones, built around the run screen and sheets instead of the desktop's side-by-side panes. Tablets and computers use the **desktop layout**.
+_Avoid_: Mobile UI, responsive mode, mobile view
+
+**Run screen**:
+The main screen of the phone layout: the input at the top, the recipe strip in the middle, and the output filling the rest.
+_Avoid_: Home screen, main view
+
+**Recipe strip**:
+The row of operation names on the run screen that shows the current recipe at a glance; tapping one opens its argument sheet.
+_Avoid_: Chips, recipe bar
+
+**Argument sheet**:
+A panel that slides up over the lower half of the run screen to edit the arguments of one operation, leaving the output visible above it.
+_Avoid_: Ingredient sheet, settings panel
+
+**Recipe editor**:
+The full-screen view of the whole recipe on a phone, where the user reorders, disables and removes operations.
+
+**Operation picker**:
+The search-first panel for finding an operation and adding it to the recipe on a phone.
+_Avoid_: Operations dropdown, op list
+
+**Saved recipe**:
+A recipe config that the user has named and stored in this browser, with credentials removed. The desktop Save recipe and the phone's My recipes show the same saved recipes.
+_Avoid_: Favourite recipe, bookmark
+
+**My recipes**:
+The phone screen that lists the saved recipes, from which the user loads one to run or edit.
+
+**Captured input**:
+Input that the user records with the phone itself, a camera photo or a microphone recording, which arrives in the input as a file.
+_Avoid_: Media input, recording (for photos)
+
+**Shared input**:
+Input that another app sends to CyberChefCloud through the phone's Share menu, after which the user chooses the current recipe or a saved recipe to run on it.
+_Avoid_: Share target (that is the browser feature, not the input)
+
 ## Relationships
 
 - The **chef** bakes one **recipe** over the **input**.
@@ -131,3 +171,6 @@ _Avoid_: Function, action
 - A **flow-control operation** changes which operation the chef runs next; `Fork` splits the dish into parts and runs the following operations (up to a `Merge`) once per part, and `Merge` joins the results.
 - A **cloud operation** reads the **credentials** set by an earlier `Authenticate Google Cloud` operation in the same recipe.
 - The **agent** inside `AI Agent` treats operations as **tools**. It can return the steps it took as a **recipe config**, or the dish those steps produced (its recipe output).
+- On a phone, the **run screen** shows the **input**, the **recipe strip** and the **output** together; editing an operation's arguments in the **argument sheet** keeps the output in view.
+- **Captured input** and **shared input** become the **input** like any other file, so any **recipe** can process them.
+- **My recipes** lists the same **saved recipes** as the desktop Save recipe; a saved recipe never contains **credentials**.
