@@ -31,6 +31,7 @@ After adding or renaming an operation, the generated config must be rebuilt (`np
   - `getGcpCredentials()`: `{authType, authString, quotaProject, defaultRegion, apiKey}` set by the `Authenticate Google Cloud` op.
   - `generateGCSDestinationUri`, `writeGCSText`, `writeGCSBytes`: GCS output helpers.
 - `src/core/lib/LocalLLM.mjs` + `src/core/lib/localllm/`: providers for browser-local models (no GCP auth; module `LocalAI`, category `Local AI`). Window-only browser APIs are reached from the worker via `MainThreadBridge.mjs` → `src/web/MainThreadHost.mjs`.
+- `src/web/mobile/`: the phone layout (`PhoneLayout.mjs`, `PhoneSheets.mjs`), styled by `src/web/stylesheets/layout/_phone.css` under `body.mobile`. See `docs/MobileUI.md`. When changing desktop UI elements, also run `tests/browser/03_phone_layout.js`.
 - `src/core/config/Categories.json`: ops must be listed here (in the `"Cloud"` category) to appear in the UI.
 - `src/web/html/index.html`: holds the **CSP `connect-src`** allow-list. A new Google endpoint that isn't covered there is blocked by the browser.
 - `tests/browser/GCloud*.js`: Nightwatch E2E tests against live APIs, one file per op. Helpers are in `tests/browser/browserUtils.js`.

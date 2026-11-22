@@ -48,6 +48,7 @@ function main() {
         errorTimeout:        4000,
         attemptHighlight:    true,
         theme:               "classic",
+        layout:              "auto",
         useMetaKey:          false,
         logLevel:            "info",
         autoMagic:           true,

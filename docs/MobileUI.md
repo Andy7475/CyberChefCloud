@@ -28,6 +28,21 @@ Options → **Layout: Auto / Phone / Desktop** overrides the check (stored in `l
 
 The class goes on `body`, not `:root`, because `OptionsWaiter` replaces `:root.className` when it sets the theme.
 
+## Code
+
+- `src/web/mobile/PhoneLayout.mjs`: chooses the layout, switches between layouts without a reload (the desktop splitters are destroyed on entry and re-created on exit), draws the recipe strip, keeps the floating Bake button in step with `#bake`, and runs the ⋯ menu. `Manager` creates it as `manager.phone` and calls `setup()` from `Manager.setup()`.
+- `src/web/mobile/PhoneSheets.mjs`: opens and closes sheets (`.phone-sheet` elements). Each open sheet pushes a history entry. Back, tapping the backdrop, swiping the handle down, and Escape all close the top sheet through `history.back()`. `App.popState` asks `sheets.handlePopState(e)` first, so closing a sheet never reloads the recipe from the URL.
+- `src/web/stylesheets/layout/_phone.css`: all phone styling, under `body.mobile`. Phone-only elements have the `phone-only` class and are hidden in the desktop layout.
+- Markup is in `src/web/html/index.html`: `#phone-header`, `#phone-recipe-strip` (inside `#IO`, between `#input` and `#output`), `#phone-bake`, `#phone-sheet-backdrop` and `#phone-menu-sheet`. Comments mark where later tickets add buttons.
+
+**Adding a sheet:** add an element with `class="phone-sheet" role="dialog" aria-modal="true" tabindex="-1" hidden`, with a `.phone-sheet-handle` child. Open it with `manager.phone.sheets.open(el, {onClose})`, and close it with `sheets.close()`.
+
+**Adding a ⋯ menu item:** add an `<li><button data-phone-action="…">` to `#phone-menu-items`. Then handle the action in `PhoneLayout.menuClick`, preferably by calling the matching desktop control.
+
+**Floating controls and the keyboard:** `body.phone-typing` is set while a text field has focus and the visual viewport is more than 100px shorter than the window. That happens on iOS when the keyboard is up. Floating controls are hidden while it is set. On Android, `interactive-widget=resizes-content` shrinks the page instead, so the controls stay above the keyboard.
+
+**Tests:** `tests/browser/03_phone_layout.js`. `browserUtils.setPhoneLayout(browser)` sets a 390×844 window and Layout = Phone. `browserUtils.setLayoutOption(browser, value)` sets only the option. Desktop helpers that click hidden desktop controls (such as `clear()` / `setInput()`) don't work in the phone layout, so set input with `window.app.setInput()` and load recipes through the URL hash.
+
 ## Screens
 
 ### Run screen

@@ -24,6 +24,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
     <title>CyberChef</title>
 
     <meta name="copyright" content="Crown Copyright 2016-<%= htmlWebpackPlugin.options.compileYear %>" />
@@ -330,6 +331,12 @@
                     </div>
                 </div>
 
+                <!-- Phone layout: recipe strip (hidden in the desktop layout). See docs/MobileUI.md -->
+                <div id="phone-recipe-strip" class="phone-only" role="region" aria-label="Recipe">
+                    <ol id="phone-recipe-ops" class="phone-recipe-ops" aria-label="Operations in the recipe"></ol>
+                    <!-- Reserved: the operation picker's "+" button (#16) is added here -->
+                    <div id="phone-strip-actions" class="phone-strip-actions"></div>
+                </div>
                 <div id="output" class="split" data-help-title="Output pane"
                     data-help="<p>This pane displays the results of the Recipe after it has processed your Input.</p><p>CyberChef does its best to represent data as accurately as possible to ensure you know exactly what you are working with. Non-printable characters are represented using control character pictures, for example a null byte (0x00) is displayed like this: <span title='Control character null' aria-label='Control character null' class='cm-specialChar'>␀</span>.</p><p>When copying these characters from the Output, the original byte value will be copied into your clipboard, rather than the control character picture itself.</p>">
                     <div class="title no-select">
@@ -431,6 +438,45 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Phone layout (hidden in the desktop layout). See docs/MobileUI.md and src/web/mobile/ -->
+        <header id="phone-header" class="phone-only">
+            <!-- Reserved: My recipes button (#19) -->
+            <div id="phone-header-start" class="phone-header-group"></div>
+            <span class="phone-title">CyberChefCloud</span>
+            <div id="phone-header-end" class="phone-header-group">
+                <!-- Reserved: Edit recipe button (#20) -->
+                <button type="button" id="phone-menu-btn" class="phone-icon-btn" aria-label="More actions"
+                    aria-haspopup="dialog" aria-controls="phone-menu-sheet">
+                    <i class="material-icons" aria-hidden="true">more_vert</i>
+                </button>
+            </div>
+        </header>
+        <button type="button" id="phone-bake" class="phone-only btn btn-success btn-raised" aria-label="Bake">
+            <i class="material-icons" aria-hidden="true">play_arrow</i>
+            <span class="phone-bake-label">Bake!</span>
+        </button>
+        <div id="phone-sheet-backdrop" class="phone-only" hidden></div>
+        <div id="phone-menu-sheet" class="phone-sheet" role="dialog" aria-modal="true" aria-labelledby="phone-menu-title"
+            tabindex="-1" hidden>
+            <div class="phone-sheet-handle" aria-hidden="true"></div>
+            <h2 id="phone-menu-title" class="phone-sheet-title">More actions</h2>
+            <!-- Each item calls the matching desktop control. Later tickets add items here
+                 (Save recipe #19, Replace input with output #18). -->
+            <ul id="phone-menu-items" class="phone-menu-items">
+                <li><button type="button" data-phone-action="options">
+                    <i class="material-icons" aria-hidden="true">settings</i>Options</button></li>
+                <li><button type="button" data-phone-action="load">
+                    <i class="material-icons" aria-hidden="true">folder</i>Load recipe</button></li>
+                <li><button type="button" data-phone-action="clear">
+                    <i class="material-icons" aria-hidden="true">delete</i>Clear recipe</button></li>
+                <li><label class="phone-menu-toggle">
+                    <i class="material-icons" aria-hidden="true">autorenew</i>Auto Bake
+                    <input type="checkbox" id="phone-auto-bake"></label></li>
+                <li><button type="button" data-phone-action="about">
+                    <i class="material-icons" aria-hidden="true">help_outline</i>About / Support</button></li>
+            </ul>
         </div>
     </div>
 
@@ -541,6 +587,15 @@
                             <option value="geocities">GeoCities</option>
                             <option value="solarizedDark">Solarized Dark</option>
                             <option value="solarizedLight">Solarized Light</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group option-item">
+                        <label for="layout" class="bmd-label-floating">Layout</label>
+                        <select class="form-control" option="layout" id="layout">
+                            <option value="auto">Auto (phone layout on small screens)</option>
+                            <option value="phone">Phone</option>
+                            <option value="desktop">Desktop</option>
                         </select>
                     </div>
 

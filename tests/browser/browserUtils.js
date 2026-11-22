@@ -321,6 +321,33 @@ function getTestAPIKey() {
     return testKey;
 }
 
+/** @function
+ * Sets the Layout option (Options > Layout) as a user would, through its select.
+ *
+ * @param {Browser} browser - Nightwatch client
+ * @param {string} value - "auto", "phone" or "desktop"
+ */
+function setLayoutOption(browser, value) {
+    browser.execute(function (val) {
+        const select = document.getElementById("layout");
+        select.value = val;
+        select.dispatchEvent(new Event("change", {bubbles: true}));
+    }, [value]);
+    browser.pause(200);
+}
+
+/** @function
+ * Uses the phone layout: a 390x844 window with Options > Layout set to Phone.
+ * See docs/MobileUI.md.
+ *
+ * @param {Browser} browser - Nightwatch client
+ */
+function setPhoneLayout(browser) {
+    browser.resizeWindow(390, 844);
+    setLayoutOption(browser, "phone");
+    browser.waitForElementVisible("#phone-header", 5000);
+}
+
 module.exports = {
     clear: clear,
     setInput: setInput,
@@ -336,5 +363,7 @@ module.exports = {
     uploadFile: uploadFile,
     uploadFolder: uploadFolder,
     getTestPAT: getTestPAT,
-    getTestAPIKey: getTestAPIKey
+    getTestAPIKey: getTestAPIKey,
+    setLayoutOption: setLayoutOption,
+    setPhoneLayout: setPhoneLayout
 };

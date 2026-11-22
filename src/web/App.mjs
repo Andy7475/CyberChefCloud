@@ -625,6 +625,8 @@ class App {
      * Resets the splitter positions to default.
      */
     resetLayout() {
+        // The phone layout has no splitters
+        if (!this.columnSplitter) return;
         this.columnSplitter.setSizes([20, 30, 50]);
         this.ioSplitter.setSizes([50, 50]);
         this.adjustComponentSizes();
@@ -826,6 +828,8 @@ class App {
      * @param {event} e
      */
     popState(e) {
+        // Back/forward that only opens or closes a phone-layout sheet must not reload the URL
+        if (this.manager.phone.sheets.handlePopState(e)) return;
         this.loadURIParams();
     }
 

@@ -18,6 +18,7 @@ import BindingsWaiter from "./waiters/BindingsWaiter.mjs";
 import BackgroundWorkerWaiter from "./waiters/BackgroundWorkerWaiter.mjs";
 import TabWaiter from "./waiters/TabWaiter.mjs";
 import TimingWaiter from "./waiters/TimingWaiter.mjs";
+import PhoneLayout from "./mobile/PhoneLayout.mjs";
 
 
 /**
@@ -74,6 +75,7 @@ class Manager {
         this.seasonal    = new SeasonalWaiter(this.app, this);
         this.bindings    = new BindingsWaiter(this.app, this);
         this.background  = new BackgroundWorkerWaiter(this.app, this);
+        this.phone       = new PhoneLayout(this.app, this);
 
         // Object to store dynamic handlers to fire on elements that may not exist yet
         this.dynamicHandlers = {};
@@ -95,6 +97,7 @@ class Manager {
         this.bindings.updateKeybList();
         this.background.registerChefWorker();
         this.seasonal.load();
+        this.phone.setup();
 
         this.confirmWaitersLoaded();
     }
@@ -241,6 +244,7 @@ class Manager {
         this.addDynamicListener(".option-item select", "change", this.options.selectChange, this.options);
         document.getElementById("theme").addEventListener("change", this.options.themeChange.bind(this.options));
         document.getElementById("logLevel").addEventListener("change", this.options.logLevelChange.bind(this.options));
+        document.getElementById("layout").addEventListener("change", this.phone.layoutOptionChange.bind(this.phone));
 
         // Misc
         window.addEventListener("keydown", this.bindings.parseInput.bind(this.bindings));
