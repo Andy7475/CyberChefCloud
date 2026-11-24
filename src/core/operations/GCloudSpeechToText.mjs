@@ -8,7 +8,7 @@ import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import Utils from "../Utils.mjs";
 import { toBase64 } from "../lib/Base64.mjs";
-import { applyGCPAuth, generateGCSDestinationUri, gcpFetch } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, gcpFetch, googleFetch } from "../lib/GoogleCloud.mjs";
 
 /** The synchronous recognize API accepts at most 10 MB of request and about one minute of audio */
 const MAX_INLINE_BASE64 = 10 * 1024 * 1024 - 1024;
@@ -74,7 +74,7 @@ async function writeGCSFile(bucket, objectPath, content) {
     headers.set("Content-Type", "text/plain; charset=utf-8");
     const authed = applyGCPAuth(url, headers);
 
-    const response = await fetch(authed.url, {
+    const response = await googleFetch(authed.url, {
         method: "POST",
         headers: authed.headers,
         body: content,

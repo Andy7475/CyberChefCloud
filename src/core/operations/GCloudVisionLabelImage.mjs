@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, generateGCSDestinationUri, writeGCSText, gcpFetch } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, writeGCSText, gcpFetch, googleFetch } from "../lib/GoogleCloud.mjs";
 
 
 /**
@@ -55,7 +55,7 @@ async function fetchGCSImageBuffer(gcsUri) {
     const url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}?alt=media`;
     const headers = new Headers();
     const authed = applyGCPAuth(url, headers);
-    const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
+    const response = await googleFetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
     if (!response.ok) {
         let msg = response.statusText;
         try {

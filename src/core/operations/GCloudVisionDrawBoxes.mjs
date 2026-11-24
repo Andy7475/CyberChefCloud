@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth, generateGCSDestinationUri, gcpFetch } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, gcpFetch, googleFetch } from "../lib/GoogleCloud.mjs";
 
 /**
  * Fetches an image from a GCS URI and returns its raw bytes as an ArrayBuffer.
@@ -21,7 +21,7 @@ async function fetchGCSImage(gcsUri) {
     const url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}?alt=media`;
     const headers = new Headers();
     const authed = applyGCPAuth(url, headers);
-    const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
+    const response = await googleFetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
     if (!response.ok) {
         let msg = response.statusText;
         try {
@@ -49,7 +49,7 @@ async function writeGCSImage(bucket, objectPath, imageBuffer, contentType) {
     const headers = new Headers();
     headers.set("Content-Type", contentType || "image/jpeg");
     const authed = applyGCPAuth(url, headers);
-    const response = await fetch(authed.url, {
+    const response = await googleFetch(authed.url, {
         method: "POST",
         headers: authed.headers,
         body: imageBuffer,

@@ -1,7 +1,7 @@
 /**
  * Offline tests for GCloud Speech to Text's raw audio handling: an audio file (such as a phone
- * microphone recording) must reach the API as Base64 of its exact bytes. fetch is stubbed, so
- * no Google credentials or network are needed.
+ * microphone recording) must reach the API as Base64 of its exact bytes. fetch is stubbed to
+ * answer as the Google API relay does, so no Google credentials or network are needed.
  *
  * @author CyberChefCloud
  * @copyright Crown Copyright 2026
@@ -12,7 +12,7 @@ import TestRegister from "../../lib/TestRegister.mjs";
 import it from "../assertionHandler.mjs";
 import assert from "assert";
 import GCloudSpeechToText, {audioContentFromInput, looksLikeAudioFile, wavSeconds} from "../../../src/core/operations/GCloudSpeechToText.mjs";
-import {setGcpCredentials, getGcpCredentials} from "../../../src/core/lib/GoogleCloud.mjs";
+import {setGcpCredentials, getGcpCredentials, GOOGLE_API_RELAY} from "../../../src/core/lib/GoogleCloud.mjs";
 
 /**
  * A 16 kHz mono 16-bit WAV of the given length, with bytes that are not valid UTF-8.
@@ -72,14 +72,17 @@ async function runWithStub(input, mode) {
     }
     let sent = null;
     globalThis.fetch = async (url, config) => {
-        sent = {url, body: JSON.parse(config.body)};
+        // Every Google call goes to the relay, which forwards {url, method, headers, body}
+        const relayed = JSON.parse(config.body);
+        sent = {relay: url, url: relayed.url, headers: relayed.headers, body: JSON.parse(relayed.body)};
+        const google = JSON.stringify({results: [{alternatives: [{transcript: "hello world"}]}]});
         return {
             ok: true,
             status: 200,
-            text: async () => JSON.stringify({results: [{alternatives: [{transcript: "hello world"}]}]})
+            text: async () => JSON.stringify({status: 200, contentType: "application/json", bodyBase64: Buffer.from(google).toString("base64")})
         };
     };
-    setGcpCredentials({authType: "API Key", authString: "test-key", quotaProject: "", defaultRegion: "us-central1", apiKey: ""});
+    setGcpCredentials({authType: "Access Token", authString: "test-token", quotaProject: "my-project", defaultRegion: "us-central1", apiKey: ""});
     try {
         const output = await new GCloudSpeechToText().run(input, [mode, "en-GB", "latest_short", "Return to CyberChef", "", 1]);
         return {sent, output};
@@ -94,7 +97,9 @@ TestRegister.addApiTests([
     it("GCloud Speech to Text: a WAV recording is sent as Base64 of its exact bytes", async () => {
         const audio = wav(1);
         const {sent, output} = await runWithStub(audio, "Raw Audio Bytes (Base64)");
-        assert.strictEqual(sent.url.split("?")[0], "https://speech.googleapis.com/v1/speech:recognize");
+        assert.strictEqual(sent.relay, GOOGLE_API_RELAY);
+        assert.strictEqual(sent.url, "https://speech.googleapis.com/v1/speech:recognize");
+        assert.strictEqual(sent.headers.authorization || sent.headers.Authorization, "Bearer test-token");
         assert.strictEqual(sent.body.audio.content, Buffer.from(audio).toString("base64"));
         assert.strictEqual(sent.body.config.languageCode, "en-GB");
         assert.strictEqual(output, "hello world");

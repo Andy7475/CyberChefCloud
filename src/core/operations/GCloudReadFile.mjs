@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { applyGCPAuth } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, googleFetch } from "../lib/GoogleCloud.mjs";
 
 /**
  * Downloads a file from GCS and returns its raw bytes.
@@ -24,7 +24,7 @@ async function readGCSFile(gcsUri) {
     const headers = new Headers();
     const authed = applyGCPAuth(url, headers);
 
-    const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
+    const response = await googleFetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
     if (!response.ok) {
         let msg = response.statusText;
         try {

@@ -25,6 +25,7 @@ import "./tests/NodeDish.mjs";
 import "./tests/Utils.mjs";
 import "./tests/Categories.mjs";
 import "./tests/GCloudSpeechToText.mjs";
+import "./tests/GoogleApiRelay.mjs";
 
 const testStatus = {
     allTestsPassing: true,
