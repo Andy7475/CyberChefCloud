@@ -113,7 +113,7 @@ class WorkerWaiter {
         if (index > 0) {
             docURL = docURL.substring(0, index);
         }
-        newWorker.postMessage({ "action": "docURL", "data": docURL });
+        newWorker.postMessage({ "action": "docURL", "data": docURL, "version": window.compileTime });
 
 
         // Store the worker, whether or not it's active, and the inputNum as an object

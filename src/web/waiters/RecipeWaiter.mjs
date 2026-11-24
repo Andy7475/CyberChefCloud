@@ -442,22 +442,14 @@ class RecipeWaiter {
      */
     async saveCredsClick(e) {
         const item = e.target.closest("li.operation");
-        const opIndex = Array.from(document.querySelectorAll("#rec-list li.operation")).indexOf(item);
-        const {op, args} = this.getConfig()[opIndex];
-
         const label = window.prompt("Name for this saved profile (for example, the project ID):");
         if (!label) return;
-
-        const values = {};
-        this.app.operations[op].args.forEach((conf, i) => {
-            values[conf.name] = args[i];
-        });
 
         try {
             await navigator.credentials.store(new window.PasswordCredential({
                 id: label,
                 name: label,
-                password: JSON.stringify({op, args: values})
+                password: this.savedProfileFor(item)
             }));
         } catch (err) {
             this.app.alert(`Could not save to the browser password manager: ${Utils.escapeHtml(err.message)}`, 5000);
@@ -478,7 +470,6 @@ class RecipeWaiter {
      */
     async fillCredsClick(e) {
         const item = e.target.closest("li.operation");
-        const opName = item.querySelector(".op-title").textContent;
 
         let cred;
         try {
@@ -492,15 +483,48 @@ class RecipeWaiter {
             return;
         }
 
+        this.applySavedProfile(item, cred.password, cred.id);
+    }
+
+
+    /**
+     * The text stored as the "password" of a saved profile: the operation's arguments as JSON,
+     * keyed by argument name. Used by the desktop icons and the phone layout's profile sheet.
+     *
+     * @param {HTMLElement} item - The recipe operation element
+     * @returns {string}
+     */
+    savedProfileFor(item) {
+        const opIndex = Array.from(document.querySelectorAll("#rec-list li.operation")).indexOf(item);
+        const {op, args} = this.getConfig()[opIndex];
+        const values = {};
+        this.app.operations[op].args.forEach((conf, i) => {
+            values[conf.name] = args[i];
+        });
+        return JSON.stringify({op, args: values});
+    }
+
+
+    /**
+     * Fills an operation's arguments from a saved profile's "password".
+     *
+     * @fires Manager#statechange
+     * @param {HTMLElement} item - The recipe operation element
+     * @param {string} password - The saved profile text
+     * @param {string} label - The profile's name, for messages
+     * @returns {boolean} Whether the profile was used
+     */
+    applySavedProfile(item, password, label) {
+        const opName = item.querySelector(".op-title").textContent;
         let saved;
         try {
-            saved = JSON.parse(cred.password);
+            saved = JSON.parse(password);
         } catch (err) {
             saved = null;
         }
         if (!saved?.args) {
-            this.app.alert(`"${Utils.escapeHtml(cred.id)}" is not a saved CyberChef profile.`, 5000);
-            return;
+            this.app.alert(`"${Utils.escapeHtml(label)}" is not a saved CyberChef profile.`, 5000);
+            return false;
         }
 
         // Match values by argument name, so a profile still fills correctly if arguments are reordered
@@ -510,7 +534,8 @@ class RecipeWaiter {
         // Lets bootstrap-material-design float the labels of filled fields
         item.querySelectorAll(".arg").forEach(el => el.dispatchEvent(new Event("change", {bubbles: true})));
         window.dispatchEvent(this.manager.statechange);
-        this.app.alert(`Filled settings from "${Utils.escapeHtml(cred.id)}".`, 3000);
+        this.app.alert(`Filled settings from "${Utils.escapeHtml(label)}".`, 3000);
+        return true;
     }
 
 

@@ -4,6 +4,9 @@ This file lists the exact API endpoints and domains authorized by the Content Se
 
 When a new cloud operation is added that connects to a new API service, its endpoint **MUST** be added to the `connect-src` directive of the CSP, and recorded here.
 
+## Google API relay (all Google API calls)
+- `https://cyber-chef-cloud-google-api-593556123914.europe-west2.run.app` (`infrastructure/google-api-proxy/`). Every Google API call an operation makes goes through this Cloud Run relay (`googleFetch` in `src/core/lib/GoogleCloud.mjs`). The `*.googleapis.com` entries below are still listed for sign-in (OAuth) and older code paths.
+
 ## Core Authentication & GCS
 - `https://storage.googleapis.com` (Google Cloud Storage)
 - `https://accounts.google.com` (OAuth & Identity Services)
@@ -27,3 +30,8 @@ When a new cloud operation is added that connects to a new API service, its endp
 
 ## Local model downloads (Local AI)
 - `https://huggingface.co`, `https://*.huggingface.co`, `https://*.hf.co` (`Local LLM Models` → Download from URL. Hugging Face `resolve/` URLs redirect to its LFS/Xet CDN hosts, which must also be allowed.)
+
+## Installable app and phone capture (no new hosts)
+- The web app manifest (`manifest.webmanifest`) and service worker (`sw.js`) are served from the app's own origin. `manifest-src` falls back to `default-src 'self'`, and `worker-src 'self' blob:` already allows the service worker, so the CSP needs no change.
+- The microphone's AudioWorklet module is loaded from a `blob:` URL, which `script-src` already allows.
+- The service worker never caches cross-origin requests, so responses from the endpoints above are never stored.

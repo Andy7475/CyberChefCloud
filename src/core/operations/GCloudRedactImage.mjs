@@ -7,7 +7,7 @@
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
 import { resolveMimeType } from "../lib/FileType.mjs";
-import { applyGCPAuth, generateGCSDestinationUri, gcpFetch, writeGCSBytes, getGcpCredentials } from "../lib/GoogleCloud.mjs";
+import { applyGCPAuth, generateGCSDestinationUri, gcpFetch, googleFetch, writeGCSBytes, getGcpCredentials } from "../lib/GoogleCloud.mjs";
 import { toBase64, fromBase64 } from "../lib/Base64.mjs";
 
 
@@ -38,7 +38,7 @@ async function fetchGCSImageBuffer(gcsUri) {
     const url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(object)}?alt=media`;
     const headers = new Headers();
     const authed = applyGCPAuth(url, headers);
-    const response = await fetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
+    const response = await googleFetch(authed.url, { method: "GET", headers: authed.headers, mode: "cors", cache: "no-cache" });
     if (!response.ok) {
         let msg = response.statusText;
         try {

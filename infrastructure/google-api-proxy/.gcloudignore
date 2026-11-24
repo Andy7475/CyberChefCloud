@@ -1,0 +1,6 @@
+deploy.sh
+.gcloudignore
+__pycache__/
+.venv/
+.env
+test_main.py

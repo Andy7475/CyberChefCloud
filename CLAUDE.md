@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-CyberChefCloud is a fork of GCHQ's CyberChef that adds Google Cloud APIs (Translate, Vision, Speech, GCS, Maps, Vertex AI/Gemini, DLP, etc.) as recipe operations. Domain terms (operation, argument, recipe, cloud operation, etc.) are defined in `CONTEXT.md`; note that in CyberChef an "ingredient" is an argument, not an operation. Everything runs client-side in the browser: operations call Google APIs directly with `fetch()` from a Web Worker. There is no backend, apart from small single-purpose Cloud Run functions (see `infrastructure/README.md`).
+CyberChefCloud is a fork of GCHQ's CyberChef that adds Google Cloud APIs (Translate, Vision, Speech, GCS, Maps, Vertex AI/Gemini, DLP, etc.) as recipe operations. Domain terms (operation, argument, recipe, cloud operation, etc.) are defined in `CONTEXT.md`; note that in CyberChef an "ingredient" is an argument, not an operation. Everything runs client-side in the browser, in a Web Worker, except that operations send their Google API requests through a small Cloud Run relay in the user's GCP project (`googleFetch`, below) with the user's own token. There is no other backend, apart from small single-purpose Cloud Run functions (see `infrastructure/README.md`).
 
 ## Environment
 
@@ -27,15 +27,17 @@ After adding or renaming an operation, the generated config must be rebuilt (`np
 - `src/core/operations/*.mjs`: one class per operation. Cloud ops are named `GCloud*.mjs` (plus `GoogleTranslate`, `GoogleHTTPRequest`, `AuthenticateGoogleCloud`, `AIAgent`, `PromptLLM`, `CloudConvert`) and set `this.module = "Cloud"`.
 - `src/core/lib/GoogleCloud.mjs`: shared cloud helpers. Use these; don't reimplement them.
   - `gcpFetch(url, {method, params, body, headers})`: auth + query params + JSON + error handling. **Default choice for new ops.**
+  - `googleFetch(url, init)`: fetch-like call through the Google API relay (Cloud Run, `infrastructure/google-api-proxy/`). **Every Google API request from an op must use it (or `gcpFetch`, which does), never `fetch` directly**: browsers calling some Google APIs directly were refused as "automated queries". It needs OAuth or an access token; API-key-only sign-in is refused because the relay can't check whose key it is. Binary bodies are fine (sent as Base64); Cloud Run caps each direction at 32 MB.
   - `applyGCPAuth(url, headers)`: low-level auth injection (API key → `?key=`, OAuth/access token → `Authorization: Bearer` + `x-goog-user-project`). Maps/Places APIs get special handling.
   - `getGcpCredentials()`: `{authType, authString, quotaProject, defaultRegion, apiKey}` set by the `Authenticate Google Cloud` op.
   - `generateGCSDestinationUri`, `writeGCSText`, `writeGCSBytes`: GCS output helpers.
 - `src/core/lib/LocalLLM.mjs` + `src/core/lib/localllm/`: providers for browser-local models (no GCP auth; module `LocalAI`, category `Local AI`). Window-only browser APIs are reached from the worker via `MainThreadBridge.mjs` → `src/web/MainThreadHost.mjs`.
+- `src/web/mobile/`: the phone layout (`PhoneLayout.mjs`, `PhoneSheets.mjs`), styled by `src/web/stylesheets/layout/_phone.css` under `body.mobile`. See `docs/MobileUI.md`. When changing desktop UI elements, also run `tests/browser/03_phone_layout.js`.
 - `src/core/config/Categories.json`: ops must be listed here (in the `"Cloud"` category) to appear in the UI.
 - `src/web/html/index.html`: holds the **CSP `connect-src`** allow-list. A new Google endpoint that isn't covered there is blocked by the browser.
 - `tests/browser/GCloud*.js`: Nightwatch E2E tests against live APIs, one file per op. Helpers are in `tests/browser/browserUtils.js`.
 - `tests/operations/tests/`: offline operation tests, registered in `tests/operations/index.mjs`.
-- `infrastructure/`: Cloud Run functions, one per op: `google-http-proxy/` (used by `GoogleHTTPRequest`) and `cloud-convert-proxy/` (used by `CloudConvert`). Secrets are kept in Secret Manager, never in the repo. See `infrastructure/README.md`.
+- `infrastructure/`: Cloud Run functions: `google-api-proxy/` (the relay every Google API call goes through, see below), `google-http-proxy/` (used by `GoogleHTTPRequest`) and `cloud-convert-proxy/` (used by `CloudConvert`). Secrets are kept in Secret Manager, never in the repo. See `infrastructure/README.md`.
 - `docs/`: design notes, setup guides and lessons learned (see below).
 
 ## Conventions for cloud operations
@@ -52,7 +54,7 @@ To add a new cloud operation end to end (op, CSP, category, tests), use the **`a
 
 ## Testing notes
 
-- OAuth PKCE (Google Identity Services popup) **cannot be automated** because of reCAPTCHA. E2E tests authenticate with an API key or access token; the PKCE flow is checked by hand.
+- OAuth PKCE (Google Identity Services popup) **cannot be automated** because of reCAPTCHA. E2E tests authenticate with an access token (`getTestPAT()`); API-key sign-in no longer works for cloud operations, because every Google call goes through the relay, which needs a token. The PKCE flow is checked by hand.
 - Credentials come from `.env` (gitignored; copy from `.env.template`). `browserUtils.getTestAPIKey()` reads `CYBERCHEF_GCP_TEST_API_KEY`, falling back to the old name `CYBERCHEF_GCP_TEST_KEY`. `getTestPAT()` reads `CYBERCHEF_GCP_TEST_TOKEN` and falls back to `gcloud auth print-access-token`.
 - Live tests must **skip gracefully** (`return;`) when credentials are missing, so that CI passes.
 - Read output via `window.app.manager.output.outputEditorView.state.doc.toString()` in `browser.execute`. Don't use `browserUtils.expectOutput`, which has given false timeouts on async cloud ops.
@@ -70,6 +72,7 @@ To add a new cloud operation end to end (op, CSP, category, tests), use the **`a
 - `Troubleshooting.md`: 401/403 IAM problems.
 - `LocalLLM.md`: browser-local LLMs (`Prompt Local LLM`, `Local LLM Models`): Chrome built-in Gemini Nano, GGUF via wllama, OPFS model store, model format compatibility, adding a provider.
 - `Homoglyphs.md`: Detect/Remove Homoglyphs ops and the "colour-code characters" editor setting (shared logic in `src/core/lib/Homoglyph.mjs`, data generated from Unicode confusables).
+- `MobileUI.md`: phone layout design (run screen, argument sheet, operation picker, My recipes), PWA, shared and captured input, and the manual device checklist. Decisions in `docs/adr/0001`, `0002`.
 - `OntologyOperations.md`: ontology/RDF ops (Oxigraph WASM store, supported formats, SPARQL, To Table chaining, vis-network graph).
 - `*_ResearchReport.md`, `GCS_SpeechToText_*`: background research and past plans.
 

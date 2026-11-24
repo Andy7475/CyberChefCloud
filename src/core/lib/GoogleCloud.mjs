@@ -7,6 +7,158 @@
 import OperationError from "../errors/OperationError.mjs";
 
 /**
+ * Every Google API call from an operation goes through this Cloud Run relay, in the
+ * cyberchefcloud project (infrastructure/google-api-proxy/), rather than from the user's
+ * browser: browsers calling some Google APIs directly were refused as "automated queries".
+ * Sign-in (Authenticate Google Cloud's OAuth flow) still goes directly to Google.
+ */
+export const GOOGLE_API_RELAY = "https://cyber-chef-cloud-google-api-593556123914.europe-west2.run.app";
+
+/** Status codes whose responses have no body */
+const NO_BODY_STATUSES = new Set([101, 204, 205, 304]);
+
+/**
+ * A Google API response received through the relay. Has the parts of the fetch Response
+ * interface that operations use: ok, status, statusText, headers.get(), text(), json(),
+ * arrayBuffer() and blob().
+ */
+class RelayResponse {
+    /**
+     * @param {number} status
+     * @param {string} contentType
+     * @param {Uint8Array} bytes
+     */
+    constructor(status, contentType, bytes) {
+        this.status = status;
+        this.ok = status >= 200 && status < 300;
+        this.statusText = String(status);
+        const headers = {"content-type": contentType || ""};
+        this.headers = {get: name => headers[String(name).toLowerCase()] ?? null};
+        this.bytes = bytes;
+    }
+
+    /** @returns {Promise<string>} */
+    async text() {
+        return new TextDecoder().decode(this.bytes);
+    }
+
+    /** @returns {Promise<Object>} */
+    async json() {
+        return JSON.parse(await this.text());
+    }
+
+    /** @returns {Promise<ArrayBuffer>} */
+    async arrayBuffer() {
+        return this.bytes.buffer.slice(this.bytes.byteOffset, this.bytes.byteOffset + this.bytes.byteLength);
+    }
+
+    /** @returns {Promise<Blob>} */
+    async blob() {
+        return new Blob([this.bytes], {type: this.headers.get("content-type") || ""});
+    }
+}
+
+/**
+ * Base64-encodes bytes.
+ *
+ * @param {Uint8Array} bytes
+ * @returns {string}
+ */
+function bytesToBase64(bytes) {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
+}
+
+/**
+ * Decodes Base64 to bytes.
+ *
+ * @param {string} b64
+ * @returns {Uint8Array}
+ */
+function base64ToBytes(b64) {
+    const binary = atob(b64 || "");
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
+/**
+ * Makes a Google API request through the CyberChefCloud relay. Takes the same arguments as
+ * fetch() (the URL and headers as applyGCPAuth returns them) and returns a fetch-like response.
+ * The relay's caller check needs an OAuth or access token, so API-key-only sign-in is refused.
+ *
+ * @param {string} url - A https://*.googleapis.com URL
+ * @param {Object} [init] - method, headers (Headers or object) and body (string, ArrayBuffer, typed array or Blob)
+ * @returns {Promise<RelayResponse>}
+ */
+export async function googleFetch(url, init = {}) {
+    const creds = requireGcpCredentials();
+    if (creds.authType === "API Key") {
+        throw new OperationError("Google API calls go through the CyberChefCloud relay in Google Cloud, which needs " +
+            "'Authenticate Google Cloud' with OAuth or an access token. An API key on its own can't be checked by the relay.");
+    }
+
+    const headers = {};
+    const given = init.headers || {};
+    if (typeof given.forEach === "function") {
+        given.forEach((value, key) => {
+            headers[key] = value;
+        });
+    } else {
+        Object.assign(headers, given);
+    }
+
+    const payload = {url, method: init.method || "GET", headers};
+    const body = init.body;
+    if (typeof body === "string") {
+        payload.body = body;
+    } else if (body instanceof ArrayBuffer) {
+        payload.bodyBase64 = bytesToBase64(new Uint8Array(body));
+    } else if (ArrayBuffer.isView(body)) {
+        payload.bodyBase64 = bytesToBase64(new Uint8Array(body.buffer, body.byteOffset, body.byteLength));
+    } else if (typeof Blob !== "undefined" && body instanceof Blob) {
+        payload.bodyBase64 = bytesToBase64(new Uint8Array(await body.arrayBuffer()));
+    } else if (body !== undefined && body !== null) {
+        throw new OperationError("googleFetch: unsupported request body type.");
+    }
+
+    let response;
+    try {
+        response = await fetch(GOOGLE_API_RELAY, {
+            method: "POST",
+            mode: "cors",
+            cache: "no-cache",
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": `Bearer ${creds.authString}`
+            },
+            body: JSON.stringify(payload)
+        });
+    } catch (e) {
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+            throw new OperationError("You are offline. Cloud operations need an internet connection; local operations still work.");
+        }
+        throw new OperationError(`Network Error: Could not reach the CyberChefCloud Google API relay. ${e.message}`);
+    }
+
+    const rawText = await response.text();
+    let data;
+    try {
+        data = JSON.parse(rawText);
+    } catch (e) {
+        data = {error: rawText || response.statusText};
+    }
+    if (!response.ok || typeof data.status !== "number") {
+        throw new OperationError(`Google API relay: ${data.error || `HTTP ${response.status}`}`);
+    }
+    const bytes = NO_BODY_STATUSES.has(data.status) ? new Uint8Array(0) : base64ToBytes(data.bodyBase64);
+    return new RelayResponse(data.status, data.contentType, bytes);
+}
+
+/**
  * Global store for GCP credentials in this web worker session.
  */
 globalThis.__gcpAuthStore = globalThis.__gcpAuthStore || null;
@@ -191,12 +343,7 @@ export async function gcpFetch(urlStr, { method = "GET", params = {}, body = nul
         body: (body && typeof body === "object") ? JSON.stringify(body) : body
     };
 
-    let response;
-    try {
-        response = await fetch(authed.url, config);
-    } catch (e) {
-        throw new OperationError(`Network Error: Could not connect to Google APIs. ${e.message}`);
-    }
+    const response = await googleFetch(authed.url, config);
 
     // 5. Centralized Error Handling
     const rawText = await response.text();
@@ -232,7 +379,7 @@ export async function writeGCSText(bucket, objectPath, content, contentType = "t
     const headers = new Headers();
     headers.set("Content-Type", contentType);
     const authed = applyGCPAuth(url, headers);
-    const response = await fetch(authed.url, {
+    const response = await googleFetch(authed.url, {
         method: "POST",
         headers: authed.headers,
         body: content,
@@ -267,7 +414,7 @@ export async function writeGCSBytes(bucket, objectPath, buffer, contentType = "a
     const headers = new Headers();
     headers.set("Content-Type", contentType);
     const authed = applyGCPAuth(url, headers);
-    const response = await fetch(authed.url, {
+    const response = await googleFetch(authed.url, {
         method: "POST",
         headers: authed.headers,
         body: buffer,

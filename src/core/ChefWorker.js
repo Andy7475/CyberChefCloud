@@ -67,6 +67,8 @@ self.addEventListener("message", function(e) {
             // Used to set the URL of the current document so that scripts can be
             // imported into an inline worker.
             self.docURL = r.data;
+            // The build, so module URLs change with each release and never come from a stale cache
+            self.buildVersion = r.version;
             break;
         case "highlight":
             calculateHighlights(
@@ -213,7 +215,8 @@ self.loadRequiredModules = function(recipeConfig) {
         if (!(module in OpModules)) {
             log.info(`Loading ${module} module`);
             self.sendStatusMessage(`Loading ${module} module`);
-            self.importScripts(`${self.docURL}/modules/${module}.js`); // lgtm [js/client-side-unvalidated-url-redirection]
+            const version = self.buildVersion ? `?v=${encodeURIComponent(self.buildVersion)}` : "";
+            self.importScripts(`${self.docURL}/modules/${module}.js${version}`); // lgtm [js/client-side-unvalidated-url-redirection]
             self.sendStatusMessage("");
         }
     });

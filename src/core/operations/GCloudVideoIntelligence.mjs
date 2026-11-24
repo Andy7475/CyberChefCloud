@@ -6,7 +6,7 @@
 
 import Operation from "../Operation.mjs";
 import OperationError from "../errors/OperationError.mjs";
-import { gcpFetch, applyGCPAuth, generateGCSDestinationUri, writeGCSText } from "../lib/GoogleCloud.mjs";
+import { gcpFetch, googleFetch, applyGCPAuth, generateGCSDestinationUri, writeGCSText } from "../lib/GoogleCloud.mjs";
 import { toBase64 } from "../lib/Base64.mjs";
 
 /**
@@ -281,7 +281,7 @@ class GCloudVideoIntelligence extends Operation {
         const auth = applyGCPAuth(fetchUrl, new Headers());
         let resp;
         try {
-            resp = await fetch(auth.url, { headers: auth.headers });
+            resp = await googleFetch(auth.url, { headers: auth.headers });
         } catch (e) {
             throw new OperationError(`Failed to fetch video from GCS: ${e.message}`);
         }

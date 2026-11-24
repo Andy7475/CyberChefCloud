@@ -127,6 +127,9 @@ module.exports = function (grunt) {
                         filename: "index.html",
                         template: "./src/web/html/index.html",
                         chunks: ["main"],
+                        // Adds ?<build hash> to main.js and main.css, so a new release never
+                        // runs with a copy of the old files from the browser's cache
+                        hash: true,
                         compileYear: compileYear,
                         compileTime: compileTime,
                         version: pkg.version,

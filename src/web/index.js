@@ -19,6 +19,7 @@ import * as CanvasComponents from "../core/lib/CanvasComponents.mjs";
 import App from "./App.mjs";
 import Categories from "../core/config/Categories.json" assert {type: "json"};
 import OperationConfig from "../core/config/OperationConfig.json" assert {type: "json"};
+import {registerServiceWorker} from "./pwa.mjs";
 
 
 /**
@@ -48,6 +49,8 @@ function main() {
         errorTimeout:        4000,
         attemptHighlight:    true,
         theme:               "classic",
+        layout:              "auto",
+        cameraPhotoSize:     "2048",
         useMetaKey:          false,
         logLevel:            "info",
         autoMagic:           true,
@@ -59,6 +62,7 @@ function main() {
     document.removeEventListener("DOMContentLoaded", main, false);
     window.app = new App(Categories, OperationConfig, defaultFavourites, defaultOptions);
     window.app.setup();
+    registerServiceWorker();
 }
 
 window.compileTime = moment.tz(COMPILE_TIME, "DD/MM/YYYY HH:mm:ss z", "UTC").valueOf();

@@ -34,3 +34,19 @@ Even though your token is valid (Authentication), your Google Account does not h
 
 4. **Retry the Operation**
    After waiting two minutes for IAM propagation, refresh CyberChef (this forces a new session and drops the old token). Re-authenticate with **Authenticate Google Cloud**, then bake the recipe again.
+
+## "Google API relay: …" errors
+
+Every Google API call from an operation goes through the Cloud Run relay `cyber-chef-cloud-google-api` in project `cyberchefcloud` (`infrastructure/google-api-proxy/`).
+- **"Not authorised for the Google API relay"**: sign in with OAuth or an access token for an account with access to project `cyberchefcloud`. API-key-only sign-in can't be used, because the relay can't tell whose key it is.
+- **"Could not reach the CyberChefCloud Google API relay"**: the relay isn't deployed or isn't reachable. Deploy it with `infrastructure/google-api-proxy/deploy.sh`, and check its logs with `gcloud run services logs read cyber-chef-cloud-google-api --project cyberchefcloud --region europe-west2 --limit 50`.
+
+## "Network Error: Could not connect to Google APIs … Failed to fetch"
+
+The browser got no readable response: Google's normal error replies (bad credentials, wrong project, payload too large) all carry CORS headers and show as a readable error, so "Failed to fetch" means the request was stopped before that, for example by a refused CORS preflight or a dropped connection. To check Speech-to-Text outside the browser with your gcloud login:
+
+```bash
+python3 tests/manual/speech_to_text_check.py recording.wav --project YOUR_PROJECT
+```
+
+It sends the browser's CORS preflight and then the same request the app sends, and reports both. Without a file it sends a second of silence.

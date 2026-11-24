@@ -6,7 +6,7 @@ CyberChefCloud runs in the browser. A Cloud Run function is used only when an op
 - call an API that doesn't allow browser (CORS) requests;
 - run a server-side library.
 
-The rule is **one cloud operation calls one function, and that function does one job.**
+The rule is **one cloud operation calls one function, and that function does one job.** The one exception is `google-api-proxy`, the relay that carries every Google API call (its one job is forwarding), so the calls come from Google Cloud instead of the user's browser and network, which Google sometimes refused as "automated queries".
 
 To add a new function, use the `add-cloud-run-function` skill in `.claude/skills/`.
 
@@ -18,6 +18,7 @@ All services are in GCP project `cyberchefcloud` (number `593556123914`), region
 | :--- | :--- | :--- | :--- |
 | `google-http-proxy/` | `google-http-proxy` | `Google HTTP Request` | none |
 | `cloud-convert-proxy/` | `cyber-chef-cloud-convert` | `Cloud Convert` | `CLOUDCONVERT_API_KEY` |
+| `google-api-proxy/` | `cyber-chef-cloud-google-api` | every Google API call (`googleFetch` in `src/core/lib/GoogleCloud.mjs`) | none |
 
 Deploy one with its own script, for example `infrastructure/cloud-convert-proxy/deploy.sh`.
 

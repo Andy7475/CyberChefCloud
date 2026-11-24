@@ -1,0 +1,990 @@
+/**
+ * Phone layout styles. Everything here applies only under body.mobile, which
+ * src/web/mobile/PhoneLayout.mjs sets. Design: docs/MobileUI.md
+ *
+ * @author CyberChefCloud
+ * @copyright Crown Copyright 2026
+ * @license Apache-2.0
+ */
+
+/* Phone-only elements never show in the desktop layout */
+body:not(.mobile) .phone-only,
+body:not(.mobile) .phone-sheet,
+.phone-sheet[hidden],
+#phone-sheet-backdrop[hidden] {
+    display: none !important;
+}
+
+/* Declared on :root because postcss-css-variables resolves variables at build time */
+:root {
+    --phone-header-height: 48px;
+    --phone-tap-size: 44px;
+}
+
+/* Desktop parts that the phone layout replaces or does not use */
+body.mobile #banner,
+body.mobile #operations,
+body.mobile #recipe,
+body.mobile .gutter,
+body.mobile #edit-favourites,
+body.mobile #reset-layout,
+body.mobile #maximise-output,
+body.mobile #btn-open-folder,
+body.mobile #btn-new-tab,
+body.mobile #download-logs,
+body.mobile #open-logs-tab {
+    display: none !important;
+}
+
+/* Run screen: header, then input / recipe strip / output stacked */
+body.mobile #workspace-wrapper {
+    top: calc(var(--phone-header-height) + env(safe-area-inset-top));
+    left: env(safe-area-inset-left);
+    right: env(safe-area-inset-right);
+    bottom: 0;
+    width: auto;
+    display: flex;
+}
+
+body.mobile #IO {
+    float: none;
+    width: 100% !important;
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The input area: the input bar, then the editor. Its size is set by the bar's state
+   (data-phone-state, from PhoneInput.mjs): summary shows only the bar. */
+body.mobile #input {
+    flex: 0 0 40%;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+body.mobile #input[data-phone-state="summary"] {
+    flex: none;
+}
+
+body.mobile #input[data-phone-state="full"] {
+    flex: 1 1 auto;
+}
+
+body.mobile #IO:has(#input[data-phone-state="full"]) #output {
+    flex: 0 0 25%;
+}
+
+/* The input bar's ‹ n / N › switcher replaces the input and output tab bars
+   (the output follows the active input) */
+body.mobile #input > .title,
+body.mobile #input-tabs-wrapper,
+body.mobile #output-tabs-wrapper {
+    display: none !important;
+}
+
+body.mobile #output-wrapper.show-tabs {
+    height: calc(100% - var(--title-height));
+}
+
+body.mobile #input-wrapper {
+    flex: 1 1 auto;
+    height: auto !important;
+    min-height: 0;
+}
+
+body.mobile #input[data-phone-state="summary"] #input-wrapper {
+    display: none;
+}
+
+body.mobile #output {
+    flex: 1 1 auto;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0;
+}
+
+/* Header */
+body.mobile #phone-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(var(--phone-header-height) + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) calc(4px + env(safe-area-inset-right)) 0 calc(4px + env(safe-area-inset-left));
+    display: flex;
+    align-items: center;
+    background-color: var(--title-background-colour);
+    border-bottom: 1px solid var(--primary-border-colour);
+    color: var(--title-colour);
+}
+
+.phone-title {
+    flex: 1;
+    padding: 0 8px;
+    font-weight: var(--title-weight);
+    font-size: var(--title-size);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.phone-header-group {
+    display: flex;
+    align-items: center;
+}
+
+.phone-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--phone-tap-size);
+    min-height: var(--phone-tap-size);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.phone-icon-btn:focus-visible,
+.phone-menu-items button:focus-visible,
+#phone-bake:focus-visible {
+    outline: 2px solid var(--primary-font-colour);
+    outline-offset: 2px;
+}
+
+/* Recipe strip */
+body.mobile #phone-recipe-strip {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 56px;
+    padding: 6px 8px;
+    background-color: var(--secondary-background-colour);
+    border-top: 1px solid var(--primary-border-colour);
+    border-bottom: 1px solid var(--primary-border-colour);
+}
+
+.phone-recipe-ops {
+    flex: 1;
+    display: flex;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.phone-recipe-ops::-webkit-scrollbar {
+    display: none;
+}
+
+.phone-recipe-op {
+    flex: none;
+    display: flex;
+    align-items: center;
+    min-height: var(--phone-tap-size);
+    padding: 0 14px;
+    border: 1px solid var(--primary-border-colour);
+    border-radius: 22px;
+    background-color: var(--primary-background-colour);
+    color: var(--primary-font-colour);
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.phone-recipe-op.disabled {
+    color: var(--disabled-font-colour);
+    background-color: var(--disabled-bg-colour);
+    border-color: var(--disabled-border-colour);
+    text-decoration: line-through;
+}
+
+.phone-recipe-op.breakpoint {
+    color: var(--breakpoint-font-colour);
+    background-color: var(--breakpoint-bg-colour);
+    border-color: var(--breakpoint-border-colour);
+}
+
+.phone-recipe-op.breakpoint::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background-color: var(--breakpoint-icon-selected-colour);
+}
+
+.phone-recipe-empty {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    color: var(--subtext-font-colour);
+    font-style: italic;
+}
+
+.phone-strip-actions {
+    flex: none;
+    display: flex;
+    align-items: center;
+}
+
+/* Floating Bake button */
+body.mobile #phone-bake {
+    position: fixed;
+    right: calc(16px + env(safe-area-inset-right));
+    /* Clear of the output's status bar */
+    bottom: calc(36px + env(safe-area-inset-bottom));
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 56px;
+    min-height: 56px;
+    margin: 0;
+    padding: 0 20px;
+    border-radius: 28px;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    text-transform: none;
+    font-size: 16px;
+}
+
+/* While the on-screen keyboard is likely to be up, floating controls get out of the way */
+body.mobile.phone-typing #phone-bake {
+    display: none;
+}
+
+/* Sheets */
+body.mobile #phone-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1049;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+body.mobile .phone-sheet {
+    position: fixed;
+    left: env(safe-area-inset-left);
+    right: env(safe-area-inset-right);
+    bottom: 0;
+    z-index: 1050;
+    max-height: 85dvh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+    border-radius: 12px 12px 0 0;
+    background-color: var(--primary-background-colour);
+    color: var(--primary-font-colour);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
+    transition: transform 0.1s;
+}
+
+body.mobile .phone-sheet:focus {
+    outline: none;
+}
+
+.phone-sheet-handle {
+    position: relative;
+    height: 24px;
+    touch-action: none;
+    cursor: grab;
+}
+
+.phone-sheet-handle::after {
+    content: "";
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    width: 40px;
+    height: 4px;
+    margin-left: -20px;
+    border-radius: 2px;
+    background-color: var(--subtext-font-colour);
+}
+
+.phone-sheet-title {
+    margin: 0 16px 8px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* ⋯ menu */
+.phone-menu-items {
+    margin: 0;
+    padding: 0 0 8px;
+    list-style: none;
+}
+
+.phone-menu-items button,
+.phone-menu-items .phone-menu-toggle {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    min-height: 48px;
+    margin: 0;
+    padding: 0 16px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: 16px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.phone-menu-items button:active {
+    background-color: var(--secondary-background-colour);
+}
+
+.phone-menu-toggle input {
+    margin-left: auto;
+    width: 20px;
+    height: 20px;
+}
+
+/* The argument sheet leaves the output visible above it, so its backdrop is see-through */
+body.mobile #phone-sheet-backdrop.phone-backdrop-clear {
+    background-color: transparent;
+}
+
+/* Recipe strip items open the argument sheet */
+.phone-recipe-op {
+    cursor: pointer;
+}
+
+.phone-recipe-op:focus-visible {
+    outline: 2px solid var(--primary-font-colour);
+    outline-offset: 2px;
+}
+
+/* Argument sheet: half the height, or nearly all of it while typing in a field */
+body.mobile #phone-arg-sheet {
+    max-height: 50dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+body.mobile.phone-text-focus #phone-arg-sheet {
+    max-height: calc(100dvh - var(--phone-header-height));
+}
+
+.phone-arg-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px 8px;
+}
+
+.phone-arg-header .phone-sheet-title {
+    flex: 1;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#phone-arg-done {
+    min-height: var(--phone-tap-size);
+    margin: 0;
+}
+
+.phone-arg-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* #rec-list is moved into the sheet while it is open; only the edited operation shows */
+.phone-arg-body #rec-list {
+    position: static;
+    height: auto;
+    overflow: visible;
+    bottom: auto !important;
+}
+
+.phone-arg-body #rec-list li.operation:not(.phone-editing) {
+    display: none;
+}
+
+.phone-arg-body #rec-list li.operation {
+    border-top: 0;
+    border-bottom: 0;
+}
+
+/* Bigger argument controls for fingers */
+.phone-arg-body .arg {
+    font-size: 16px; /* 16px stops iOS Safari zooming in when a field gets focus */
+}
+
+/* The sheet's title already names the operation; keep the row for its disable and breakpoint icons */
+.phone-arg-body #rec-list li.phone-editing .op-title {
+    visibility: hidden;
+}
+
+/* "+" on the recipe strip */
+.phone-add-op {
+    background-color: var(--primary-background-colour);
+    border: 1px solid var(--primary-border-colour);
+}
+
+/* Full-screen sheets (the operation picker) */
+body.mobile .phone-sheet-full {
+    top: 0;
+    max-height: none;
+    height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: none;
+}
+
+/* Operation picker */
+.phone-picker-header {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--primary-border-colour);
+}
+
+/* Bootstrap Material wraps the field in a .bmd-form-group span with top padding */
+.phone-picker-header .bmd-form-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.phone-picker-search {
+    flex: 1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: var(--phone-tap-size);
+    padding: 0 12px;
+    border: 1px solid var(--primary-border-colour);
+    border-radius: 22px;
+    background-color: var(--secondary-background-colour);
+    color: var(--primary-font-colour);
+    font-size: 16px; /* stops iOS Safari zooming in */
+}
+
+.phone-picker-results {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.phone-pick-heading {
+    margin: 16px 16px 4px;
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.phone-pick-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--secondary-border-colour);
+}
+
+.phone-pick {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 6px 4px 6px 16px;
+    border: 0;
+    background: none;
+    color: var(--primary-font-colour);
+    text-align: left;
+    cursor: pointer;
+}
+
+.phone-pick:active {
+    background-color: var(--secondary-background-colour);
+}
+
+.phone-pick-name {
+    font-size: 16px;
+}
+
+.phone-pick-name b {
+    color: var(--primary-font-colour);
+    text-decoration: underline;
+}
+
+.phone-pick-desc {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-size: 13px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick-desc br {
+    display: none;
+}
+
+.phone-pick-fav {
+    flex: none;
+    margin-right: 4px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick-fav[aria-pressed="true"] {
+    color: #f0b400;
+}
+
+.phone-pick-category > summary {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--secondary-border-colour);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.phone-pick-category[open] > summary {
+    font-weight: bold;
+    background-color: var(--secondary-background-colour);
+}
+
+.phone-pick-category .phone-pick {
+    padding-left: 28px;
+}
+
+.phone-picker-empty {
+    margin: 24px 16px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-pick:focus-visible,
+.phone-pick-category > summary:focus-visible {
+    outline: 2px solid var(--primary-font-colour);
+    outline-offset: -2px;
+}
+
+/* "Added X — Undo" message, above the floating Bake button */
+body.mobile .phone-toast {
+    position: fixed;
+    left: calc(16px + env(safe-area-inset-left));
+    right: calc(16px + env(safe-area-inset-right));
+    bottom: calc(100px + env(safe-area-inset-bottom));
+    /* Above sheets, so Undo can follow an action taken in one */
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 4px 4px 4px 16px;
+    border-radius: 8px;
+    background-color: #323232;
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.phone-toast[hidden] {
+    display: none !important;
+}
+
+.phone-toast-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.phone-toast-action {
+    min-height: var(--phone-tap-size);
+    padding: 0 12px;
+    border: 0;
+    background: none;
+    color: #8ab4f8;
+    font-weight: bold;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+/* Output and input pane buttons: 44px tap targets. Replace input with output is in the ⋯ menu. */
+body.mobile .pane-controls .bmd-btn-icon {
+    width: var(--phone-tap-size);
+    height: var(--phone-tap-size);
+    min-width: var(--phone-tap-size);
+}
+
+body.mobile #switch {
+    display: none !important;
+}
+
+/* Wide HTML output (tables, graphs) scrolls inside the output area, never the page */
+body.mobile {
+    overflow-x: hidden;
+}
+
+body.mobile #output-text .cm-scroller {
+    overflow: auto;
+}
+
+body.mobile #output-html {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* Keep words whole in table cells; a table wider than the screen scrolls instead */
+body.mobile #output-html td,
+body.mobile #output-html th {
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+/* Input bar */
+.phone-input-bar {
+    flex: none;
+    background-color: var(--title-background-colour);
+    border-bottom: 1px solid var(--primary-border-colour);
+}
+
+.phone-input-row {
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+}
+
+.phone-input-toggle {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--phone-tap-size);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px 0 12px;
+    border: 0;
+    background: none;
+    color: var(--title-colour);
+    text-align: left;
+    cursor: pointer;
+}
+
+.phone-input-summary {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+}
+
+.phone-input-switcher {
+    display: flex;
+    align-items: center;
+}
+
+.phone-input-switcher[hidden] {
+    display: none;
+}
+
+.phone-input-position {
+    min-width: 40px;
+    text-align: center;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.phone-input-sources {
+    display: flex;
+    gap: 4px;
+    padding: 0 8px 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.phone-input-sources::-webkit-scrollbar {
+    display: none;
+}
+
+/* Reserved places for Camera (#21) and Microphone (#22): their buttons sit in the row directly */
+.phone-input-slot {
+    display: contents;
+}
+
+.phone-input-source {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: var(--phone-tap-size);
+    padding: 0 12px;
+    border: 1px solid var(--primary-border-colour);
+    border-radius: 22px;
+    background-color: var(--primary-background-colour);
+    color: var(--primary-font-colour);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.phone-input-source .material-icons {
+    font-size: 20px;
+}
+
+.phone-input-toggle:focus-visible,
+.phone-input-source:focus-visible {
+    outline: 2px solid var(--primary-font-colour);
+    outline-offset: -2px;
+}
+
+/* Hover tooltips mean nothing on a touch screen, and a tap can leave one covering the page */
+body.mobile .tooltip {
+    display: none !important;
+}
+
+/* My recipes */
+.phone-screen-title {
+    flex: 1;
+    margin: 0;
+}
+
+.phone-recipe-load .phone-pick-desc {
+    -webkit-line-clamp: 1;
+}
+
+.phone-name-form {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px;
+}
+
+.phone-name-form .bmd-form-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.phone-name-form .btn {
+    min-height: var(--phone-tap-size);
+    margin: 0;
+}
+
+.phone-sheet-note {
+    margin: 8px 16px 16px;
+    font-size: 13px;
+    color: var(--subtext-font-colour);
+}
+
+/* Recipe editor: #rec-list moved into the sheet, one compact row per operation */
+.phone-editor-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.phone-editor-body #rec-list {
+    position: static;
+    height: auto;
+    overflow: visible;
+    bottom: auto !important;
+}
+
+.phone-editor-body #rec-list li.operation {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 4px 4px 4px 12px;
+}
+
+.phone-editor-body #rec-list li.operation > :not(.op-title):not(.phone-op-controls) {
+    display: none;
+}
+
+/* Tapping an operation's name shows its arguments, and its own icons (such as the password
+   manager keys), in place */
+.phone-editor-body #rec-list li.operation.phone-expanded > .ingredients {
+    display: flex;
+    flex: 1 1 100%;
+}
+
+.phone-editor-body #rec-list li.operation.phone-expanded > .recip-icons {
+    display: flex;
+    flex: 1 1 100%;
+    justify-content: flex-end;
+}
+
+.phone-editor-body #rec-list li.operation.phone-expanded .op-title::after {
+    content: "expand_less";
+}
+
+.phone-editor-body #rec-list .op-title::after {
+    content: "expand_more";
+    margin-left: auto;
+    font-family: "Material Icons";
+    font-size: 24px;
+    font-weight: normal;
+    color: var(--subtext-font-colour);
+}
+
+.phone-editor-body #rec-list .op-title {
+    flex: 1 1 100%;
+    display: flex;
+    align-items: center;
+    min-height: var(--phone-tap-size);
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.phone-editor-body #rec-list li.operation.disabled .op-title {
+    text-decoration: line-through;
+}
+
+.phone-op-controls {
+    flex: 1 1 100%;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.phone-op-controls button[aria-pressed="true"] {
+    background-color: var(--secondary-background-colour);
+    color: var(--breakpoint-icon-selected-colour);
+}
+
+.phone-op-controls button[data-action="disable"][aria-pressed="true"] {
+    color: var(--disable-icon-selected-colour);
+}
+
+.phone-op-controls button:disabled {
+    opacity: 0.3;
+}
+
+.phone-op-handle {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--phone-tap-size);
+    min-height: var(--phone-tap-size);
+    color: var(--subtext-font-colour);
+    cursor: grab;
+    touch-action: none;
+}
+
+/* The argument sheet opened from the editor shows the arguments, not the editor controls */
+.phone-arg-body .phone-op-controls {
+    display: none;
+}
+
+/* Microphone recorder sheet */
+.phone-recorder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+}
+
+.phone-recorder-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #e53935;
+    animation: phone-recorder-pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes phone-recorder-pulse {
+    from { opacity: 1; }
+    to { opacity: 0.3; }
+}
+
+.phone-recorder-time {
+    font-size: 32px;
+    font-variant-numeric: tabular-nums;
+}
+
+.phone-recorder-actions {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 0 16px;
+}
+
+.phone-recorder-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: var(--phone-tap-size);
+    margin: 0;
+}
+
+/* Shared input: recipe picker */
+#phone-share-list {
+    padding-bottom: 8px;
+}
+
+#phone-share-list .phone-pick-current .phone-pick-name {
+    font-weight: bold;
+}
+
+/* Password-manager profile sheet */
+.phone-profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 16px 16px;
+}
+
+.phone-profile-form label {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--subtext-font-colour);
+}
+
+.phone-profile-form input {
+    min-height: var(--phone-tap-size);
+    padding: 0 12px;
+    border: 1px solid var(--primary-border-colour);
+    border-radius: 8px;
+    background-color: var(--secondary-background-colour);
+    color: var(--primary-font-colour);
+    font-size: 16px;
+}
+
+.phone-profile-form .bmd-form-group {
+    margin: 0;
+    padding: 0;
+}
+
+.phone-profile-form .btn {
+    min-height: var(--phone-tap-size);
+    margin: 12px 0 0;
+}

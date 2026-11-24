@@ -1672,6 +1672,48 @@ class OutputWaiter {
     }
 
     /**
+     * Sends the active output to another app with the Web Share API (the phone's Share menu).
+     * Output that is a recognised binary file type (an image, a PDF, ...) is shared as a file
+     * where the browser can share files; anything else is shared as text. HTML output (tables,
+     * graphs) is shared as its visible text.
+     */
+    async shareClick() {
+        if (!navigator.share) return;
+        const dish = this.getOutputDish(this.manager.tabs.getActiveTab("output"));
+        if (dish === null) {
+            this.app.alert("Could not find any output to share. Has this output been baked?", 3000);
+            return;
+        }
+
+        try {
+            if (dish.type === Dish.HTML) {
+                await navigator.share({text: document.getElementById("output-html").innerText});
+                return;
+            }
+
+            const buffer = await this.getDishBuffer(dish);
+            const types = detectFileType(buffer);
+            const type = types.length ? types[0] : null;
+            if (type && !type.mime.startsWith("text/") && navigator.canShare) {
+                const ext = type.extension.split(",", 1)[0];
+                const file = new File([buffer], `output.${ext}`, {type: type.mime});
+                if (navigator.canShare({files: [file]})) {
+                    await navigator.share({files: [file]});
+                    return;
+                }
+            }
+
+            await navigator.share({text: await this.getDishStr(dish)});
+        } catch (err) {
+            // AbortError: the user closed the Share menu
+            if (err.name !== "AbortError") {
+                this.app.alert(`Sorry, the output could not be shared. ${Utils.escapeHtml(err.message)}`, 4000);
+            }
+        }
+    }
+
+
+    /**
      * Handler for switch click events.
      * Moves the current output into the input textarea.
      */
